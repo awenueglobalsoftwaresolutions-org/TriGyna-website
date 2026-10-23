@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -16,6 +16,7 @@ import SectionHeading from "@/components/ui/SectionHeading";
 import FAQAccordion from "@/components/ui/FAQAccordion";
 import FinalCTASection from "@/components/sections/FinalCTASection";
 import EnquiryForm from "@/components/ui/EnquiryForm";
+import ServiceDetailFallback from "@/components/ui/ServiceDetailFallback";
 
 interface ServicePageProps {
   params: Promise<{
@@ -52,7 +53,26 @@ export async function generateMetadata({
   };
 }
 
-export default async function ServiceDetailPage({ params }: ServicePageProps) {
+/**
+ * ServiceDetailPage
+ * Root page component establishes the Suspense boundary so that Next.js
+ * Partial Prerendering and Instant Navigation can render the static shell
+ * without awaiting URL dynamic parameters.
+ */
+export default function ServiceDetailPage({ params }: ServicePageProps) {
+  return (
+    <Suspense fallback={<ServiceDetailFallback />}>
+      <ServiceDetailContent params={params} />
+    </Suspense>
+  );
+}
+
+/**
+ * ServiceDetailContent
+ * React Server Component that resolves the dynamic route parameter `slug`,
+ * looks up the service data, and renders the complete service detail view.
+ */
+async function ServiceDetailContent({ params }: ServicePageProps) {
   const { slug } = await params;
   const service = servicesData.find((s) => s.slug === slug);
 
