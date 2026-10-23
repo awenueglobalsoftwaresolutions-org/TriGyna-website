@@ -2,8 +2,9 @@
 
 import React from "react";
 import Image from "next/image";
-import { siteConfig } from "@/data/siteData";
+import { siteConfig, trustStats } from "@/data/siteData";
 import { useEnquiryModal } from "@/components/context/EnquiryModalContext";
+import { getTrustStatIcon } from "@/components/ui/TrustStatsStrip";
 import {
   CalendarDays,
   ArrowRight,
@@ -11,9 +12,6 @@ import {
   Stethoscope,
   Leaf,
   HeartPulse,
-  UsersRound,
-  ShieldCheck,
-  Star,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/BrandIcons";
 
@@ -188,50 +186,35 @@ export default function HeroSection() {
             {/* Floating Trust Statistics Card matching Reference Design */}
             <div className="relative z-10 -mt-6 xs:-mt-8 mx-1 xs:mx-2 sm:mx-4 bg-white rounded-2xl xs:rounded-3xl shadow-[0_8px_30px_rgba(16,75,57,0.08)] border border-[#E8E2D6] py-3 xs:py-3.5 sm:py-4 px-2 xs:px-3 sm:px-6">
               <div className="grid grid-cols-3 divide-x divide-[#E8E2D6] text-center">
-                {/* Stat 1: Happy Patients */}
-                <div className="flex flex-col xs:flex-row items-center justify-center gap-1 xs:gap-2 px-1">
-                  <div className="w-7 h-7 xs:w-8 xs:h-8 rounded-full bg-[#EBF3E6] flex items-center justify-center text-[#104B39] flex-shrink-0">
-                    <UsersRound className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-[#104B39]" />
-                  </div>
-                  <div className="text-center xs:text-left">
-                    <div className="text-[15px] xs:text-[17px] sm:text-[19px] font-bold text-[#104B39] leading-none">
-                      10K+
-                    </div>
-                    <div className="text-[9.5px] xs:text-[10.5px] text-[#626B63] leading-tight mt-0.5 whitespace-nowrap">
-                      Happy Patients
-                    </div>
-                  </div>
-                </div>
+                {trustStats.slice(0, 3).map((stat, idx) => {
+                  const Icon = getTrustStatIcon(stat.icon);
+                  const isStar = stat.icon === "star";
 
-                {/* Stat 2: Years of Care */}
-                <div className="flex flex-col xs:flex-row items-center justify-center gap-1 xs:gap-2 px-1 pl-1.5 xs:pl-2.5">
-                  <div className="w-7 h-7 xs:w-8 xs:h-8 rounded-full bg-[#EBF3E6] flex items-center justify-center text-[#104B39] flex-shrink-0">
-                    <ShieldCheck className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-[#104B39]" />
-                  </div>
-                  <div className="text-center xs:text-left">
-                    <div className="text-[15px] xs:text-[17px] sm:text-[19px] font-bold text-[#104B39] leading-none">
-                      5+
+                  return (
+                    <div
+                      key={stat.id || idx}
+                      className={`flex flex-col xs:flex-row items-center justify-center gap-1 xs:gap-2 px-1 ${
+                        idx > 0 ? "pl-1.5 xs:pl-2.5" : ""
+                      }`}
+                    >
+                      <div className="w-7 h-7 xs:w-8 xs:h-8 rounded-full bg-[#EBF3E6] flex items-center justify-center text-[#104B39] flex-shrink-0">
+                        <Icon
+                          className={`w-3.5 h-3.5 xs:w-4 xs:h-4 text-[#104B39] ${
+                            isStar ? "fill-[#104B39]" : ""
+                          }`}
+                        />
+                      </div>
+                      <div className="text-center xs:text-left">
+                        <div className="text-[15px] xs:text-[17px] sm:text-[19px] font-bold text-[#104B39] leading-none">
+                          {stat.value}
+                        </div>
+                        <div className="text-[9.5px] xs:text-[10.5px] text-[#626B63] leading-tight mt-0.5 whitespace-nowrap">
+                          {stat.label}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-[9.5px] xs:text-[10.5px] text-[#626B63] leading-tight mt-0.5 whitespace-nowrap">
-                      Years of Care
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stat 3: Patient Satisfaction */}
-                <div className="flex flex-col xs:flex-row items-center justify-center gap-1 xs:gap-2 px-1 pl-1.5 xs:pl-2.5">
-                  <div className="w-7 h-7 xs:w-8 xs:h-8 rounded-full bg-[#EBF3E6] flex items-center justify-center text-[#104B39] flex-shrink-0">
-                    <Star className="w-3.5 h-3.5 xs:w-4 xs:h-4 text-[#104B39] fill-[#104B39]" />
-                  </div>
-                  <div className="text-center xs:text-left">
-                    <div className="text-[15px] xs:text-[17px] sm:text-[19px] font-bold text-[#104B39] leading-none">
-                      4.9/5
-                    </div>
-                    <div className="text-[9.5px] xs:text-[10.5px] text-[#626B63] leading-tight mt-0.5 whitespace-nowrap">
-                      Patient Satisfaction
-                    </div>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
             </div>
           </div>
