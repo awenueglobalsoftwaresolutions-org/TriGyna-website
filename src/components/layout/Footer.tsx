@@ -3,13 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import {
-  Phone,
-  Mail,
-  MapPin,
-  ArrowRight,
-  CheckCircle2,
-} from "lucide-react";
+import { Phone, Mail, MapPin, ArrowRight, CheckCircle2 } from "lucide-react";
 import {
   FacebookIcon,
   InstagramIcon,
@@ -26,12 +20,15 @@ export default function Footer() {
   const isMounted = React.useSyncExternalStore(
     emptySubscribe,
     () => true,
-    () => false
+    () => false,
   );
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newsletterEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newsletterEmail)) {
+    if (
+      !newsletterEmail ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newsletterEmail)
+    ) {
       return;
     }
     setSubscribed(true);
@@ -56,17 +53,22 @@ export default function Footer() {
               </div>
             </Link>
             <p className="text-sm text-[#EADFCF]/80 leading-relaxed max-w-sm pt-2">
-              Comprehensive healthcare consultation and holistic solutions for a healthier, happier life for men and women.
+              Comprehensive healthcare consultation and holistic solutions for a
+              healthier, happier life for men and women.
             </p>
             <div className="pt-2 text-xs text-[#A7C089] flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
-              <span>Accepting Online Video &amp; Prayagraj In-Clinic Consultations</span>
+              <span>
+                Accepting Online Video &amp; Prayagraj In-Clinic Consultations
+              </span>
             </div>
           </div>
 
           {/* Quick Links */}
           <div className="lg:col-span-2">
-            <h4 className="font-serif text-lg text-white font-medium mb-4">Quick Links</h4>
+            <h4 className="font-serif text-lg text-white font-medium mb-4">
+              Quick Links
+            </h4>
             <ul className="space-y-2.5 text-sm text-[#EADFCF]/80">
               <li>
                 <Link href="/" className="hover:text-white transition-colors">
@@ -74,32 +76,50 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/about" className="hover:text-white transition-colors">
+                <Link
+                  href="/about"
+                  className="hover:text-white transition-colors"
+                >
                   About
                 </Link>
               </li>
               <li>
-                <Link href="/services" className="hover:text-white transition-colors">
+                <Link
+                  href="/services"
+                  className="hover:text-white transition-colors"
+                >
                   Services
                 </Link>
               </li>
               <li>
-                <Link href="/doctor" className="hover:text-white transition-colors">
+                <Link
+                  href="/doctor"
+                  className="hover:text-white transition-colors"
+                >
                   Doctor
                 </Link>
               </li>
               <li>
-                <Link href="/health-tips" className="hover:text-white transition-colors">
+                <Link
+                  href="/health-tips"
+                  className="hover:text-white transition-colors"
+                >
                   Health Tips
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="hover:text-white transition-colors">
+                <Link
+                  href="/faq"
+                  className="hover:text-white transition-colors"
+                >
                   FAQ
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="hover:text-white transition-colors">
+                <Link
+                  href="/contact"
+                  className="hover:text-white transition-colors"
+                >
                   Contact
                 </Link>
               </li>
@@ -108,30 +128,47 @@ export default function Footer() {
 
           {/* Our Services */}
           <div className="lg:col-span-3">
-            <h4 className="font-serif text-lg text-white font-medium mb-4">Our Services</h4>
+            <h4 className="font-serif text-lg text-white font-medium mb-4">
+              Our Services
+            </h4>
             <ul className="space-y-2.5 text-sm text-[#EADFCF]/80">
               <li>
-                <Link href="/services/skin-hair" className="hover:text-white transition-colors">
+                <Link
+                  href="/services/skin-hair"
+                  className="hover:text-white transition-colors"
+                >
                   Skin &amp; Hair
                 </Link>
               </li>
               <li>
-                <Link href="/services/homoeopathy" className="hover:text-white transition-colors">
+                <Link
+                  href="/services/homoeopathy"
+                  className="hover:text-white transition-colors"
+                >
                   Homoeopathy
                 </Link>
               </li>
               <li>
-                <Link href="/services/diet-nutrition" className="hover:text-white transition-colors">
+                <Link
+                  href="/services/diet-nutrition"
+                  className="hover:text-white transition-colors"
+                >
                   Diet &amp; Nutrition
                 </Link>
               </li>
               <li>
-                <Link href="/services/pcod-pcos" className="hover:text-white transition-colors">
+                <Link
+                  href="/services/pcod-pcos"
+                  className="hover:text-white transition-colors"
+                >
                   PCOD/PCOS Management
                 </Link>
               </li>
               <li>
-                <Link href="/services/general-medicine" className="hover:text-white transition-colors">
+                <Link
+                  href="/services/general-medicine"
+                  className="hover:text-white transition-colors"
+                >
                   General Medicine
                 </Link>
               </li>
@@ -141,17 +178,25 @@ export default function Footer() {
           {/* Contact Us & Stay Updated */}
           <div className="lg:col-span-3 space-y-6">
             <div>
-              <h4 className="font-serif text-lg text-white font-medium mb-4">Contact Us</h4>
+              <h4 className="font-serif text-lg text-white font-medium mb-4">
+                Contact Us
+              </h4>
               <ul className="space-y-3 text-sm text-[#EADFCF]/80">
                 <li className="flex items-center gap-2.5">
                   <Phone className="w-4 h-4 text-[#A7C089] flex-shrink-0" />
-                  <a href={`tel:${siteConfig.phone.replace(/[^0-9+]/g, "")}`} className="hover:text-white">
+                  <a
+                    href={`tel:${siteConfig.phone.replace(/[^0-9+]/g, "")}`}
+                    className="hover:text-white"
+                  >
                     {siteConfig.phone}
                   </a>
                 </li>
                 <li className="flex items-center gap-2.5">
                   <Mail className="w-4 h-4 text-[#A7C089] flex-shrink-0" />
-                  <a href={`mailto:${siteConfig.email}`} className="hover:text-white">
+                  <a
+                    href={`mailto:${siteConfig.email}`}
+                    className="hover:text-white"
+                  >
                     {siteConfig.email}
                   </a>
                 </li>
@@ -232,7 +277,11 @@ export default function Footer() {
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleSubscribe} className="flex items-center" suppressHydrationWarning>
+                <form
+                  onSubmit={handleSubscribe}
+                  className="flex items-center"
+                  suppressHydrationWarning
+                >
                   <input
                     type="email"
                     name="email"
@@ -259,17 +308,43 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#EADFCF]/60">
-          <p>© 2026 TriGyna. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <Link href="/privacy-policy" className="hover:text-white transition-colors">
+          <p className="text-center sm:text-left leading-relaxed">
+            © 2026 TriGyna. All rights reserved. Website design and digital
+            assets by{" "}
+            <a
+              href="https://www.awenueglobalsoftwaresolutions.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-[#A7C089] hover:text-white transition-colors duration-200 underline-offset-4 hover:underline"
+            >
+              Awenue Global Software Solutions
+            </a>
+            .
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
+            <Link
+              href="/privacy-policy"
+              className="hover:text-white transition-colors"
+            >
               Privacy Policy
             </Link>
-            <span>|</span>
-            <Link href="/terms-and-conditions" className="hover:text-white transition-colors">
+
+            <span aria-hidden="true">|</span>
+
+            <Link
+              href="/terms-and-conditions"
+              className="hover:text-white transition-colors"
+            >
               Terms &amp; Conditions
             </Link>
-            <span>|</span>
-            <Link href="/refund-policy" className="hover:text-white transition-colors">
+
+            <span aria-hidden="true">|</span>
+
+            <Link
+              href="/refund-policy"
+              className="hover:text-white transition-colors"
+            >
               Refund Policy
             </Link>
           </div>

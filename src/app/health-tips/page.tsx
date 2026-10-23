@@ -62,8 +62,9 @@ export default function HealthTipsIndexPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredArticles.map((article) => (
-              <div
+              <Link
                 key={article.slug}
+                href={`/health-tips/${article.slug}`}
                 className="group bg-white rounded-3xl overflow-hidden border border-[#E8E2D6] shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between"
               >
                 <div>
@@ -105,15 +106,12 @@ export default function HealthTipsIndexPage() {
 
                 {/* Footer link */}
                 <div className="px-6 pb-6 pt-0">
-                  <Link
-                    href={`/health-tips/${article.slug}`}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#154734] hover:text-[#0E3828] group/link"
-                  >
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#154734] group-hover:text-[#0E3828]">
                     <span>Read Full Article</span>
-                    <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/link:translate-x-1" />
-                  </Link>
+                    <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+                  </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

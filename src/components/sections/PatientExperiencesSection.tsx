@@ -1,6 +1,6 @@
 import React from "react";
 import Image from "next/image";
-import { Star } from "lucide-react";
+import { Star, CheckCircle2 } from "lucide-react";
 import { testimonialsData } from "@/data/testimonialsData";
 import SectionHeading from "@/components/ui/SectionHeading";
 import { GoogleIcon } from "@/components/ui/BrandIcons";
@@ -53,9 +53,17 @@ export default function PatientExperiencesSection() {
 
                     {/* Patient Details (Beside Profile Image) */}
                     <div>
-                      <h3 className="font-semibold text-base sm:text-[17px] text-[#154734] leading-snug">
-                        {item.name}
-                      </h3>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-semibold text-base sm:text-[17px] text-[#154734] leading-snug">
+                          {item.name}
+                        </h3>
+                        <span title="Verified Patient" className="inline-flex items-center text-[#22C55E]">
+                          <CheckCircle2
+                            className="w-4 h-4 fill-[#22C55E]/15 shrink-0"
+                            aria-label="Verified Patient"
+                          />
+                        </span>
+                      </div>
                       <span className="block text-xs font-medium text-[#7B817B] mt-0.5">
                         {item.service}
                       </span>

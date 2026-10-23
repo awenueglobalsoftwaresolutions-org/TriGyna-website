@@ -205,10 +205,10 @@ export default function HeroSection() {
                         />
                       </div>
                       <div className="text-center xs:text-left">
-                        <div className="text-[15px] xs:text-[17px] sm:text-[19px] font-bold text-[#104B39] leading-none">
+                        <div className="text-[14px] xs:text-[16px] sm:text-[18px] font-bold text-[#104B39] leading-none">
                           {stat.value}
                         </div>
-                        <div className="text-[9.5px] xs:text-[10.5px] text-[#626B63] leading-tight mt-0.5 whitespace-nowrap">
+                        <div className="text-[9px] xs:text-[10.5px] text-[#626B63] leading-[1.2] mt-0.5 max-w-[90px] xs:max-w-none">
                           {stat.label}
                         </div>
                       </div>
@@ -246,9 +246,9 @@ export default function HeroSection() {
           />
         </div>
 
-        {/* Content Container matching 1600px canvas & 82px desktop padding */}
-        <div className="max-w-[1600px] mx-auto px-[82px] relative z-10 w-full">
-          <div className="max-w-[580px] flex flex-col items-start text-left gap-5">
+        {/* Content Container matching 1600px canvas & responsive desktop padding */}
+        <div className="max-w-[1600px] mx-auto px-6 md:px-12 xl:px-[82px] relative z-10 w-full">
+          <div className="max-w-[580px] xl:max-w-[620px] flex flex-col items-start text-left gap-5">
             {/* Eyebrow / Tagline — Clean, unboxed text without card or border */}
             <div>
               <span className="text-[13px] font-bold tracking-[0.14em] uppercase text-[#6B8F5B] leading-none">
@@ -257,21 +257,21 @@ export default function HeroSection() {
             </div>
 
             {/* Main Headline */}
-            <h1 className="font-serif text-[68px] font-bold text-[#154734] leading-[1.04] tracking-tight">
+            <h1 className="font-serif text-[48px] xl:text-[68px] font-bold text-[#154734] leading-[1.04] tracking-tight">
               <span className="block">Better Health</span>
               <span className="block">for a Brighter</span>
               <span className="block">Tomorrow</span>
             </h1>
 
             {/* Supporting Copy */}
-            <p className="text-[19px] text-[#626B63] leading-[1.6]">
+            <p className="text-[16px] xl:text-[19px] text-[#626B63] leading-[1.6]">
               Personalised healthcare and holistic wellness for women and men,
               with expert guidance, preventive care, and personalised support to
               help you live a healthier, happier life.
             </p>
 
             {/* Action Buttons — Row on Desktop */}
-            <div className="flex flex-row items-center gap-5 pt-1">
+            <div className="flex flex-row items-center gap-4 xl:gap-5 pt-1">
               {/* Enquire Now CTA Button */}
               <button
                 onClick={() => openEnquiryModal()}
@@ -295,8 +295,8 @@ export default function HeroSection() {
               </a>
             </div>
 
-            {/* Hero Benefits Chips — Figma Pill Flow */}
-            <div className="flex flex-row items-center gap-2.5 pt-2">
+            {/* Hero Benefits Chips — Figma Pill Flow with Responsive Wrap */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-2">
               {featureCards.map((chip) => {
                 const Icon = chip.icon;
                 return (
@@ -305,7 +305,7 @@ export default function HeroSection() {
                     className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full bg-[#A7C089]/[0.22] hover:bg-[#A7C089]/[0.32] transition-colors cursor-default select-none shadow-[0_1px_2px_rgba(21,71,52,0.03)]"
                   >
                     <Icon className="w-4 h-4 text-[#6B8F5B] flex-shrink-0" />
-                    <span className="text-[14px] font-bold text-[#154734] leading-none whitespace-nowrap">
+                    <span className="text-[13px] xl:text-[14px] font-bold text-[#154734] leading-none whitespace-nowrap">
                       {chip.title}
                     </span>
                   </div>

@@ -50,8 +50,13 @@ export default function Button({
 
   if (href) {
     if (href.startsWith("http") || href.startsWith("tel:") || href.startsWith("mailto:")) {
+      const isWebUrl = href.startsWith("http");
       return (
-        <a href={href} className={combinedClasses} target="_blank" rel="noopener noreferrer">
+        <a
+          href={href}
+          className={combinedClasses}
+          {...(isWebUrl ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        >
           {children}
           {arrow && <ArrowRight className="w-4 h-4 ml-0.5 transition-transform group-hover:translate-x-1" />}
         </a>
