@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,6 +15,7 @@ import {
 import { articlesData } from "@/data/articlesData";
 import { siteConfig } from "@/data/siteData";
 import FinalCTASection from "@/components/sections/FinalCTASection";
+import ArticleDetailFallback from "@/components/ui/ArticleDetailFallback";
 
 interface ArticlePageProps {
   params: Promise<{
@@ -51,7 +52,24 @@ export async function generateMetadata({
   };
 }
 
-export default async function ArticleDetailPage({ params }: ArticlePageProps) {
+/**
+ * ArticleDetailPage
+ * Root page establishes the Suspense boundary so Next.js Partial Prerendering
+ * and Instant Navigation can render the static shell instantly.
+ */
+export default function ArticleDetailPage({ params }: ArticlePageProps) {
+  return (
+    <Suspense fallback={<ArticleDetailFallback />}>
+      <ArticleDetailContent params={params} />
+    </Suspense>
+  );
+}
+
+/**
+ * ArticleDetailContent
+ * Async Server Component that resolves the dynamic route parameter `slug`.
+ */
+async function ArticleDetailContent({ params }: ArticlePageProps) {
   const { slug } = await params;
   const article = articlesData.find((a) => a.slug === slug);
 
