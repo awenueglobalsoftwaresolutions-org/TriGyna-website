@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { Phone, Mail, MapPin, ArrowRight, CheckCircle2 } from "lucide-react";
 import {
   FacebookIcon,
@@ -15,6 +16,7 @@ import { siteConfig } from "@/data/siteData";
 const emptySubscribe = () => () => {};
 
 export default function Footer() {
+  const pathname = usePathname();
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
   const isMounted = React.useSyncExternalStore(
@@ -22,6 +24,18 @@ export default function Footer() {
     () => true,
     () => false,
   );
+
+  const isDashboard =
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/doctor/dashboard") ||
+    pathname?.startsWith("/reception") ||
+    pathname?.startsWith("/patient") ||
+    pathname?.startsWith("/portal") ||
+    pathname?.startsWith("/login");
+
+  if (isDashboard) {
+    return null;
+  }
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -346,6 +360,15 @@ export default function Footer() {
               className="hover:text-white transition-colors"
             >
               Refund Policy
+            </Link>
+
+            <span aria-hidden="true">|</span>
+
+            <Link
+              href="/login"
+              className="text-[#A7C089] hover:underline transition-colors font-medium"
+            >
+              Staff &amp; Patient Portal
             </Link>
           </div>
         </div>

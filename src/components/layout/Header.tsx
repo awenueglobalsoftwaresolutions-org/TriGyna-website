@@ -58,6 +58,18 @@ export default function Header() {
     };
   }, [mobileMenuOpen]);
 
+  const isDashboard =
+    pathname?.startsWith("/admin") ||
+    pathname?.startsWith("/doctor/dashboard") ||
+    pathname?.startsWith("/reception") ||
+    pathname?.startsWith("/patient") ||
+    pathname?.startsWith("/portal") ||
+    pathname?.startsWith("/login");
+
+  if (isDashboard) {
+    return null;
+  }
+
   return (
     <>
       <header
@@ -199,6 +211,14 @@ export default function Header() {
                 <span>Enquire Now</span>
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </button>
+
+              {/* Portal Login Link */}
+              <Link
+                href="/login"
+                className="hidden xl:inline-flex items-center justify-center px-4 py-2.5 rounded-full border border-[#154734]/30 hover:border-[#154734] text-xs font-semibold text-[#154734] hover:bg-[#EBF3E8] transition-all"
+              >
+                Portal Login
+              </Link>
             </div>
 
             {/* Mobile Actions: Search + Hamburger Button */}
