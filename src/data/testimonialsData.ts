@@ -13,7 +13,7 @@ export const testimonialsData: PatientTestimonial[] = [
     id: "test-1",
     name: "Priya S.",
     badge: "Verified Patient",
-    avatar: "/images/testimonials/patient-1.webp",
+    avatar: "/images/testimonials/patient-4.webp",
     quote:
       "The consultation was very helpful. I feel more energetic and healthier now. Highly recommended.",
     service: "General Wellness & Digestion",
@@ -31,7 +31,7 @@ export const testimonialsData: PatientTestimonial[] = [
   },
   {
     id: "test-3",
-    name: "Sneha R.",
+    name: "Sushil K.",
     badge: "Verified Patient",
     avatar: "/images/testimonials/patient-3.webp",
     quote:
