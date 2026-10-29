@@ -1,19 +1,17 @@
 const Appointment = require("./appointment.model");
 const Doctor = require("../doctors/doctor.model");
 const Patient = require("../patients/patient.model");
+const SlotReservation = require("./slot-reservation.model");
 const { sendSuccess } = require("../../shared/response");
 const { ValidationError, NotFoundError, ConflictError, ForbiddenError } = require("../../shared/errors");
 const { recordAudit } = require("../audit/audit.service");
 
-// Helper to generate appointment code safely
-async function generateAppointmentCode() {
-  const count = await Appointment.countDocuments();
-  let codeNum = 1000 + count + 1;
-  while (await Appointment.exists({ appointmentCode: `TG-A-${codeNum}` })) {
-    codeNum++;
-  }
-  return `TG-A-${codeNum}`;
-}
+const { generateAtomicAppointmentCode } = require("../../shared/counter.service");
+const {
+  bookAppointmentAtomic,
+  rescheduleAppointmentAtomic,
+  cancelAppointmentAtomic,
+} = require("./booking.service");
 
 async function listAppointments(req, res, next) {
   try {
@@ -46,13 +44,20 @@ async function listAppointments(req, res, next) {
       if (patientId) query.patientId = patientId;
     }
 
-    const appointments = await Appointment.find(query)
+    let queryChain = Appointment.find(query)
       .sort({ appointmentDate: -1, startTime: 1 })
       .populate("patientId", "fullName phone patientCode age gender")
       .populate({
         path: "doctorId",
         populate: { path: "userId", select: "name" },
       });
+
+    const parsedLimit = parseInt(req.query.limit, 10);
+    if (parsedLimit > 0) {
+      queryChain = queryChain.limit(parsedLimit);
+    }
+
+    const appointments = await queryChain;
 
     return sendSuccess(res, { appointments, count: appointments.length }, "Appointments retrieved");
   } catch (err) {
@@ -74,7 +79,30 @@ async function createAppointment(req, res, next) {
       bookingSource = "portal",
     } = req.body;
 
-    if (!patientId || !doctorId || !appointmentDate || !startTime) {
+    let effectivePatientId = patientId;
+
+    // Strict patient scoping: patients can only book for themselves and identity is derived from verified session
+    if (req.user.role === "patient") {
+      let myPatient = await Patient.findOne({ userId: req.user._id });
+      if (!myPatient) {
+        myPatient = await Patient.findOne({
+          $or: [
+            ...(req.user.phone ? [{ phone: req.user.phone }] : []),
+            ...(req.user.email ? [{ email: req.user.email.toLowerCase() }] : []),
+          ],
+        });
+        if (myPatient && !myPatient.userId) {
+          myPatient.userId = req.user._id;
+          await myPatient.save();
+        }
+      }
+      if (!myPatient) {
+        return next(new ForbiddenError("No registered patient record linked to your account"));
+      }
+      effectivePatientId = myPatient._id;
+    }
+
+    if (!effectivePatientId || !doctorId || !appointmentDate || !startTime) {
       return next(new ValidationError("Patient, Doctor, Appointment Date, and Start Time are required"));
     }
 
@@ -84,84 +112,26 @@ async function createAppointment(req, res, next) {
       return next(new ValidationError("Selected doctor is not active or available"));
     }
 
-    let effectivePatientId = patientId;
-
-    // Strict patient scoping: patients can only book for themselves
-    if (req.user.role === "patient") {
-      const myPatient = await Patient.findOne({
-        $or: [
-          { userId: req.user._id },
-          ...(req.user.phone ? [{ phone: req.user.phone }] : []),
-          ...(req.user.email ? [{ email: req.user.email.toLowerCase() }] : []),
-        ],
-      });
-      if (!myPatient) {
-        return next(new ForbiddenError("No registered patient record linked to your account"));
-      }
-      effectivePatientId = myPatient._id;
-    }
-
     // Verify patient exists
     const patient = await Patient.findById(effectivePatientId);
     if (!patient) {
       return next(new NotFoundError("Patient not found"));
     }
 
-    // Concurrency conflict check: Is this doctor already booked at this date and time?
-    const conflict = await Appointment.findOne({
-      doctorId,
-      appointmentDate,
-      startTime,
-      status: { $in: ["scheduled", "checked_in", "in_consultation"] },
-    });
-
-    if (conflict) {
-      return next(
-        new ConflictError(
-          `Dr. is already booked for ${appointmentDate} at ${startTime}. Please select another time slot.`
-        )
-      );
-    }
-
-    const calculatedEndTime =
-      endTime ||
-      (() => {
-        const [h, m] = startTime.split(":").map(Number);
-        const endMin = (m + 30) % 60;
-        const endHour = h + Math.floor((m + 30) / 60);
-        return `${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}`;
-      })();
-
-    const appointmentCode = await generateAppointmentCode();
-
-    const appointment = await Appointment.create({
-      appointmentCode,
-      patientId: effectivePatientId,
-      doctorId,
-      serviceName: serviceName || "General Wellness Consultation",
-      appointmentDate,
-      startTime,
-      endTime: calculatedEndTime,
-      mode: mode || "Online Video Consultation",
-      notes: notes ? notes.trim() : "",
-      bookingSource,
-      status: "scheduled",
-    });
-
-    await recordAudit({
-      actorId: req.user._id,
-      actorRole: req.user.role,
-      action: "APPOINTMENT_SCHEDULED",
-      targetEntity: "Appointment",
-      targetId: appointment._id.toString(),
-      details: {
-        code: appointment.appointmentCode,
-        doctor: doctorId,
-        date: appointmentDate,
-        time: startTime,
+    const appointment = await bookAppointmentAtomic(
+      {
+        patientId: effectivePatientId,
+        doctorId,
+        serviceName: serviceName || "General Wellness Consultation",
+        appointmentDate,
+        startTime,
+        endTime,
+        mode,
+        notes,
+        bookingSource,
       },
-      ipAddress: req.ip,
-    });
+      req.user
+    );
 
     return sendSuccess(res, { appointment }, "Appointment scheduled successfully", 201);
   } catch (err) {
@@ -183,13 +153,16 @@ async function updateAppointmentStatus(req, res, next) {
       return next(new ValidationError(`Invalid status transition to '${status}'`));
     }
 
+    if (status === "cancelled") {
+      const appointment = await cancelAppointmentAtomic(req.params.id, cancellationReason, req.user);
+      return sendSuccess(res, { appointment }, `Appointment status updated to 'cancelled'`);
+    }
+
     appointment.status = status;
     if (status === "checked_in") {
       appointment.checkedInAt = new Date();
     } else if (status === "completed") {
       appointment.completedAt = new Date();
-    } else if (status === "cancelled") {
-      appointment.cancellationReason = cancellationReason ? cancellationReason.trim() : "Cancelled by staff/patient";
     }
 
     await appointment.save();
@@ -212,7 +185,9 @@ async function updateAppointmentStatus(req, res, next) {
 
 async function rescheduleAppointment(req, res, next) {
   try {
-    const { appointmentDate, startTime, endTime } = req.body;
+    const appointmentDate = req.body.appointmentDate || req.body.newDate;
+    const startTime = req.body.startTime || req.body.newStartTime;
+    const endTime = req.body.endTime || req.body.newEndTime;
     if (!appointmentDate || !startTime) {
       return next(new ValidationError("New appointment date and start time are required"));
     }
@@ -235,37 +210,159 @@ async function rescheduleAppointment(req, res, next) {
       }
     }
 
-    // Check conflict
-    const conflict = await Appointment.findOne({
-      _id: { $ne: appointment._id },
-      doctorId: appointment.doctorId,
+    const updatedAppointment = await rescheduleAppointmentAtomic(
+      req.params.id,
       appointmentDate,
       startTime,
-      status: { $in: ["scheduled", "checked_in", "in_consultation"] },
-    });
+      endTime,
+      req.user
+    );
 
-    if (conflict) {
-      return next(new ConflictError(`Slot is already occupied on ${appointmentDate} at ${startTime}`));
+    return sendSuccess(res, { appointment: updatedAppointment }, "Appointment rescheduled successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function cancelAppointment(req, res, next) {
+  try {
+    const { reason = "Patient requested cancellation" } = req.body;
+    const appointment = await Appointment.findById(req.params.id);
+    if (!appointment) {
+      return next(new NotFoundError("Appointment not found"));
     }
 
-    appointment.appointmentDate = appointmentDate;
-    appointment.startTime = startTime;
-    if (endTime) appointment.endTime = endTime;
-    appointment.status = "scheduled";
+    if (req.user.role === "patient") {
+      const myPatient = await Patient.findOne({
+        $or: [
+          { userId: req.user._id },
+          ...(req.user.phone ? [{ phone: req.user.phone }] : []),
+          ...(req.user.email ? [{ email: req.user.email.toLowerCase() }] : []),
+        ],
+      });
+      if (!myPatient || appointment.patientId.toString() !== myPatient._id.toString()) {
+        return next(new ForbiddenError("Access denied: You cannot cancel another patient's appointment"));
+      }
+    }
 
-    await appointment.save();
+    if (["cancelled", "completed"].includes(appointment.status)) {
+      return next(new ValidationError(`Cannot cancel an appointment that is already ${appointment.status}`));
+    }
 
-    await recordAudit({
-      actorId: req.user._id,
-      actorRole: req.user.role,
-      action: "APPOINTMENT_RESCHEDULED",
-      targetEntity: "Appointment",
-      targetId: appointment._id.toString(),
-      details: { newDate: appointmentDate, newTime: startTime },
-      ipAddress: req.ip,
-    });
+    const cancelledAppointment = await cancelAppointmentAtomic(req.params.id, reason, req.user);
 
-    return sendSuccess(res, { appointment }, "Appointment rescheduled successfully");
+    return sendSuccess(res, { appointment: cancelledAppointment }, "Appointment cancelled successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function getAvailability(req, res, next) {
+  try {
+    const { doctorId, date } = req.query;
+    if (!doctorId || !date) {
+      return next(new ValidationError("Both doctorId and date (YYYY-MM-DD) are required"));
+    }
+
+    const doctor = await Doctor.findById(doctorId).populate("userId", "name");
+    if (!doctor) {
+      return next(new NotFoundError("Consultant not found"));
+    }
+
+    // Standard working schedule
+    const allSlots = [
+      { startTime: "10:00", endTime: "10:30" },
+      { startTime: "10:30", endTime: "11:00" },
+      { startTime: "11:00", endTime: "11:30" },
+      { startTime: "11:30", endTime: "12:00" },
+      { startTime: "12:00", endTime: "12:30" },
+      { startTime: "12:30", endTime: "13:00" },
+      { startTime: "14:00", endTime: "14:30" },
+      { startTime: "14:30", endTime: "15:00" },
+      { startTime: "15:00", endTime: "15:30" },
+      { startTime: "15:30", endTime: "16:00" },
+      { startTime: "16:00", endTime: "16:30" },
+      { startTime: "16:30", endTime: "17:00" },
+      { startTime: "17:00", endTime: "17:30" },
+      { startTime: "17:30", endTime: "18:00" },
+    ];
+
+    // Check if Doctor has approved leave in HRMS for this date
+    let isOnLeave = false;
+    let leaveDetails = null;
+    if (doctor.userId?._id || doctor.userId) {
+      try {
+        const Employee = require("../hrms/employee.model");
+        const LeaveRequest = require("../hrms/leave.model");
+        const employee = await Employee.findOne({ userId: doctor.userId?._id || doctor.userId });
+        if (employee) {
+          const reqDateObj = new Date(date);
+          const dayStart = new Date(reqDateObj);
+          dayStart.setUTCHours(0, 0, 0, 0);
+          const dayEnd = new Date(reqDateObj);
+          dayEnd.setUTCHours(23, 59, 59, 999);
+
+          const approvedLeave = await LeaveRequest.findOne({
+            employeeId: employee._id,
+            status: "approved",
+            startDate: { $lte: dayEnd },
+            endDate: { $gte: dayStart },
+          });
+
+          if (approvedLeave) {
+            isOnLeave = true;
+            leaveDetails = {
+              leaveType: approvedLeave.leaveType,
+              reason: approvedLeave.reason,
+            };
+          }
+        }
+      } catch (err) {
+        // HRMS check failure does not crash availability calculation
+      }
+    }
+
+    const [bookedAppointments, reservedSlots] = await Promise.all([
+      Appointment.find({
+        doctorId,
+        appointmentDate: date,
+        status: { $in: ["scheduled", "checked_in", "in_consultation"] },
+      }),
+      SlotReservation.find({
+        doctorId,
+        appointmentDate: date,
+      }),
+    ]);
+
+    const unavailableTimes = new Set([
+      ...bookedAppointments.map((a) => a.startTime),
+      ...reservedSlots.map((r) => r.slotTime),
+    ]);
+
+    const slots = allSlots.map((slot) => ({
+      ...slot,
+      isAvailable: isOnLeave ? false : !unavailableTimes.has(slot.startTime),
+    }));
+
+    return sendSuccess(
+      res,
+      {
+        doctor: {
+          _id: doctor._id,
+          name: doctor.userId?.name || "Consultant",
+          qualifications: doctor.qualifications,
+          specialization: doctor.specialization,
+          consultationFee: doctor.consultationFee,
+        },
+        date,
+        isOnLeave,
+        leaveDetails,
+        totalSlots: slots.length,
+        availableSlotsCount: slots.filter((s) => s.isAvailable).length,
+        slots,
+      },
+      isOnLeave ? "Doctor is on approved leave for this date" : "Consultant slot availability computed"
+    );
   } catch (err) {
     return next(err);
   }
@@ -276,4 +373,6 @@ module.exports = {
   createAppointment,
   updateAppointmentStatus,
   rescheduleAppointment,
+  cancelAppointment,
+  getAvailability,
 };

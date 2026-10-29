@@ -3,9 +3,14 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  cacheComponents: true,
-  partialPrefetching: true,
+  allowedDevOrigins: [
+    "127.0.0.1",
+    "localhost",
+    "127.0.0.1:3000",
+    "localhost:3000",
+  ],
+  cacheComponents: false,
+  partialPrefetching: false,
   turbopack: {
     root: path.resolve(__dirname),
     rules: {
@@ -14,6 +19,14 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/api/v1/:path*",
+        destination: "http://127.0.0.1:5000/api/v1/:path*",
+      },
+    ];
   },
 };
 

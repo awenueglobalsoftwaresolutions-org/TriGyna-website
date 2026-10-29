@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useSyncExternalStore } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { ShieldAlert, ArrowLeft, LogOut, Loader2, Lock } from "lucide-react";
@@ -11,6 +11,8 @@ interface RoleGuardProps {
   children: React.ReactNode;
   pageTitle?: string;
 }
+
+const emptySubscribe = () => () => {};
 
 export function getCanonicalDashboardForRole(role?: string): string {
   if (!role) return "/login";
@@ -29,18 +31,19 @@ export function getCanonicalDashboardForRole(role?: string): string {
   return "/login";
 }
 
-export default function RoleGuard({ allowedRoles, children, pageTitle = "Dashboard" }: RoleGuardProps) {
+export function RoleGuard({ allowedRoles, children, pageTitle = "Dashboard" }: RoleGuardProps) {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const isClient = useSyncExternalStore(emptySubscribe, () => true, () => false);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (isClient && !isLoading && !isAuthenticated) {
       router.push(`/login?redirect=${encodeURIComponent(pathname || "/")}`);
     }
-  }, [isLoading, isAuthenticated, router, pathname]);
+  }, [isClient, isLoading, isAuthenticated, router, pathname]);
 
-  if (isLoading) {
+  if (!isClient || isLoading) {
     return (
       <div className="min-h-screen bg-[#F9F7F1] flex flex-col items-center justify-center p-6 text-center">
         <div className="w-16 h-16 rounded-2xl bg-white shadow-md border border-[#E8E2D6] flex items-center justify-center mb-4">
@@ -86,7 +89,7 @@ export default function RoleGuard({ allowedRoles, children, pageTitle = "Dashboa
           </h1>
 
           <p className="text-xs sm:text-sm text-[#626B63] leading-relaxed mb-6">
-            You are logged in as <span className="font-bold text-[#17221D] bg-gray-100 px-2 py-0.5 rounded">{userRoleDisplay}</span> ({user.name}), but this section requires authorization for:{" "}
+            You are logged in as <span className="font-bold text-[#17221D] bg-gray-100 px-2 py-0.5 rounded">{userRoleDisplay}</span> ({user.name}), but this {pageTitle} section requires authorization for:{" "}
             <span className="font-semibold text-red-700">{authorizedRolesDisplay}</span>.
           </p>
 
@@ -123,3 +126,5 @@ export default function RoleGuard({ allowedRoles, children, pageTitle = "Dashboa
 
   return <>{children}</>;
 }
+
+export default RoleGuard;

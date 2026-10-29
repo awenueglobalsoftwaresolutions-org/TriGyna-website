@@ -3,6 +3,7 @@ const Attendance = require("./attendance.model");
 const LeaveRequest = require("./leave.model");
 const AttendanceCorrection = require("./attendance-correction.model");
 const Payroll = require("./payroll.model");
+const Shift = require("./shift.model");
 const User = require("../users/user.model");
 const AuditLog = require("../audit/audit.model");
 const Task = require("../tasks/task.model");
@@ -793,12 +794,10 @@ async function createDepartment(req, res, next) {
 // ----------------- Shifts -----------------
 async function listShifts(req, res, next) {
   try {
-    const defaultShifts = [
-      { code: "general", name: "General Shift", startTime: "09:00", endTime: "17:00", description: "Standard daytime operational shift" },
-      { code: "morning", name: "Morning Clinical", startTime: "08:00", endTime: "16:00", description: "Early morning OPD & lab shift" },
-      { code: "evening", name: "Evening Clinical", startTime: "14:00", endTime: "22:00", description: "Afternoon & evening consultations" },
-      { code: "night", name: "Night On-Call", startTime: "22:00", endTime: "06:00", description: "Emergency and in-patient monitoring" },
-    ];
+    let dbShifts = await Shift.find({ isActive: true }).sort({ createdAt: 1 }).lean();
+
+    // Strictly read-only: no auto-seeding or database mutations on GET
+
 
     const shiftAgg = await Employee.aggregate([
       { $match: { status: "active" } },
@@ -807,7 +806,7 @@ async function listShifts(req, res, next) {
     const shiftCountMap = {};
     shiftAgg.forEach((s) => { shiftCountMap[s._id] = s.count; });
 
-    const shifts = defaultShifts.map((s) => ({
+    const shifts = dbShifts.map((s) => ({
       ...s,
       staffCount: shiftCountMap[s.code] || 0,
     }));
@@ -825,14 +824,31 @@ async function createShift(req, res, next) {
       return next(new ValidationError("Shift name, startTime, and endTime are required"));
     }
     const cleanCode = (code || name.replace(/[^A-Za-z0-9]/g, "_").toLowerCase()).trim();
-    const shift = {
+
+    const existing = await Shift.findOne({ code: cleanCode });
+    if (existing) {
+      return next(new ConflictError(`A shift roster with code '${cleanCode}' already exists`));
+    }
+
+    const shift = await Shift.create({
       code: cleanCode,
       name: name.trim(),
       startTime,
       endTime,
       description: description ? description.trim() : "",
-      createdAt: new Date(),
-    };
+      isActive: true,
+    });
+
+    await recordAudit({
+      actorId: req.user?._id,
+      actorRole: req.user?.role,
+      action: "SHIFT_CREATED",
+      targetEntity: "Shift",
+      targetId: shift._id.toString(),
+      details: { code: cleanCode, name: shift.name },
+      ipAddress: req.ip,
+    });
+
     return sendSuccess(res, { shift }, "Shift roster created successfully", 201);
   } catch (err) {
     return next(err);

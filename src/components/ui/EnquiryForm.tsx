@@ -64,13 +64,36 @@ export default function EnquiryForm({
 
     setStatus("submitting");
 
-    // Simulate reliable dispatch
-    setTimeout(() => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000/api/v1";
+      const res = await fetch(`${apiUrl}/public/enquiries`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          phone: formData.phone,
+          email: formData.email,
+          serviceInterest: formData.service,
+          consultationMode: formData.consultationMode,
+          message: formData.message,
+          consent: formData.consent,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.error?.message || "Failed to submit enquiry");
+      }
+
       setStatus("success");
       if (onSuccess) {
         setTimeout(onSuccess, 4000);
       }
-    }, 1000);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unable to reach TriGyna servers. Please try again or reach out on WhatsApp.";
+      setErrors((prev) => ({ ...prev, form: message }));
+      setStatus("error");
+    }
   };
 
   const handleWhatsAppDirect = () => {
@@ -243,6 +266,22 @@ export default function EnquiryForm({
           </p>
         )}
       </div>
+
+      {errors.form && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p>{errors.form}</p>
+            <button
+              type="button"
+              onClick={handleWhatsAppDirect}
+              className="text-xs text-[#154734] font-semibold underline mt-1 block"
+            >
+              Click here to chat directly on WhatsApp instead &rarr;
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="pt-2 flex flex-col sm:flex-row gap-3">
         <Button

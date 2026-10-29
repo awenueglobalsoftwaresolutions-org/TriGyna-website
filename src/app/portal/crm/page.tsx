@@ -8,7 +8,7 @@ export default function PortalCrmRedirectPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace("/admin/dashboard");
+    router.replace("/admin/crm");
   }, [router]);
 
   return (

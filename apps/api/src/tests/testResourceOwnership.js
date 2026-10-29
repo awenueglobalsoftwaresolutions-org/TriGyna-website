@@ -91,17 +91,22 @@ async function runResourceOwnershipTests() {
   });
   const patientToken = patientLogin.body.data.token;
 
-  // Retrieve all patients via admin
-  const patientsRes = await makeRequest("GET", "/api/v1/patients", null, adminToken);
-  const allPatients = patientsRes.body.data.patients;
-  const myPatient = allPatients.find((p) => p.email === "patient@trigyna.test" || p.phone === "9000000006");
-  const otherPatient = allPatients.find((p) => p.phone !== "9000000006");
+  // Retrieve patients via admin with sufficient limit
+  const patientsRes = await makeRequest("GET", "/api/v1/patients?limit=200", null, adminToken);
+  const allPatients = patientsRes.body?.data?.patients || [];
+  let myPatient = allPatients.find((p) => p.email === "patient@trigyna.test" || p.phone === "9000000006");
+  if (!myPatient) {
+    const singleRes = await makeRequest("GET", "/api/v1/patients?search=9000000006", null, adminToken);
+    myPatient = singleRes.body?.data?.patients?.[0];
+  }
+  const otherPatient = allPatients.find((p) => p.phone !== "9000000006" && p._id?.toString() !== myPatient?._id?.toString());
 
-  // Retrieve all invoices via admin
-  const invoicesRes = await makeRequest("GET", "/api/v1/invoices", null, adminToken);
-  const allInvoices = invoicesRes.body.data.invoices;
+  // Retrieve invoices via admin
+  const invoicesRes = await makeRequest("GET", "/api/v1/invoices?limit=200", null, adminToken);
+  const allInvoices = invoicesRes.body?.data?.invoices || [];
+  const myPatientIdStr = myPatient?._id?.toString() || "";
   const otherPatientInvoice = allInvoices.find(
-    (inv) => inv.patientId && inv.patientId._id.toString() !== myPatient._id.toString()
+    (inv) => inv.patientId && (inv.patientId._id ? inv.patientId._id.toString() : inv.patientId.toString()) !== myPatientIdStr
   );
 
   console.log("\n--- Suite 1: Patient Data Isolation & Cross-Patient Boundary Checks ---");

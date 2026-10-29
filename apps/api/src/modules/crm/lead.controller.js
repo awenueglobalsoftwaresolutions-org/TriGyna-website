@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Lead = require("./lead.model");
 const Patient = require("../patients/patient.model");
 const Appointment = require("../appointments/appointment.model");
@@ -6,6 +7,12 @@ const Invoice = require("../billing/invoice.model");
 const { sendSuccess } = require("../../shared/response");
 const { ValidationError, NotFoundError, ConflictError } = require("../../shared/errors");
 const { recordAudit } = require("../audit/audit.service");
+const {
+  generateAtomicPatientCode,
+  generateAtomicAppointmentCode,
+  generateAtomicInvoiceNumber,
+} = require("../../shared/counter.service");
+const { bookAppointmentAtomic } = require("../appointments/booking.service");
 
 // Public enquiry endpoint
 async function submitPublicEnquiry(req, res, next) {
@@ -140,7 +147,25 @@ async function updateLead(req, res, next) {
       return next(new NotFoundError("Lead not found"));
     }
 
-    if (status) lead.status = status;
+    if (status && status !== lead.status) {
+      const prevStage = lead.status;
+      lead.status = status;
+      if (!lead.stageHistory) lead.stageHistory = [];
+      lead.stageHistory.push({
+        fromStage: prevStage,
+        toStage: status,
+        changedBy: req.user._id,
+        reason: lostReason ? lostReason.trim() : "Stage updated via lead edit",
+        changedAt: new Date(),
+      });
+      if (!lead.activities) lead.activities = [];
+      lead.activities.push({
+        action: "STAGE_CHANGED",
+        details: `Stage updated from ${prevStage} to ${status}${lostReason ? `: ${lostReason}` : ""}`,
+        performedBy: req.user._id,
+        createdAt: new Date(),
+      });
+    }
     if (lostReason !== undefined) lead.lostReason = lostReason ? lostReason.trim() : "";
     if (assignedTo !== undefined) lead.assignedTo = assignedTo || null;
     if (followUpDate !== undefined) lead.followUpDate = followUpDate ? new Date(followUpDate) : null;
@@ -275,145 +300,154 @@ async function convertLeadToPatient(req, res, next) {
 
     const cleanPhone = lead.phone.replace(/[^0-9+]/g, "").trim();
 
-    // 1. Check for duplicate patient record by phone or email
-    let patient = await Patient.findOne({
-      $or: [{ phone: cleanPhone }, ...(lead.email ? [{ email: lead.email.toLowerCase() }] : [])],
-    });
+    let session = null;
+    let inTransaction = false;
+    const supportsTransactions =
+      mongoose.connection.client?.topology?.description?.type &&
+      mongoose.connection.client.topology.description.type !== "Single";
 
-    let isNewPatient = false;
-    if (!patient) {
-      // Create new Patient record safely
-      const count = await Patient.countDocuments();
-      let codeNum = 1000 + count + 1;
-      while (await Patient.exists({ patientCode: `TG-P-${codeNum}` })) {
-        codeNum++;
+    if (supportsTransactions) {
+      try {
+        session = await mongoose.startSession();
+        session.startTransaction();
+        inTransaction = true;
+      } catch (sessionErr) {
+        if (session) await session.endSession().catch(() => {});
+        session = null;
+        inTransaction = false;
       }
-      const patientCode = `TG-P-${codeNum}`;
-
-      patient = await Patient.create({
-        patientCode,
-        fullName: lead.fullName,
-        phone: cleanPhone,
-        email: lead.email || undefined,
-        gender: "female",
-        age: req.body.age || 28,
-        medicalHistory: lead.message || "Initiated via CRM Lead intake",
-        allergies: "None reported",
-      });
-      isNewPatient = true;
-
-      await recordAudit({
-        actorId: req.user._id,
-        actorRole: req.user.role,
-        action: "PATIENT_CREATED_FROM_LEAD",
-        targetEntity: "Patient",
-        targetId: patient._id.toString(),
-        details: { patientCode, leadId: lead._id.toString() },
-        ipAddress: req.ip,
-      });
     }
 
-    // 2. Handle optional appointment booking
+    let patient = null;
     let appointment = null;
     let invoice = null;
-    const { bookAppointment, doctorId, appointmentDate, startTime, consultationType } = req.body;
+    let isNewPatient = false;
 
-    if (bookAppointment && doctorId && appointmentDate && startTime) {
-      // Conflict check
-      const conflict = await Appointment.findOne({
-        doctorId,
-        appointmentDate,
-        startTime,
-        status: { $nin: ["cancelled", "no_show"] },
+    try {
+      // 1. Check for duplicate patient record by phone or email
+      const query = Patient.findOne({
+        $or: [{ phone: cleanPhone }, ...(lead.email ? [{ email: lead.email.toLowerCase() }] : [])],
       });
+      patient = session ? await query.session(session) : await query;
 
-      if (conflict) {
-        return next(new ConflictError(`Doctor already has a confirmed booking at ${appointmentDate} ${startTime}`));
+      if (!patient) {
+        const patientCode = await generateAtomicPatientCode(session);
+        const [createdPatient] = await Patient.create(
+          [
+            {
+              patientCode,
+              fullName: lead.fullName,
+              phone: cleanPhone,
+              email: lead.email || undefined,
+              gender: "female",
+              age: req.body.age || 28,
+              medicalHistory: lead.message || "Initiated via CRM Lead intake",
+              allergies: ["None reported"],
+            },
+          ],
+          { session }
+        );
+        patient = createdPatient;
+        isNewPatient = true;
       }
 
-      const doctor = await Doctor.findById(doctorId);
-      if (!doctor) {
-        return next(new NotFoundError("Selected doctor not found"));
-      }
+      // 2. Handle optional appointment booking
+      const { bookAppointment, doctorId, appointmentDate, startTime, consultationType } = req.body;
 
-      const aptCount = await Appointment.countDocuments();
-      let aptNum = 1000 + aptCount + 1;
-      while (await Appointment.exists({ appointmentCode: `TG-A-${aptNum}` })) {
-        aptNum++;
-      }
-      const appointmentCode = `TG-A-${aptNum}`;
+      if (bookAppointment && doctorId && appointmentDate && startTime) {
+        const doctor = await Doctor.findById(doctorId).session(session);
+        if (!doctor || doctor.status !== "active") {
+          throw new ValidationError("Selected doctor is not active or available");
+        }
 
-      const calculatedEndTime =
-        req.body.endTime ||
-        (() => {
-          const [h, m] = startTime.split(":").map(Number);
-          const endMin = (m + 30) % 60;
-          const endHour = h + Math.floor((m + 30) / 60);
-          return `${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}`;
-        })();
+        const consultationMode =
+          req.body.mode ||
+          (lead.consultationMode && lead.consultationMode.includes("In-Clinic")
+            ? "In-Clinic Consultation"
+            : "Online Video Consultation");
 
-      const consultationFee = doctor.consultationFee || 1000;
-      const consultationMode =
-        req.body.mode ||
-        (lead.consultationMode && lead.consultationMode.includes("In-Clinic")
-          ? "In-Clinic Consultation"
-          : "Online Video Consultation");
-
-      appointment = await Appointment.create({
-        appointmentCode,
-        patientId: patient._id,
-        doctorId: doctor._id,
-        serviceName: lead.serviceInterest || "Gynecology & Wellness Consultation",
-        appointmentDate,
-        startTime,
-        endTime: calculatedEndTime,
-        mode: consultationMode,
-        bookingSource: "crm_conversion",
-        status: "scheduled",
-        notes: `Converted from CRM Lead (${lead._id})`,
-      });
-
-      // Generate invoice
-      const invCount = await Invoice.countDocuments();
-      let invNum = 1000 + invCount + 1;
-      let invoiceNumber = `INV-${new Date().getFullYear()}-${invNum}`;
-      while (await Invoice.exists({ invoiceNumber })) {
-        invNum++;
-        invoiceNumber = `INV-${new Date().getFullYear()}-${invNum}`;
-      }
-
-      invoice = await Invoice.create({
-        invoiceNumber,
-        patientId: patient._id,
-        appointmentId: appointment._id,
-        doctorId: doctor._id,
-        totalAmount: consultationFee,
-        paidAmount: 0,
-        balanceAmount: consultationFee,
-        taxAmount: 0,
-        status: "pending",
-        items: [
+        const createdAppointment = await bookAppointmentAtomic(
           {
-            description: appointment.serviceName,
-            amount: consultationFee,
-            quantity: 1,
+            patientId: patient._id,
+            doctorId: doctor._id,
+            serviceName: lead.serviceInterest || "Gynecology & Wellness Consultation",
+            appointmentDate,
+            startTime,
+            endTime: req.body.endTime,
+            mode: consultationMode,
+            bookingSource: "crm_conversion",
+            notes: `Converted from CRM Lead (${lead._id})`,
           },
-        ],
+          req.user
+        );
+        appointment = createdAppointment;
+
+        // Generate invoice atomically
+        const consultationFee = Number(req.body.consultationFee) || Number(doctor.consultationFee) || 500;
+        const invoiceNumber = await generateAtomicInvoiceNumber("INV", session);
+        const [createdInvoice] = await Invoice.create(
+          [
+            {
+              invoiceNumber,
+              patientId: patient._id,
+              appointmentId: appointment._id,
+              doctorId: doctor._id,
+              totalAmount: consultationFee,
+              paidAmount: 0,
+              balanceAmount: consultationFee,
+              taxAmount: 0,
+              status: "pending",
+              items: [
+                {
+                  description: appointment.serviceName,
+                  amount: consultationFee,
+                  quantity: 1,
+                },
+              ],
+            },
+          ],
+          { session }
+        );
+        invoice = createdInvoice;
+        lead.convertedAppointmentId = appointment._id;
+      }
+
+      // 3. Mark Lead converted with stageHistory tracking
+      const previousStage = lead.status;
+      lead.status = "converted";
+      lead.convertedPatientId = patient._id;
+
+      if (!lead.stageHistory) lead.stageHistory = [];
+      lead.stageHistory.push({
+        fromStage: previousStage,
+        toStage: "converted",
+        changedBy: req.user._id,
+        reason: `Converted to Patient [${patient.patientCode}]`,
+        changedAt: new Date(),
       });
 
-      lead.convertedAppointmentId = appointment._id;
+      lead.notes.push({
+        body: `Lead converted to Patient [${patient.patientCode}] ${patient.fullName}${appointment ? ` with Appointment [${appointment.appointmentCode}]` : ""}`,
+        createdBy: req.user._id,
+        createdAt: new Date(),
+      });
+
+      if (session) {
+        await lead.save({ session });
+        await session.commitTransaction();
+      } else {
+        await lead.save();
+      }
+    } catch (err) {
+      if (inTransaction && session) {
+        await session.abortTransaction().catch(() => {});
+      }
+      throw err;
+    } finally {
+      if (session) {
+        await session.endSession().catch(() => {});
+      }
     }
-
-    // 3. Mark Lead converted
-    lead.status = "converted";
-    lead.convertedPatientId = patient._id;
-    lead.notes.push({
-      body: `Lead converted to Patient [${patient.patientCode}] ${patient.fullName}${appointment ? ` with Appointment [${appointment.appointmentCode}]` : ""}`,
-      createdBy: req.user._id,
-      createdAt: new Date(),
-    });
-
-    await lead.save();
 
     await recordAudit({
       actorId: req.user._id,

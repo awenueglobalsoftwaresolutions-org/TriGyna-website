@@ -9,6 +9,7 @@ export type UserRole = "owner" | "admin" | "doctor" | "reception" | "patient" | 
 export interface AuthUser {
   _id: string;
   name: string;
+  fullName?: string;
   email?: string;
   phone: string;
   role: UserRole;
@@ -51,7 +52,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return localStorage.getItem("trigyna_token");
   });
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      const storedToken = localStorage.getItem("trigyna_token");
+      const storedUser = localStorage.getItem("trigyna_user");
+      return !(storedToken && storedUser);
+    } catch {
+      return true;
+    }
+  });
 
   const refreshUser = useCallback(async () => {
     const storedToken = getToken();
@@ -70,10 +80,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem("trigyna_user", JSON.stringify(res.data.user));
         }
       }
-    } catch {
-      removeToken();
-      setUser(null);
-      setTokenState(null);
+    } catch (err: unknown) {
+      if ((err as { status?: number })?.status === 401) {
+        removeToken();
+        setUser(null);
+        setTokenState(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -95,8 +107,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem("trigyna_user", JSON.stringify(res.data.user));
           }
         }
-      } catch {
-        if (mounted) {
+      } catch (err: unknown) {
+        if (mounted && (err as { status?: number })?.status === 401) {
           removeToken();
           setUser(null);
           setTokenState(null);

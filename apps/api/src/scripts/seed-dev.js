@@ -110,6 +110,13 @@ async function runSeed() {
         status: "active",
       },
       {
+        name: "Dr. Ananya Sharma",
+        email: "ananya.sharma@trigyna.test",
+        phone: "9000000010",
+        role: "doctor",
+        status: "active",
+      },
+      {
         name: "Rahul Gupta",
         email: "reception@trigyna.test",
         phone: "9000000005",
@@ -233,6 +240,21 @@ async function runSeed() {
           { dayOfWeek: 4, startTime: "11:00", endTime: "19:00", slotDurationMinutes: 30 },
           { dayOfWeek: 5, startTime: "11:00", endTime: "19:00", slotDurationMinutes: 30 },
           { dayOfWeek: 6, startTime: "11:00", endTime: "17:00", slotDurationMinutes: 30 },
+        ],
+      },
+      {
+        userKey: "ananya.sharma@trigyna.test",
+        specialization: ["Obstetrician & Gynecologist", "Antenatal & Maternal Care", "Fertility & Reproductive Health"],
+        qualifications: "MS, DGO (Obstetrician & Gynecologist)",
+        consultationFee: 800,
+        bio: "Senior consultant with 12+ years experience in obstetrics, fertility, and high-risk pregnancy care.",
+        workingHours: [
+          { dayOfWeek: 1, startTime: "09:00", endTime: "18:00", slotDurationMinutes: 30 },
+          { dayOfWeek: 2, startTime: "09:00", endTime: "18:00", slotDurationMinutes: 30 },
+          { dayOfWeek: 3, startTime: "09:00", endTime: "18:00", slotDurationMinutes: 30 },
+          { dayOfWeek: 4, startTime: "09:00", endTime: "18:00", slotDurationMinutes: 30 },
+          { dayOfWeek: 5, startTime: "09:00", endTime: "18:00", slotDurationMinutes: 30 },
+          { dayOfWeek: 6, startTime: "09:00", endTime: "16:00", slotDurationMinutes: 30 },
         ],
       },
     ];

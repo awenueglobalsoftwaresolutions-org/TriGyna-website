@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { EnquiryModalProvider } from "@/components/context/EnquiryModalContext";
+import { AuthProvider } from "@/lib/auth/authContext";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -82,11 +83,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${playfair.variable} ${inter.variable}`}>
       <body className="min-h-screen flex flex-col bg-[#F9F7F1] text-[#17221D] selection:bg-[#A7C089] selection:text-[#0E3828]">
-        <EnquiryModalProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </EnquiryModalProvider>
+        <AuthProvider>
+          <EnquiryModalProvider>
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </EnquiryModalProvider>
+        </AuthProvider>
       </body>
     </html>
   );

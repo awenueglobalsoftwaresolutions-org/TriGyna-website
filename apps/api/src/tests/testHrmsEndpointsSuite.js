@@ -6,7 +6,12 @@
  * - Payroll run drafting, locking & digital payslip retrieval
  */
 
-const BASE_URL = "http://127.0.0.1:5000/api/v1";
+const http = require("http");
+const app = require("../app");
+const { connectDB, disconnectDB } = require("../config/database");
+
+let server;
+let BASE_URL = "http://127.0.0.1:5000/api/v1";
 
 async function assert(condition, message) {
   if (!condition) {
@@ -20,6 +25,13 @@ async function run() {
   console.log("==================================================");
   console.log("TriGyna — HRMS Architecture & Workflow Verification Suite");
   console.log("==================================================");
+
+  // Connect database and start ephemeral test server
+  await connectDB();
+  server = app.listen(0);
+  const port = server.address().port;
+  BASE_URL = `http://127.0.0.1:${port}/api/v1`;
+  console.log(`[TestServer] Ephemeral server running at ${BASE_URL}`);
 
   // 1. Authenticate as Admin / HRMS Specialist
   const loginRes = await fetch(`${BASE_URL}/auth/login`, {
@@ -191,7 +203,12 @@ async function run() {
   console.log("==================================================");
 }
 
-run().catch((err) => {
-  console.error("HRMS Test Suite Failed:", err);
-  process.exit(1);
-});
+run()
+  .catch((err) => {
+    console.error("HRMS Test Suite Failed:", err);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    if (server) await new Promise((res) => server.close(res));
+    await disconnectDB();
+  });

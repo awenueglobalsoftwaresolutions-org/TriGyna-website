@@ -8,16 +8,17 @@ function requireRole(...allowedRoles) {
 
     const userRole = req.user.role;
 
-    // Owner (Super Admin) always has complete authorized system access
-    if (userRole === "owner") {
+    // Super Admin / Owner always has authorized administrative system oversight
+    if (userRole === "owner" || userRole === "super_admin") {
       return next();
     }
 
-    // Admin has unified complete administrative access (including CRM, HRMS, and any administrative route)
+    // Admin has unified administrative access across management domains
     if (
       userRole === "admin" &&
       (allowedRoles.includes("admin") ||
         allowedRoles.includes("owner") ||
+        allowedRoles.includes("super_admin") ||
         allowedRoles.includes("crm") ||
         allowedRoles.includes("hrms"))
     ) {

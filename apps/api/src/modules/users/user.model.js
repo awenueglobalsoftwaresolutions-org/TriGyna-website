@@ -29,14 +29,9 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["owner", "admin", "doctor", "reception", "patient", "crm", "hrms"],
+      enum: ["owner", "super_admin", "admin", "doctor", "reception", "patient", "crm", "hrms"],
       default: "patient",
       index: true,
-      set: function (r) {
-        // Map legacy CRM and HRMS roles to admin
-        if (r === "crm" || r === "hrms") return "admin";
-        return r;
-      },
     },
     status: {
       type: String,
@@ -46,6 +41,17 @@ const userSchema = new mongoose.Schema(
     },
     lastLogin: {
       type: Date,
+    },
+    patientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Patient",
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+    doctorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Doctor",
     },
   },
   {

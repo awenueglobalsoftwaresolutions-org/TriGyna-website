@@ -6,6 +6,7 @@ const Doctor = require("../doctors/doctor.model");
 const { sendSuccess } = require("../../shared/response");
 const { ValidationError, NotFoundError, ForbiddenError, ConflictError } = require("../../shared/errors");
 const { recordAudit } = require("../audit/audit.service");
+const { generateAtomicPrescriptionCode } = require("../../shared/counter.service");
 
 async function getConsultationByAppointment(req, res, next) {
   try {
@@ -25,6 +26,21 @@ async function getConsultationByAppointment(req, res, next) {
         return next(new NotFoundError("Appointment not found"));
       }
 
+      // Check role authorization on appointment details
+      if (req.user.role === "patient") {
+        const myPatient = await Patient.findOne({ userId: req.user._id });
+        if (!myPatient || appointment.patientId._id.toString() !== myPatient._id.toString()) {
+          return next(new ForbiddenError("Unauthorized access to appointment details"));
+        }
+      } else if (req.user.role === "doctor") {
+        const doctor = await Doctor.findOne({ userId: req.user._id });
+        if (!doctor || (appointment.doctorId && appointment.doctorId._id.toString() !== doctor._id.toString())) {
+          return next(new ForbiddenError("Access denied: You are not assigned to this appointment"));
+        }
+      } else if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "super_admin") {
+        return next(new ForbiddenError("Access denied: Insufficient privileges to view clinical draft"));
+      }
+
       return sendSuccess(res, { consultation: null, appointment }, "No draft found; ready for new consultation");
     }
 
@@ -37,9 +53,27 @@ async function getConsultationByAppointment(req, res, next) {
       if (!consultation.isFinalized) {
         return sendSuccess(res, { consultation: null }, "Consultation is currently in progress");
       }
+    } else if (req.user.role === "doctor") {
+      const doctor = await Doctor.findOne({ userId: req.user._id });
+      if (!doctor) {
+        return next(new ForbiddenError("Doctor profile not found for authenticated user"));
+      }
+      const isAssignedDoctor = consultation.doctorId && consultation.doctorId._id.toString() === doctor._id.toString();
+      const hasClinicalRel = await Appointment.exists({ doctorId: doctor._id, patientId: consultation.patientId._id });
+      if (!isAssignedDoctor && !hasClinicalRel) {
+        return next(new ForbiddenError("Access denied: You do not have an authorized clinical relationship with this consultation"));
+      }
+    } else if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "super_admin") {
+      return next(new ForbiddenError("Access denied: Insufficient privileges to view clinical records"));
     }
 
-    return sendSuccess(res, { consultation }, "Consultation retrieved");
+    let resultConsultation = consultation;
+    if (req.user.role === "patient" && consultation) {
+      resultConsultation = consultation.toObject ? consultation.toObject() : { ...consultation };
+      delete resultConsultation.examinationNotes;
+    }
+
+    return sendSuccess(res, { consultation: resultConsultation }, "Consultation retrieved");
   } catch (err) {
     return next(err);
   }
@@ -193,7 +227,9 @@ async function savePrescription(req, res, next) {
     let prescription = await Prescription.findOne({ consultationId });
 
     if (!prescription) {
+      const prescriptionCode = await generateAtomicPrescriptionCode();
       prescription = await Prescription.create({
+        prescriptionCode,
         consultationId,
         patientId: consultation.patientId,
         doctorId: consultation.doctorId,
@@ -203,6 +239,9 @@ async function savePrescription(req, res, next) {
         isReleasedToPatient,
       });
     } else {
+      if (!prescription.prescriptionCode) {
+        prescription.prescriptionCode = await generateAtomicPrescriptionCode();
+      }
       if (medications) prescription.medications = medications;
       if (dietaryAdvice !== undefined) prescription.dietaryAdvice = dietaryAdvice;
       if (specialInstructions !== undefined) prescription.specialInstructions = specialInstructions;
@@ -235,6 +274,21 @@ async function getPrescriptionsForPatient(req, res, next) {
       if (!myPatient || myPatient._id.toString() !== patientId) {
         return next(new ForbiddenError("Unauthorized access to prescriptions"));
       }
+    } else if (req.user.role === "doctor") {
+      const doctor = await Doctor.findOne({ userId: req.user._id });
+      if (!doctor) {
+        return next(new ForbiddenError("Doctor profile not found for authenticated user"));
+      }
+      const [hasAppt, hasRx, isAssigned] = await Promise.all([
+        Appointment.exists({ doctorId: doctor._id, patientId }),
+        Prescription.exists({ doctorId: doctor._id, patientId }),
+        Patient.exists({ _id: patientId, assignedDoctorId: doctor._id }),
+      ]);
+      if (!hasAppt && !hasRx && !isAssigned) {
+        return next(new ForbiddenError("Access denied: You do not have an authorized clinical relationship with this patient"));
+      }
+    } else if (req.user.role !== "owner" && req.user.role !== "admin" && req.user.role !== "super_admin") {
+      return next(new ForbiddenError("Access denied: Insufficient privileges to view patient prescriptions"));
     }
 
     const query = { patientId };
@@ -256,7 +310,119 @@ async function getPrescriptionsForPatient(req, res, next) {
   }
 }
 
+const { canAccessConsultation } = require("../auth/authorization.service");
+
+async function getConsultationById(req, res, next) {
+  try {
+    const { id } = req.params;
+    const consultation = await Consultation.findById(id)
+      .populate("patientId", "fullName phone patientCode age gender allergies medicalHistory")
+      .populate({
+        path: "doctorId",
+        populate: { path: "userId", select: "name" },
+      })
+      .populate("appointmentId", "appointmentCode appointmentDate startTime mode")
+      .populate("amendments.amendedBy", "name role");
+
+    if (!consultation) {
+      return next(new NotFoundError("Consultation not found"));
+    }
+
+    const allowed = await canAccessConsultation(req.user, consultation);
+    if (!allowed) {
+      return next(new ForbiddenError("Access denied: You do not have permission to view this consultation"));
+    }
+
+    let resultConsultation = consultation;
+    if (req.user.role === "patient" && consultation) {
+      resultConsultation = consultation.toObject ? consultation.toObject() : { ...consultation };
+      delete resultConsultation.examinationNotes;
+    }
+
+    return sendSuccess(res, { consultation: resultConsultation }, "Consultation retrieved successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function listConsultations(req, res, next) {
+  try {
+    const { patientId, doctorId, page = 1, limit = 50 } = req.query;
+    const query = {};
+
+    // 1. Role validation
+    if (req.user.role === "doctor") {
+      const doctor = await Doctor.findOne({ userId: req.user._id });
+      if (!doctor) {
+        return next(new ForbiddenError("Doctor profile not found for authenticated user"));
+      }
+
+      // Never trust client doctorId; enforce doctor identity from auth context
+      if (doctorId && doctorId.toString() !== doctor._id.toString()) {
+        return next(new ForbiddenError("Access denied: You cannot query consultations of another doctor"));
+      }
+      query.doctorId = doctor._id;
+
+      // If patientId is requested, verify authorized clinical relationship exists
+      if (patientId) {
+        const hasRel = await Appointment.exists({ doctorId: doctor._id, patientId });
+        const hasConsult = await Consultation.exists({ doctorId: doctor._id, patientId });
+        const isAssigned = await Patient.exists({ _id: patientId, assignedDoctorId: doctor._id });
+        if (!hasRel && !hasConsult && !isAssigned) {
+          return next(new ForbiddenError("Access denied: No authorized clinical relationship with this patient"));
+        }
+        query.patientId = patientId;
+      }
+    } else if (req.user.role === "patient") {
+      const patient = await Patient.findOne({ userId: req.user._id });
+      if (!patient) {
+        return sendSuccess(res, { consultations: [], total: 0, count: 0 }, "No linked patient chart");
+      }
+      if (patientId && patientId.toString() !== patient._id.toString()) {
+        return next(new ForbiddenError("Access denied: You can only view your own consultations"));
+      }
+      query.patientId = patient._id;
+      query.isFinalized = true; // Patients only see finalized notes
+    } else if (["owner", "super_admin", "admin"].includes(req.user.role)) {
+      if (doctorId) query.doctorId = doctorId;
+      if (patientId) query.patientId = patientId;
+    } else {
+      return next(new ForbiddenError("Access denied: Insufficient privileges to view clinical records"));
+    }
+
+    const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+    let consultQuery = Consultation.find(query);
+    if (req.user.role === "patient") {
+      consultQuery = consultQuery.select("-examinationNotes");
+    }
+
+    const [consultations, total] = await Promise.all([
+      consultQuery
+        .populate("patientId", "fullName phone patientCode age gender")
+        .populate({
+          path: "doctorId",
+          populate: { path: "userId", select: "name" },
+        })
+        .populate("appointmentId", "appointmentCode appointmentDate startTime mode")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit, 10)),
+      Consultation.countDocuments(query),
+    ]);
+
+    return sendSuccess(
+      res,
+      { consultations, total, count: consultations.length, page: parseInt(page, 10) },
+      "Consultations retrieved"
+    );
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
+  listConsultations,
+  getConsultationById,
   getConsultationByAppointment,
   saveConsultationDraft,
   finalizeConsultation,

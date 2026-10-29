@@ -3,7 +3,9 @@
 # ---------------------------------------------
 # Dependencies
 # ---------------------------------------------
+node_modules/
 /node_modules
+apps/**/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -92,17 +94,24 @@ GEMINI.md
 .gemini/
 .claude/
 .cursor/
+.hallmark/
+TriGyna-website-main/
 
 # ---------------------------------------------
 # Documentation & Internal Notes
 # ---------------------------------------------
-Docs/
-docs/
-[Dd]ocs/
-[Dd]ocumentation/
-[Dd]ocuments/
+/Docs/
+/docs/
+/Documentation/
+/documentation/
+/Documents/
 *.doc
 *.docx
+/tests/
+/scripts/
+/backups/
+
+
 
 # ---------------------------------------------
 # Deployment & Hosting

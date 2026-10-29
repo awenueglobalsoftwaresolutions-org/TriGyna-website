@@ -1,45 +1,71 @@
 const Patient = require("./patient.model");
+const Appointment = require("../appointments/appointment.model");
+const Invoice = require("../billing/invoice.model");
+const Lead = require("../crm/lead.model");
+const Consultation = require("../clinical/consultation.model");
+const Prescription = require("../clinical/prescription.model");
+const FollowUp = require("../clinical/followup.model");
+const PatientDocument = require("./document.model");
 const { sendSuccess } = require("../../shared/response");
 const { ValidationError, NotFoundError, ConflictError, ForbiddenError } = require("../../shared/errors");
 const { recordAudit } = require("../audit/audit.service");
 
-// Helper to generate sequential patient code safely
-async function generatePatientCode() {
-  const count = await Patient.countDocuments();
-  let codeNum = 1000 + count + 1;
-  while (await Patient.exists({ patientCode: `TG-P-${codeNum}` })) {
-    codeNum++;
-  }
-  return `TG-P-${codeNum}`;
-}
+
+const { generateAtomicPatientCode } = require("../../shared/counter.service");
+
+const { canAccessPatient, serializePatientForRole } = require("../auth/authorization.service");
+const Doctor = require("../doctors/doctor.model");
 
 async function listPatients(req, res, next) {
   try {
     const { search, limit = 50, page = 1 } = req.query;
     const query = {};
 
-    // Patient role can only access their own record
+    // 1. HRMS staff are strictly forbidden from accessing patient records
+    if (req.user.role === "hrms") {
+      return next(new ForbiddenError("HRMS personnel are not authorized to view patient clinical records"));
+    }
+
+    // 2. Patient role can only access their own linked record
     if (req.user.role === "patient") {
-      const myPatient = await Patient.findOne({
-        $or: [
-          { userId: req.user._id },
-          ...(req.user.phone ? [{ phone: req.user.phone }] : []),
-          ...(req.user.email ? [{ email: req.user.email.toLowerCase() }] : []),
-        ],
-      });
+      const myPatient = await Patient.findOne({ userId: req.user._id });
       if (!myPatient) {
         return sendSuccess(res, { patients: [], total: 0 }, "No patient profile linked");
-      }
-      if (!myPatient.userId) {
-        myPatient.userId = req.user._id;
-        await myPatient.save();
       }
       return sendSuccess(res, { patients: [myPatient], total: 1 }, "Patient profile retrieved");
     }
 
+    // 3. Doctor role: can only list patients with an authorized clinical relationship or assignment
+    if (req.user.role === "doctor") {
+      const doctor = await Doctor.findOne({ userId: req.user._id });
+      if (!doctor) {
+        return next(new ForbiddenError("Doctor profile not found for authenticated user"));
+      }
+      const [apptPatientIds, consultPatientIds] = await Promise.all([
+        Appointment.distinct("patientId", { doctorId: doctor._id }),
+        Consultation.distinct("patientId", { doctorId: doctor._id }),
+      ]);
+      const authorizedPatientIds = [
+        ...new Set([
+          ...apptPatientIds.map((id) => id.toString()),
+          ...consultPatientIds.map((id) => id.toString()),
+        ]),
+      ];
+      query.$or = [
+        { assignedDoctorId: doctor._id },
+        { _id: { $in: authorizedPatientIds } },
+      ];
+    }
+
     if (search) {
       const regex = new RegExp(search.trim(), "i");
-      query.$or = [{ fullName: regex }, { phone: regex }, { patientCode: regex }];
+      const searchConditions = [{ fullName: regex }, { phone: regex }, { patientCode: regex }];
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: searchConditions }];
+        delete query.$or;
+      } else {
+        query.$or = searchConditions;
+      }
     }
 
     const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
@@ -48,7 +74,9 @@ async function listPatients(req, res, next) {
       Patient.countDocuments(query),
     ]);
 
-    return sendSuccess(res, { patients, total, page: parseInt(page, 10) }, "Patients retrieved");
+    const serializedPatients = patients.map((p) => serializePatientForRole(p, req.user.role));
+
+    return sendSuccess(res, { patients: serializedPatients, total, page: parseInt(page, 10) }, "Patients retrieved");
   } catch (err) {
     return next(err);
   }
@@ -56,29 +84,22 @@ async function listPatients(req, res, next) {
 
 async function getPatientById(req, res, next) {
   try {
+    if (req.user.role === "hrms") {
+      return next(new ForbiddenError("HRMS personnel are not authorized to view patient records"));
+    }
+
     const patient = await Patient.findById(req.params.id);
     if (!patient) {
       return next(new NotFoundError("Patient not found"));
     }
 
-    // Patient scope validation
-    if (req.user.role === "patient") {
-      const isOwner =
-        (patient.userId && patient.userId.toString() === req.user._id.toString()) ||
-        (req.user.phone && patient.phone === req.user.phone) ||
-        (req.user.email && patient.email && patient.email.toLowerCase() === req.user.email.toLowerCase());
-
-      if (!isOwner) {
-        return next(new ForbiddenError("You are not authorized to view records of other patients"));
-      }
-
-      if (!patient.userId) {
-        patient.userId = req.user._id;
-        await patient.save();
-      }
+    const allowed = await canAccessPatient(req.user, patient);
+    if (!allowed) {
+      return next(new ForbiddenError("You are not authorized to access this patient record"));
     }
 
-    return sendSuccess(res, { patient }, "Patient details retrieved");
+    const serializedPatient = serializePatientForRole(patient, req.user.role);
+    return sendSuccess(res, { patient: serializedPatient }, "Patient details retrieved");
   } catch (err) {
     return next(err);
   }
@@ -102,7 +123,7 @@ async function createPatient(req, res, next) {
       );
     }
 
-    const patientCode = await generatePatientCode();
+    const patientCode = await generateAtomicPatientCode();
 
     const patient = await Patient.create({
       patientCode,
@@ -171,9 +192,116 @@ async function updatePatient(req, res, next) {
   }
 }
 
+// Permanent Database Deletion (Requires Owner/Admin with Comprehensive Dependency Validation)
+async function deletePatientPermanently(req, res, next) {
+  try {
+    const { id } = req.params;
+    const patient = await Patient.findById(id);
+    if (!patient) {
+      return next(new NotFoundError("Patient record not found"));
+    }
+
+    const patientName = patient.fullName;
+    const patientCode = patient.patientCode;
+
+    // 1. Dependency Check: Linked Invoices (Both active and historical)
+    const invoiceCount = await Invoice.countDocuments({ patientId: patient._id });
+    if (invoiceCount > 0) {
+      return next(
+        new ConflictError(
+          `Cannot permanently delete patient '${patientName}' (${patientCode}): ${invoiceCount} linked invoice(s) exist. Financial and billing records cannot be orphaned due to statutory accounting compliance.`
+        )
+      );
+    }
+
+    // 2. Dependency Check: Linked Appointments (Both scheduled and historical)
+    const apptCount = await Appointment.countDocuments({ patientId: patient._id });
+    if (apptCount > 0) {
+      return next(
+        new ConflictError(
+          `Cannot permanently delete patient '${patientName}' (${patientCode}): ${apptCount} clinical appointment(s) exist. Medical appointment records cannot be orphaned.`
+        )
+      );
+    }
+
+    // 3. Dependency Check: Clinical Consultations
+    const consultCount = await Consultation.countDocuments({ patientId: patient._id });
+    if (consultCount > 0) {
+      return next(
+        new ConflictError(
+          `Cannot permanently delete patient '${patientName}' (${patientCode}): ${consultCount} clinical consultation(s) exist. Medical history must be preserved.`
+        )
+      );
+    }
+
+    // 4. Dependency Check: Prescriptions
+    const rxCount = await Prescription.countDocuments({ patientId: patient._id });
+    if (rxCount > 0) {
+      return next(
+        new ConflictError(
+          `Cannot permanently delete patient '${patientName}' (${patientCode}): ${rxCount} prescription record(s) exist. Medication records must be preserved.`
+        )
+      );
+    }
+
+    // 5. Dependency Check: Follow-ups
+    const followUpCount = await FollowUp.countDocuments({ patientId: patient._id });
+    if (followUpCount > 0) {
+      return next(
+        new ConflictError(
+          `Cannot permanently delete patient '${patientName}' (${patientCode}): ${followUpCount} clinical follow-up(s) exist.`
+        )
+      );
+    }
+
+    // 6. Dependency Check: Patient Documents
+    const docCount = await PatientDocument.countDocuments({ patientId: patient._id });
+    if (docCount > 0) {
+      return next(
+        new ConflictError(
+          `Cannot permanently delete patient '${patientName}' (${patientCode}): ${docCount} patient document(s) exist.`
+        )
+      );
+    }
+
+    // 7. Detach from CRM Lead if any converted lead points to this patient
+    await Lead.updateMany(
+      { convertedPatientId: patient._id },
+      { $unset: { convertedPatientId: 1 } }
+    );
+
+    // 8. Delete Patient Document
+    await Patient.findByIdAndDelete(id);
+
+    await recordAudit({
+      actorId: req.user._id,
+      actorRole: req.user.role,
+      action: "PATIENT_PERMANENTLY_DELETED",
+      targetEntity: "Patient",
+      targetId: id,
+      details: {
+        patientCode,
+        fullName: patientName,
+        phone: patient.phone,
+      },
+      ipAddress: req.ip,
+    });
+
+    return sendSuccess(
+      res,
+      { deletedId: id, patientCode, fullName: patientName },
+      `Patient record '${patientName}' (${patientCode}) permanently deleted from database`
+    );
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   listPatients,
   getPatientById,
   createPatient,
   updatePatient,
+  deletePatientPermanently,
 };
+

@@ -191,6 +191,42 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
   const [selectedPayslip, setSelectedPayslip] = useState<PayslipData | null>(null);
   const [, setIsLoadingPayslip] = useState(false);
 
+  // Dynamic Organization Departments & HRMS Shifts
+  const [availableDepartments, setAvailableDepartments] = useState<string[]>([
+    "Administration",
+    "Clinical",
+    "Reception",
+    "CRM",
+    "HR",
+    "Finance",
+  ]);
+  const [availableShifts, setAvailableShifts] = useState<Array<{ code: string; name: string }>>([
+    { code: "general", name: "General Shift (09:00 - 17:00)" },
+    { code: "morning", name: "Morning Clinical (08:00 - 16:00)" },
+    { code: "evening", name: "Evening Clinical (14:00 - 22:00)" },
+    { code: "night", name: "Night On-Call (22:00 - 06:00)" },
+  ]);
+
+  useEffect(() => {
+    Promise.allSettled([
+      api.get<{ organization?: { departments?: Array<{ name: string }> } }>("/organization"),
+      api.get<{ shifts?: Array<{ code: string; name: string; startTime?: string; endTime?: string }> }>("/hrms/shifts"),
+    ]).then(([orgRes, shiftRes]) => {
+      if (orgRes.status === "fulfilled" && orgRes.value.data?.organization?.departments) {
+        const orgDepts = orgRes.value.data.organization.departments.map((d) => d.name);
+        setAvailableDepartments((prev) => Array.from(new Set([...prev, ...orgDepts])));
+      }
+      if (shiftRes.status === "fulfilled" && shiftRes.value.data?.shifts && shiftRes.value.data.shifts.length > 0) {
+        setAvailableShifts(
+          shiftRes.value.data.shifts.map((s) => ({
+            code: s.code,
+            name: `${s.name}${s.startTime && s.endTime ? ` (${s.startTime} - ${s.endTime})` : ""}`,
+          }))
+        );
+      }
+    });
+  }, []);
+
   // 1. Load Employees
   const loadEmployees = useCallback(async () => {
     try {
@@ -1001,12 +1037,11 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                     onChange={(e) => setStaffForm({ ...staffForm, department: e.target.value })}
                     className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl bg-white text-[#17221D] focus:outline-none"
                   >
-                    <option value="Administration">Administration</option>
-                    <option value="Clinical">Clinical</option>
-                    <option value="Reception">Reception</option>
-                    <option value="CRM">CRM</option>
-                    <option value="HR">HR</option>
-                    <option value="Finance">Finance</option>
+                    {availableDepartments.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -1054,10 +1089,11 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                     onChange={(e) => setStaffForm({ ...staffForm, shift: e.target.value })}
                     className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl bg-white text-[#17221D] focus:outline-none"
                   >
-                    <option value="morning">Morning (08:00 - 16:00)</option>
-                    <option value="evening">Evening (12:00 - 20:00)</option>
-                    <option value="night">Night (20:00 - 08:00)</option>
-                    <option value="rotational">Rotational</option>
+                    {availableShifts.map((s) => (
+                      <option key={s.code} value={s.code}>
+                        {s.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

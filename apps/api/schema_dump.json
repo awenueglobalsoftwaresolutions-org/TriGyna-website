@@ -1,0 +1,3332 @@
+{
+  "Appointment": {
+    "file": "appointments/appointment.model.js",
+    "collection": "appointments",
+    "timestamps": true,
+    "paths": {
+      "appointmentCode": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "patientId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Patient",
+        "index": true
+      },
+      "doctorId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Doctor",
+        "index": true
+      },
+      "serviceName": {
+        "instance": "String",
+        "required": true,
+        "default": "Skin & Hair",
+        "enumValues": []
+      },
+      "appointmentDate": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "index": true
+      },
+      "startTime": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "endTime": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "mode": {
+        "instance": "String",
+        "required": false,
+        "default": "Online Video Consultation",
+        "enumValues": [
+          "Online Video Consultation",
+          "In-Clinic Consultation"
+        ]
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "scheduled",
+        "enumValues": [
+          "scheduled",
+          "checked_in",
+          "waiting",
+          "in_consultation",
+          "completed",
+          "cancelled",
+          "rescheduled",
+          "no_show"
+        ],
+        "index": true
+      },
+      "notes": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "cancellationReason": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "checkedInAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "completedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "bookingSource": {
+        "instance": "String",
+        "required": false,
+        "default": "portal",
+        "enumValues": [
+          "website",
+          "crm_conversion",
+          "reception_walkin",
+          "portal"
+        ]
+      },
+      "paymentStatus": {
+        "instance": "String",
+        "required": false,
+        "default": "unpaid",
+        "enumValues": [
+          "unpaid",
+          "paid",
+          "waived"
+        ]
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "AuditLog": {
+    "file": "audit/audit.model.js",
+    "collection": "auditlogs",
+    "timestamps": {
+      "createdAt": "timestamp",
+      "updatedAt": false
+    },
+    "paths": {
+      "actorId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "actorRole": {
+        "instance": "String",
+        "required": false,
+        "default": "anonymous",
+        "enumValues": []
+      },
+      "action": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "index": true
+      },
+      "targetEntity": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "targetId": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "ipAddress": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "userAgent": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "details": {
+        "instance": "Mixed",
+        "required": false,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "SUCCESS",
+        "enumValues": [
+          "SUCCESS",
+          "FAILURE"
+        ]
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "timestamp": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Expense": {
+    "file": "billing/expense.model.js",
+    "collection": "expenses",
+    "timestamps": true,
+    "paths": {
+      "expenseNumber": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "title": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "category": {
+        "instance": "String",
+        "required": true,
+        "default": "Medical Supplies",
+        "enumValues": [
+          "Medical Supplies",
+          "Utilities",
+          "Salaries",
+          "Rent",
+          "Equipment",
+          "Marketing",
+          "Maintenance",
+          "Miscellaneous"
+        ]
+      },
+      "amount": {
+        "instance": "Number",
+        "required": true,
+        "enumValues": []
+      },
+      "vendor": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "expenseDate": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "paymentMethod": {
+        "instance": "String",
+        "required": false,
+        "default": "bank_transfer",
+        "enumValues": [
+          "bank_transfer",
+          "card",
+          "upi",
+          "cash"
+        ]
+      },
+      "receiptRef": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "paid",
+        "enumValues": [
+          "pending",
+          "approved",
+          "paid",
+          "rejected"
+        ]
+      },
+      "recordedBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "notes": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Invoice": {
+    "file": "billing/invoice.model.js",
+    "collection": "invoices",
+    "timestamps": true,
+    "paths": {
+      "invoiceNumber": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "patientId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Patient",
+        "index": true
+      },
+      "appointmentId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "Appointment",
+        "index": true
+      },
+      "doctorId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "Doctor",
+        "index": true
+      },
+      "currency": {
+        "instance": "String",
+        "required": false,
+        "default": "INR",
+        "enumValues": []
+      },
+      "subtotal": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "discountAmount": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "taxableAmount": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "taxRate": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "taxAmount": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "totalAmount": {
+        "instance": "Number",
+        "required": true,
+        "enumValues": []
+      },
+      "paidAmount": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "balanceAmount": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "pending",
+        "enumValues": [
+          "pending",
+          "paid",
+          "partially_paid",
+          "cancelled",
+          "refunded"
+        ],
+        "index": true
+      },
+      "items": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "description",
+          "details",
+          "unitPrice",
+          "quantity",
+          "discountAmount",
+          "taxRate",
+          "taxAmount",
+          "amount",
+          "_id"
+        ]
+      },
+      "payments": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "amount",
+          "paymentMethod",
+          "paymentProvider",
+          "transactionRef",
+          "receiptId",
+          "receiptNumber",
+          "notes",
+          "recordedBy",
+          "recordedAt",
+          "_id"
+        ]
+      },
+      "paymentMethod": {
+        "instance": "String",
+        "required": false,
+        "default": "none",
+        "enumValues": []
+      },
+      "issueDate": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "dueDate": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "paidAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "refundDetails.refundAmount": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "refundDetails.refundReason": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "refundDetails.refundedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "refundDetails.refundedBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "createdBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "notes": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Payment": {
+    "file": "billing/payment.model.js",
+    "collection": "payments",
+    "timestamps": true,
+    "paths": {
+      "paymentNumber": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "invoiceId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Invoice",
+        "index": true
+      },
+      "patientId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Patient",
+        "index": true
+      },
+      "amount": {
+        "instance": "Number",
+        "required": true,
+        "enumValues": []
+      },
+      "currency": {
+        "instance": "String",
+        "required": false,
+        "default": "INR",
+        "enumValues": []
+      },
+      "paymentMethod": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [
+          "upi",
+          "card",
+          "cash",
+          "bank_transfer",
+          "netbanking",
+          "wallet"
+        ]
+      },
+      "paymentProvider": {
+        "instance": "String",
+        "required": false,
+        "default": "upi",
+        "enumValues": []
+      },
+      "providerTransactionId": {
+        "instance": "String",
+        "required": false,
+        "enumValues": [],
+        "index": true
+      },
+      "idempotencyKey": {
+        "instance": "String",
+        "required": false,
+        "enumValues": [],
+        "unique": true,
+        "index": true,
+        "sparse": true
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "pending",
+        "enumValues": [
+          "initiated",
+          "pending",
+          "success",
+          "failed",
+          "refunded"
+        ],
+        "index": true
+      },
+      "receiptId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "Receipt"
+      },
+      "paidAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "recordedBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "notes": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "metadata": {
+        "instance": "Mixed",
+        "required": false,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Receipt": {
+    "file": "billing/receipt.model.js",
+    "collection": "receipts",
+    "timestamps": true,
+    "paths": {
+      "receiptNumber": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "paymentId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Payment",
+        "unique": true,
+        "index": true
+      },
+      "invoiceId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Invoice",
+        "index": true
+      },
+      "patientId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Patient",
+        "index": true
+      },
+      "appointmentId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "Appointment",
+        "index": true
+      },
+      "doctorId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "Doctor",
+        "index": true
+      },
+      "amountReceived": {
+        "instance": "Number",
+        "required": true,
+        "enumValues": []
+      },
+      "currency": {
+        "instance": "String",
+        "required": false,
+        "default": "INR",
+        "enumValues": []
+      },
+      "paymentMethod": {
+        "instance": "String",
+        "required": false,
+        "default": "UPI",
+        "enumValues": []
+      },
+      "providerTransactionId": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "issuedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": [],
+        "index": true
+      },
+      "documentVersion": {
+        "instance": "Number",
+        "required": false,
+        "default": 1,
+        "enumValues": []
+      },
+      "verificationToken": {
+        "instance": "String",
+        "required": false,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "verificationTokenHash": {
+        "instance": "String",
+        "required": false,
+        "enumValues": [],
+        "index": true
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "issued",
+        "enumValues": [
+          "issued",
+          "cancelled",
+          "refunded"
+        ],
+        "index": true
+      },
+      "notes": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "items": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "description",
+          "details",
+          "quantity",
+          "unitPrice",
+          "discountAmount",
+          "taxRate",
+          "taxAmount",
+          "amount",
+          "_id"
+        ]
+      },
+      "patientSnapshot.fullName": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "patientSnapshot.patientCode": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "patientSnapshot.phone": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "patientSnapshot.email": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "doctorSnapshot.name": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "doctorSnapshot.qualifications": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "doctorSnapshot.specialization": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "appointmentSnapshot.appointmentCode": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "appointmentSnapshot.serviceName": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "appointmentSnapshot.appointmentDate": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "appointmentSnapshot.startTime": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "appointmentSnapshot.endTime": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "appointmentSnapshot.mode": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "appointmentSnapshot.durationMinutes": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "financialSnapshot.subtotal": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "financialSnapshot.discountAmount": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "financialSnapshot.taxableAmount": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "financialSnapshot.taxRate": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "financialSnapshot.taxAmount": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "financialSnapshot.totalAmount": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "financialSnapshot.amountPaid": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "financialSnapshot.balanceAmount": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "refundDetails.refundAmount": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "refundDetails.refundReason": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "refundDetails.refundedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "refundDetails.refundedBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "RefundRequest": {
+    "file": "billing/refund-request.model.js",
+    "collection": "refundrequests",
+    "timestamps": true,
+    "paths": {
+      "refundNumber": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "invoiceId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Invoice",
+        "index": true
+      },
+      "patientId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Patient",
+        "index": true
+      },
+      "requestedAmount": {
+        "instance": "Number",
+        "required": true,
+        "enumValues": []
+      },
+      "reason": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "paymentMethod": {
+        "instance": "String",
+        "required": false,
+        "default": "upi",
+        "enumValues": []
+      },
+      "refundDestination": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "pending",
+        "enumValues": [
+          "pending",
+          "under_review",
+          "approved",
+          "processed",
+          "rejected"
+        ],
+        "index": true
+      },
+      "reviewedBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "reviewNotes": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "transactionRef": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "processedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Consultation": {
+    "file": "clinical/consultation.model.js",
+    "collection": "consultations",
+    "timestamps": true,
+    "paths": {
+      "appointmentId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Appointment",
+        "unique": true,
+        "index": true
+      },
+      "patientId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Patient",
+        "index": true
+      },
+      "doctorId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Doctor",
+        "index": true
+      },
+      "chiefComplaints": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "examinationNotes": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "diagnosis": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "treatmentPlan": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "followUpAdvice": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "isFinalized": {
+        "instance": "Boolean",
+        "required": false,
+        "default": false,
+        "enumValues": [],
+        "index": true
+      },
+      "finalizedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "amendments": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "amendedAt",
+          "amendedBy",
+          "reason",
+          "previousDiagnosis",
+          "previousTreatmentPlan",
+          "_id"
+        ]
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "FollowUp": {
+    "file": "clinical/followup.model.js",
+    "collection": "followups",
+    "timestamps": true,
+    "paths": {
+      "followUpCode": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "patientId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Patient",
+        "index": true
+      },
+      "doctorId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Doctor",
+        "index": true
+      },
+      "appointmentId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "Appointment"
+      },
+      "consultationId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "Consultation"
+      },
+      "serviceName": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "dueDate": {
+        "instance": "Date",
+        "required": true,
+        "enumValues": [],
+        "index": true
+      },
+      "scheduledTime": {
+        "instance": "String",
+        "required": false,
+        "default": "11:30 AM - 12:00 PM",
+        "enumValues": []
+      },
+      "mode": {
+        "instance": "String",
+        "required": false,
+        "default": "Video consultation",
+        "enumValues": [
+          "Video consultation",
+          "In-Clinic Consultation",
+          "Phone Follow-up"
+        ]
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "scheduled",
+        "enumValues": [
+          "scheduled",
+          "completed",
+          "missed",
+          "rescheduled",
+          "planned",
+          "pending"
+        ],
+        "index": true
+      },
+      "interval": {
+        "instance": "String",
+        "required": false,
+        "default": "Day 14",
+        "enumValues": [
+          "Day 1",
+          "Day 3",
+          "Day 7",
+          "Day 14",
+          "Day 21",
+          "Day 30",
+          "Custom"
+        ]
+      },
+      "planInstructions": {
+        "instance": "String",
+        "required": false,
+        "default": "Follow prescribed posology schedule and log symptoms in health diary.",
+        "enumValues": []
+      },
+      "outcome": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "assignedStaff": {
+        "instance": "String",
+        "required": false,
+        "default": "Dr. Harshali Sutar Clinical Care Team",
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Prescription": {
+    "file": "clinical/prescription.model.js",
+    "collection": "prescriptions",
+    "timestamps": true,
+    "paths": {
+      "consultationId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Consultation",
+        "index": true
+      },
+      "patientId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Patient",
+        "index": true
+      },
+      "doctorId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Doctor",
+        "index": true
+      },
+      "medications": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "name",
+          "dosage",
+          "frequency",
+          "duration",
+          "instructions",
+          "_id"
+        ]
+      },
+      "dietaryAdvice": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "specialInstructions": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "isReleasedToPatient": {
+        "instance": "Boolean",
+        "required": false,
+        "default": true,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Lead": {
+    "file": "crm/lead.model.js",
+    "collection": "leads",
+    "timestamps": true,
+    "paths": {
+      "fullName": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "phone": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "index": true
+      },
+      "email": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "serviceInterest": {
+        "instance": "String",
+        "required": true,
+        "default": "Skin & Hair",
+        "enumValues": []
+      },
+      "consultationMode": {
+        "instance": "String",
+        "required": false,
+        "default": "Online Video Consultation",
+        "enumValues": [
+          "Online Video Consultation",
+          "In-Clinic Consultation"
+        ]
+      },
+      "priority": {
+        "instance": "String",
+        "required": false,
+        "default": "medium",
+        "enumValues": [
+          "low",
+          "medium",
+          "high",
+          "urgent"
+        ],
+        "index": true
+      },
+      "message": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "source": {
+        "instance": "String",
+        "required": false,
+        "default": "website_enquiry",
+        "enumValues": [],
+        "index": true
+      },
+      "campaign": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "utmSource": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "utmMedium": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "utmCampaign": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "new",
+        "enumValues": [
+          "new",
+          "contacted",
+          "interested",
+          "qualified",
+          "consultation_booked",
+          "consultation_completed",
+          "converted",
+          "nurture",
+          "lost",
+          "assigned",
+          "contact_attempted",
+          "appointment_offered",
+          "appointment_requested",
+          "appointment_booked",
+          "closed",
+          "not_interested",
+          "invalid"
+        ],
+        "index": true
+      },
+      "lostReason": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "assignedTo": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User",
+        "index": true
+      },
+      "followUpDate": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": [],
+        "index": true
+      },
+      "notes": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "body",
+          "createdBy",
+          "createdAt",
+          "_id"
+        ]
+      },
+      "tasks": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "title",
+          "dueDate",
+          "priority",
+          "status",
+          "assignedTo",
+          "notes",
+          "createdAt",
+          "_id"
+        ]
+      },
+      "activities": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "action",
+          "details",
+          "performedBy",
+          "createdAt",
+          "_id"
+        ]
+      },
+      "stageHistory": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "fromStage",
+          "toStage",
+          "changedBy",
+          "reason",
+          "changedAt",
+          "_id"
+        ]
+      },
+      "communications": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "channel",
+          "direction",
+          "content",
+          "status",
+          "recordedBy",
+          "timestamp",
+          "_id"
+        ]
+      },
+      "convertedPatientId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "Patient"
+      },
+      "convertedAppointmentId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "Appointment"
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Doctor": {
+    "file": "doctors/doctor.model.js",
+    "collection": "doctors",
+    "timestamps": true,
+    "paths": {
+      "userId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "User",
+        "unique": true
+      },
+      "specialization": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": []
+      },
+      "qualifications": {
+        "instance": "String",
+        "required": false,
+        "default": "BHMS, MD (Consultant Homoeopath)",
+        "enumValues": []
+      },
+      "consultationFee": {
+        "instance": "Number",
+        "required": false,
+        "default": 500,
+        "enumValues": []
+      },
+      "bio": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "active",
+        "enumValues": [
+          "active",
+          "on_leave",
+          "inactive"
+        ],
+        "index": true
+      },
+      "workingHours": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "dayOfWeek",
+          "startTime",
+          "endTime",
+          "slotDurationMinutes",
+          "_id"
+        ]
+      },
+      "availability": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "day",
+          "slots",
+          "_id"
+        ]
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "AttendanceCorrection": {
+    "file": "hrms/attendance-correction.model.js",
+    "collection": "attendancecorrections",
+    "timestamps": true,
+    "paths": {
+      "employeeId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Employee",
+        "index": true
+      },
+      "workDate": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "originalCheckIn": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "originalCheckOut": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "requestedCheckIn": {
+        "instance": "Date",
+        "required": true,
+        "enumValues": []
+      },
+      "requestedCheckOut": {
+        "instance": "Date",
+        "required": true,
+        "enumValues": []
+      },
+      "reason": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "pending",
+        "enumValues": [
+          "pending",
+          "approved",
+          "rejected"
+        ],
+        "index": true
+      },
+      "reviewedBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "reviewNote": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "reviewedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Attendance": {
+    "file": "hrms/attendance.model.js",
+    "collection": "attendances",
+    "timestamps": true,
+    "paths": {
+      "employeeId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Employee",
+        "index": true
+      },
+      "workDate": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "index": true
+      },
+      "checkInTime": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "checkOutTime": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "totalHours": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "present",
+        "enumValues": [
+          "present",
+          "half_day",
+          "absent",
+          "leave"
+        ]
+      },
+      "correctionHistory": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "requestedBy",
+          "approvedBy",
+          "reason",
+          "timestamp",
+          "_id"
+        ]
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Employee": {
+    "file": "hrms/employee.model.js",
+    "collection": "employees",
+    "timestamps": true,
+    "paths": {
+      "userId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "User",
+        "unique": true
+      },
+      "employeeCode": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true
+      },
+      "department": {
+        "instance": "String",
+        "required": false,
+        "default": "Administration",
+        "enumValues": [
+          "Administration",
+          "Clinical",
+          "Reception",
+          "CRM",
+          "HR",
+          "Finance"
+        ]
+      },
+      "designation": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "employmentType": {
+        "instance": "String",
+        "required": false,
+        "default": "full_time",
+        "enumValues": [
+          "full_time",
+          "part_time",
+          "consultant"
+        ]
+      },
+      "shift": {
+        "instance": "String",
+        "required": false,
+        "default": "general",
+        "enumValues": [
+          "general",
+          "morning",
+          "evening",
+          "night"
+        ]
+      },
+      "joiningDate": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "active",
+        "enumValues": [
+          "active",
+          "probation",
+          "on_leave",
+          "resigned",
+          "terminated",
+          "offboarded"
+        ],
+        "index": true
+      },
+      "salary": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "emergencyContact.name": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "emergencyContact.phone": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "emergencyContact.relationship": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "leaveBalances.casual.total": {
+        "instance": "Number",
+        "required": false,
+        "default": 12,
+        "enumValues": []
+      },
+      "leaveBalances.casual.used": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "leaveBalances.sick.total": {
+        "instance": "Number",
+        "required": false,
+        "default": 10,
+        "enumValues": []
+      },
+      "leaveBalances.sick.used": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "leaveBalances.earned.total": {
+        "instance": "Number",
+        "required": false,
+        "default": 15,
+        "enumValues": []
+      },
+      "leaveBalances.earned.used": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "leaveBalances.unpaid.used": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "offboardingDetails.exitDate": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "offboardingDetails.reason": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "offboardingDetails.handoverComplete": {
+        "instance": "Boolean",
+        "required": false,
+        "default": false,
+        "enumValues": []
+      },
+      "offboardingDetails.offboardedBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "LeaveRequest": {
+    "file": "hrms/leave.model.js",
+    "collection": "leaverequests",
+    "timestamps": true,
+    "paths": {
+      "employeeId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Employee",
+        "index": true
+      },
+      "leaveType": {
+        "instance": "String",
+        "required": false,
+        "default": "casual",
+        "enumValues": [
+          "casual",
+          "sick",
+          "paid",
+          "unpaid"
+        ]
+      },
+      "startDate": {
+        "instance": "Date",
+        "required": true,
+        "enumValues": []
+      },
+      "endDate": {
+        "instance": "Date",
+        "required": true,
+        "enumValues": []
+      },
+      "reason": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "pending",
+        "enumValues": [
+          "pending",
+          "approved",
+          "rejected"
+        ],
+        "index": true
+      },
+      "reviewedBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "reviewNote": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Payroll": {
+    "file": "hrms/payroll.model.js",
+    "collection": "payrolls",
+    "timestamps": true,
+    "paths": {
+      "payrollPeriod": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "index": true
+      },
+      "employeeId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Employee",
+        "index": true
+      },
+      "baseSalary": {
+        "instance": "Number",
+        "required": true,
+        "enumValues": []
+      },
+      "allowances.hra": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "allowances.medical": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "allowances.special": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "deductions.providentFund": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "deductions.professionalTax": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "deductions.tds": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "workedDays": {
+        "instance": "Number",
+        "required": false,
+        "default": 26,
+        "enumValues": []
+      },
+      "leaveDays": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "grossPay": {
+        "instance": "Number",
+        "required": true,
+        "enumValues": []
+      },
+      "netPay": {
+        "instance": "Number",
+        "required": true,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "draft",
+        "enumValues": [
+          "draft",
+          "reviewed",
+          "approved",
+          "locked",
+          "paid"
+        ],
+        "index": true
+      },
+      "reviewedBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "reviewedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "approvedBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "approvedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "paymentRef": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "paymentDate": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Integration": {
+    "file": "integrations/integration.model.js",
+    "collection": "integrations",
+    "timestamps": true,
+    "paths": {
+      "provider": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [
+          "meta",
+          "whatsapp",
+          "google_calendar",
+          "razorpay"
+        ],
+        "unique": true,
+        "index": true
+      },
+      "displayName": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "test_mode",
+        "enumValues": [
+          "connected",
+          "disconnected",
+          "test_mode",
+          "error"
+        ]
+      },
+      "config.wabaId": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "config.phoneNumberId": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "config.businessPhoneNumber": {
+        "instance": "String",
+        "required": false,
+        "default": "+91 917-277-2326",
+        "enumValues": []
+      },
+      "config.verifyToken": {
+        "instance": "String",
+        "required": false,
+        "default": "trigyna_meta_webhook_verify_token_2026",
+        "enumValues": []
+      },
+      "config.appId": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "config.pageId": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "config.instagramAccountId": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "config.adAccountId": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "config.webhookSubscriptionActive": {
+        "instance": "Boolean",
+        "required": false,
+        "default": true,
+        "enumValues": []
+      },
+      "config.calendarId": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "config.syncDirection": {
+        "instance": "String",
+        "required": false,
+        "default": "bidirectional",
+        "enumValues": [
+          "bidirectional",
+          "one_way_to_google",
+          "one_way_from_google"
+        ]
+      },
+      "config.merchantId": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "config.webhookSecret": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "tokenHealth.isValid": {
+        "instance": "Boolean",
+        "required": false,
+        "default": true,
+        "enumValues": []
+      },
+      "tokenHealth.expiresAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "tokenHealth.lastChecked": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "lastSync": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "lastError": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "syncHistory": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "timestamp",
+          "status",
+          "recordsProcessed",
+          "details",
+          "_id"
+        ]
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "WhatsAppConversation": {
+    "file": "integrations/whatsapp.model.js",
+    "collection": "whatsappconversations",
+    "timestamps": true,
+    "paths": {
+      "conversationId": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "customerPhone": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "index": true
+      },
+      "customerName": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "leadId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "Lead",
+        "index": true
+      },
+      "patientId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "Patient",
+        "index": true
+      },
+      "assignedStaff": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "active",
+        "enumValues": [
+          "active",
+          "waiting",
+          "closed"
+        ],
+        "index": true
+      },
+      "unreadCount": {
+        "instance": "Number",
+        "required": false,
+        "default": 0,
+        "enumValues": []
+      },
+      "lastMessage.text": {
+        "instance": "String",
+        "required": false,
+        "default": "",
+        "enumValues": []
+      },
+      "lastMessage.sender": {
+        "instance": "String",
+        "required": false,
+        "default": "customer",
+        "enumValues": [
+          "customer",
+          "staff",
+          "system"
+        ]
+      },
+      "lastMessage.timestamp": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "messages": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "messageId",
+          "sender",
+          "senderName",
+          "text",
+          "templateName",
+          "status",
+          "timestamp",
+          "_id"
+        ]
+      },
+      "internalNotes": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "note",
+          "author",
+          "createdAt",
+          "_id"
+        ]
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Notification": {
+    "file": "notifications/notification.model.js",
+    "collection": "notifications",
+    "timestamps": true,
+    "paths": {
+      "recipientId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User",
+        "index": true
+      },
+      "recipientRole": {
+        "instance": "String",
+        "required": false,
+        "default": "all",
+        "enumValues": [
+          "owner",
+          "admin",
+          "doctor",
+          "crm",
+          "hrms",
+          "reception",
+          "patient",
+          "all"
+        ],
+        "index": true
+      },
+      "title": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "message": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "type": {
+        "instance": "String",
+        "required": false,
+        "default": "system",
+        "enumValues": [
+          "appointment",
+          "lead",
+          "clinical",
+          "leave",
+          "system",
+          "billing"
+        ],
+        "index": true
+      },
+      "read": {
+        "instance": "Boolean",
+        "required": false,
+        "default": false,
+        "enumValues": [],
+        "index": true
+      },
+      "link": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Organization": {
+    "file": "organization/organization.model.js",
+    "collection": "organizations",
+    "timestamps": true,
+    "paths": {
+      "name": {
+        "instance": "String",
+        "required": true,
+        "default": "TriGyna Healthcare & Wellness",
+        "enumValues": []
+      },
+      "tagline": {
+        "instance": "String",
+        "required": false,
+        "default": "Women | Health | Wellness",
+        "enumValues": []
+      },
+      "logoUrl": {
+        "instance": "String",
+        "required": false,
+        "default": "/images/brand/logo.png",
+        "enumValues": []
+      },
+      "email": {
+        "instance": "String",
+        "required": false,
+        "default": "trigyna.health@gmail.com",
+        "enumValues": []
+      },
+      "phone": {
+        "instance": "String",
+        "required": false,
+        "default": "+919172772326",
+        "enumValues": []
+      },
+      "website": {
+        "instance": "String",
+        "required": false,
+        "default": "https://trigyna.com",
+        "enumValues": []
+      },
+      "timezone": {
+        "instance": "String",
+        "required": false,
+        "default": "Asia/Kolkata",
+        "enumValues": []
+      },
+      "currency": {
+        "instance": "String",
+        "required": false,
+        "default": "INR",
+        "enumValues": []
+      },
+      "workingDays": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": []
+      },
+      "bookingRules.cancellationWindowHours": {
+        "instance": "Number",
+        "required": false,
+        "default": 24,
+        "enumValues": []
+      },
+      "bookingRules.bufferMinutes": {
+        "instance": "Number",
+        "required": false,
+        "default": 15,
+        "enumValues": []
+      },
+      "bookingRules.slotDurationMinutes": {
+        "instance": "Number",
+        "required": false,
+        "default": 30,
+        "enumValues": []
+      },
+      "bookingRules.maxAdvanceBookingDays": {
+        "instance": "Number",
+        "required": false,
+        "default": 30,
+        "enumValues": []
+      },
+      "branches": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "branchCode",
+          "name",
+          "phone",
+          "email",
+          "address",
+          "operatingHours",
+          "status",
+          "_id",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "departments": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "code",
+          "name",
+          "description",
+          "headOfDepartment",
+          "status",
+          "_id",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "services": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "code",
+          "name",
+          "department",
+          "durationMinutes",
+          "baseFee",
+          "consultationType",
+          "status",
+          "_id",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "PatientDocument": {
+    "file": "patients/document.model.js",
+    "collection": "patientdocuments",
+    "timestamps": true,
+    "paths": {
+      "documentCode": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "patientId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Patient",
+        "index": true
+      },
+      "title": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "documentType": {
+        "instance": "String",
+        "required": false,
+        "default": "Lab Report",
+        "enumValues": [
+          "Lab Report",
+          "Prescription",
+          "Clinical Note",
+          "ID Document",
+          "Scan",
+          "USG Report",
+          "Other"
+        ],
+        "index": true
+      },
+      "fileName": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "fileSize": {
+        "instance": "Number",
+        "required": true,
+        "default": 102400,
+        "enumValues": []
+      },
+      "mimeType": {
+        "instance": "String",
+        "required": false,
+        "default": "application/pdf",
+        "enumValues": []
+      },
+      "fileUrl": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "uploadedBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "uploaderRole": {
+        "instance": "String",
+        "required": false,
+        "default": "patient",
+        "enumValues": [
+          "patient",
+          "doctor",
+          "staff",
+          "admin"
+        ]
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "verified",
+        "enumValues": [
+          "verified",
+          "pending_review",
+          "archived"
+        ]
+      },
+      "notes": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Patient": {
+    "file": "patients/patient.model.js",
+    "collection": "patients",
+    "timestamps": true,
+    "paths": {
+      "patientCode": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "userId": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User",
+        "sparse": true
+      },
+      "fullName": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "phone": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "index": true
+      },
+      "email": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "gender": {
+        "instance": "String",
+        "required": false,
+        "default": "female",
+        "enumValues": [
+          "female",
+          "male",
+          "other"
+        ]
+      },
+      "dateOfBirth": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "age": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      },
+      "address": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "bloodGroup": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "medicalHistory": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "allergies": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": []
+      },
+      "emergencyContact.name": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "emergencyContact.phone": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "emergencyContact.relationship": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "active",
+        "enumValues": [
+          "active",
+          "inactive"
+        ]
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "SupportTicket": {
+    "file": "support/support-ticket.model.js",
+    "collection": "supporttickets",
+    "timestamps": true,
+    "paths": {
+      "ticketNumber": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "unique": true,
+        "index": true
+      },
+      "patientId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "Patient",
+        "index": true
+      },
+      "userId": {
+        "instance": "ObjectId",
+        "required": true,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "category": {
+        "instance": "String",
+        "required": false,
+        "default": "General Inquiry",
+        "enumValues": [
+          "Appointment & Scheduling",
+          "Online Consultation",
+          "Prescriptions & Medicines",
+          "Billing & Payments",
+          "Medical Records",
+          "Technical & App Support",
+          "General Inquiry"
+        ],
+        "index": true
+      },
+      "subject": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "description": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "priority": {
+        "instance": "String",
+        "required": false,
+        "default": "medium",
+        "enumValues": [
+          "low",
+          "medium",
+          "high",
+          "urgent"
+        ]
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "open",
+        "enumValues": [
+          "open",
+          "in_progress",
+          "resolved",
+          "closed"
+        ],
+        "index": true
+      },
+      "assignedStaff": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "replies": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "senderId",
+          "senderRole",
+          "senderName",
+          "message",
+          "createdAt",
+          "_id"
+        ]
+      },
+      "resolvedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "Task": {
+    "file": "tasks/task.model.js",
+    "collection": "tasks",
+    "timestamps": true,
+    "paths": {
+      "title": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "description": {
+        "instance": "String",
+        "required": false,
+        "enumValues": []
+      },
+      "module": {
+        "instance": "String",
+        "required": false,
+        "default": "general",
+        "enumValues": [
+          "crm",
+          "hrms",
+          "clinical",
+          "finance",
+          "operations",
+          "general"
+        ],
+        "index": true
+      },
+      "priority": {
+        "instance": "String",
+        "required": false,
+        "default": "medium",
+        "enumValues": [
+          "low",
+          "medium",
+          "high",
+          "urgent"
+        ],
+        "index": true
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "open",
+        "enumValues": [
+          "open",
+          "in_progress",
+          "completed",
+          "overdue",
+          "cancelled"
+        ],
+        "index": true
+      },
+      "assignedTo": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User",
+        "index": true
+      },
+      "createdBy": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": [],
+        "ref": "User"
+      },
+      "dueDate": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": [],
+        "index": true
+      },
+      "completedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "checklist": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "text",
+          "isDone",
+          "_id"
+        ]
+      },
+      "comments": {
+        "instance": "Array",
+        "required": false,
+        "enumValues": [],
+        "subpaths": [
+          "author",
+          "text",
+          "createdAt",
+          "_id"
+        ]
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  },
+  "User": {
+    "file": "users/user.model.js",
+    "collection": "users",
+    "timestamps": true,
+    "paths": {
+      "name": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "email": {
+        "instance": "String",
+        "required": false,
+        "enumValues": [],
+        "sparse": true
+      },
+      "phone": {
+        "instance": "String",
+        "required": true,
+        "enumValues": [],
+        "index": true
+      },
+      "passwordHash": {
+        "instance": "String",
+        "required": true,
+        "enumValues": []
+      },
+      "role": {
+        "instance": "String",
+        "required": false,
+        "default": "patient",
+        "enumValues": [
+          "owner",
+          "admin",
+          "doctor",
+          "reception",
+          "patient",
+          "crm",
+          "hrms"
+        ],
+        "index": true
+      },
+      "status": {
+        "instance": "String",
+        "required": false,
+        "default": "active",
+        "enumValues": [
+          "active",
+          "inactive",
+          "suspended"
+        ],
+        "index": true
+      },
+      "lastLogin": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "_id": {
+        "instance": "ObjectId",
+        "required": false,
+        "enumValues": []
+      },
+      "createdAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "updatedAt": {
+        "instance": "Date",
+        "required": false,
+        "enumValues": []
+      },
+      "__v": {
+        "instance": "Number",
+        "required": false,
+        "enumValues": []
+      }
+    }
+  }
+}

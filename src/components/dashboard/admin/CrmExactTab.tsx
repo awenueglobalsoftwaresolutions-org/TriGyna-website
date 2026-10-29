@@ -33,7 +33,7 @@ import {
   AlertOctagon,
 } from "lucide-react";
 
-import { api } from "@/lib/api/client";
+import { api, getBaseUrl } from "@/lib/api/client";
 import { useAuth } from "@/lib/auth/authContext";
 import { formatLeadDisplayName, formatServiceDisplayName } from "./AdminOverviewExact";
 
@@ -750,7 +750,7 @@ export function CrmExactTab({ showNotification, onTabChange: _onTabChange, initi
 
   // CSV Export
   const handleExportCsv = () => {
-    window.open(`${process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000/api/v1"}/crm/leads/export`, "_blank");
+    window.open(`${getBaseUrl()}/crm/leads/export`, "_blank");
     showNotification("Downloading verified CRM CSV export...");
   };
 
@@ -1363,7 +1363,7 @@ export function CrmExactTab({ showNotification, onTabChange: _onTabChange, initi
                                 <div className="flex items-start justify-between gap-1.5">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-gray-100 bg-[#154734]/10 flex items-center justify-center font-bold text-xs text-[#154734]">
-                                      <Image src={avatarSrc} alt={formatLeadDisplayName(lead.fullName)} fill className="object-cover" />
+                                      <Image src={avatarSrc} alt={formatLeadDisplayName(lead.fullName)} fill sizes="32px" className="object-cover" />
                                     </div>
                                     <div className="min-w-0">
                                       <h4 className="text-xs font-bold text-[#17211B] truncate group-hover:text-[#154734] transition">

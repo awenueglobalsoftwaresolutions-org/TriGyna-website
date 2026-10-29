@@ -4,7 +4,13 @@
  * new, contacted, qualified, converted, lost
  */
 
-const BASE_URL = "http://127.0.0.1:5000/api/v1";
+process.env.NODE_ENV = "test";
+const http = require("http");
+const app = require("../app");
+const { connectDB, disconnectDB } = require("../config/database");
+
+let server;
+let BASE_URL = process.env.TEST_API_URL || "http://127.0.0.1:5000/api/v1";
 
 async function assert(condition, message) {
   if (!condition) {
@@ -18,6 +24,16 @@ async function run() {
   console.log("==================================================");
   console.log("TriGyna — Strict 5-Status CRM Pipeline Verification Suite");
   console.log("==================================================");
+
+  // Spin up ephemeral test server if not pointing to custom URL
+  if (!process.env.TEST_API_URL) {
+    process.env.MONGODB_URI = process.env.MONGODB_TEST_URI || "mongodb://127.0.0.1:27017/trigyna_test";
+    await connectDB();
+    server = http.createServer(app);
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const port = server.address().port;
+    BASE_URL = `http://127.0.0.1:${port}/api/v1`;
+  }
 
   // 1. Authenticate as Admin
   const loginRes = await fetch(`${BASE_URL}/auth/login`, {
@@ -170,7 +186,14 @@ async function run() {
   console.log("==================================================");
 }
 
-run().catch((err) => {
-  console.error("Test Suite Failed:", err);
-  process.exit(1);
-});
+run()
+  .catch((err) => {
+    console.error("Test Suite Failed:", err);
+    process.exit(1);
+  })
+  .finally(async () => {
+    if (server) {
+      await new Promise((resolve) => server.close(resolve));
+    }
+    await disconnectDB();
+  });
