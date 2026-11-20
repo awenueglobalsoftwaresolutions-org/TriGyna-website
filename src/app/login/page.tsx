@@ -307,7 +307,7 @@ export default function LoginPage() {
               href="/"
               className="text-[#626B63] hover:text-[#154734] transition-colors flex items-center gap-1"
             >
-              &larr; Return to TriGyna.com
+              &larr; Return to TriGyna.in
             </Link>
             <div className="flex items-center gap-1 text-[#7B817B] text-[11px]">
               <ShieldCheck className="w-3.5 h-3.5 text-[#154734]" />

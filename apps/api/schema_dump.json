@@ -2658,7 +2658,7 @@
       "website": {
         "instance": "String",
         "required": false,
-        "default": "https://trigyna.com",
+        "default": "https://www.trigyna.in",
         "enumValues": []
       },
       "timezone": {

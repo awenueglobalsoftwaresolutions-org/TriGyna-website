@@ -96,7 +96,7 @@ const CANNED_TEMPLATES = [
   {
     name: "payment_link_package",
     label: "💳 Package Checkout",
-    text: "Hello {name}, your customized TriGyna care plan is ready. Complete your payment securely here: https://trigyna.in/checkout?assisted=true",
+    text: "Hello {name}, your customized TriGyna care plan is ready. Complete your payment securely here: https://www.trigyna.in/checkout?assisted=true",
   },
   {
     name: "welcome_consultation_offer",

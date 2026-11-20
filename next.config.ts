@@ -28,6 +28,46 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      // Legacy domain permanent 301 redirection: trigyna.com -> https://www.trigyna.in/:path*
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "trigyna.com",
+          },
+        ],
+        destination: "https://www.trigyna.in/:path*",
+        permanent: true,
+      },
+      // Legacy subdomain permanent 301 redirection: www.trigyna.com -> https://www.trigyna.in/:path*
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "www.trigyna.com",
+          },
+        ],
+        destination: "https://www.trigyna.in/:path*",
+        permanent: true,
+      },
+      // Canonical hostname enforcement (apex trigyna.in -> www.trigyna.in)
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "trigyna.in",
+          },
+        ],
+        destination: "https://www.trigyna.in/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

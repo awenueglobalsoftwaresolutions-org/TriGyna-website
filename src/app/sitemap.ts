@@ -1,9 +1,10 @@
 import { MetadataRoute } from "next";
 import { servicesData } from "@/data/servicesData";
 import { articlesData } from "@/data/articlesData";
+import { siteConfig } from "@/data/siteData";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://trigyna.com";
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || siteConfig.siteUrl).replace(/\/+$/, "");
 
   const staticRoutes = [
     "",

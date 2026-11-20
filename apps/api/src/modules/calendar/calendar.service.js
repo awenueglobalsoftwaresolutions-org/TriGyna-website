@@ -1423,7 +1423,7 @@ async function exportCalendarEvents({ startDate, endDate, format = "csv", type =
       const dtEnd = (e.endDate || e.date).replace(/-/g, "") + (e.allDay ? "" : "T" + (e.endTime ? e.endTime.replace(/[^0-9]/g, "").padStart(6, "0").slice(0, 4) + "00" : "100000"));
 
       lines.push("BEGIN:VEVENT");
-      lines.push(`UID:${e.id}@trigyna.health`);
+      lines.push(`UID:${e.id}@trigyna.in`);
       lines.push(`DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").split(".")[0]}Z`);
       lines.push(`DTSTART:${dtStart}`);
       lines.push(`DTEND:${dtEnd}`);

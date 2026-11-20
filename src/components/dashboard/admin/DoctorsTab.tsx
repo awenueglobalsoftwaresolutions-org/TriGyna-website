@@ -1265,7 +1265,7 @@ export function DoctorsTab({ showNotification }: { showNotification: (msg: strin
                         </div>
                         <div className="flex items-center gap-1.5 col-span-2">
                           <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{doc.userId?.email || "doctor@trigyna.com"}</span>
+                          <span className="truncate">{doc.userId?.email || "doctor@trigyna.in"}</span>
                         </div>
                       </div>
 
@@ -1868,7 +1868,7 @@ export function DoctorsTab({ showNotification }: { showNotification: (msg: strin
                       <label className="font-semibold text-slate-700 block mb-1">Email Address</label>
                       <input
                         type="email"
-                        placeholder="e.g. dr.priya@trigyna.com"
+                        placeholder="e.g. dr.priya@trigyna.in"
                         value={addForm.email}
                         onChange={(e) => setAddForm({ ...addForm, email: e.target.value })}
                         className="w-full px-3.5 py-2 bg-[#F7F9FC] border border-[#E5EAF0] rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:border-[#087A50]"

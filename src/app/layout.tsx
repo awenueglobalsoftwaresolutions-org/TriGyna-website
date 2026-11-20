@@ -4,9 +4,13 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { EnquiryModalProvider } from "@/components/context/EnquiryModalContext";
 import { AuthProvider } from "@/lib/auth/authContext";
+import { siteConfig } from "@/data/siteData";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://trigyna.com"),
+  metadataBase: new URL(siteConfig.siteUrl),
+  alternates: {
+    canonical: siteConfig.siteUrl,
+  },
   title: "TriGyna — Women | Health | Wellness",
   description:
     "Better Health for a Brighter Tomorrow. Personalised healthcare consultation and holistic wellness care for men and women — 100% online video consultations.",
@@ -26,7 +30,7 @@ export const metadata: Metadata = {
     title: "TriGyna — Women | Health | Wellness",
     description:
       "Personalised consultation and holistic healthcare for men and women — 100% online video consultations.",
-    url: "https://trigyna.com",
+    url: siteConfig.siteUrl,
     siteName: "TriGyna Healthcare",
     images: [
       {
@@ -65,6 +69,39 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "MedicalBusiness",
+        "@id": `${siteConfig.siteUrl}/#organization`,
+        name: "TriGyna Healthcare & Wellness",
+        url: siteConfig.siteUrl,
+        logo: `${siteConfig.siteUrl}/images/brand/logo.png`,
+        telephone: siteConfig.phone,
+        email: siteConfig.email,
+        description:
+          "Personalised consultation and holistic healthcare for men and women — 100% online video consultations.",
+        address: {
+          "@type": "PostalAddress",
+          addressLocality: "Prayagraj",
+          addressRegion: "Uttar Pradesh",
+          postalCode: "211012",
+          addressCountry: "IN",
+        },
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${siteConfig.siteUrl}/#website`,
+        url: siteConfig.siteUrl,
+        name: "TriGyna",
+        publisher: {
+          "@id": `${siteConfig.siteUrl}/#organization`,
+        },
+      },
+    ],
+  };
+
   return (
     <html lang="en">
       <head>
@@ -73,6 +110,10 @@ export default function RootLayout({
         <link
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
           rel="stylesheet"
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
       <body className="min-h-screen flex flex-col bg-[#F9F7F1] text-[#17221D] selection:bg-[#A7C089] selection:text-[#0E3828]">

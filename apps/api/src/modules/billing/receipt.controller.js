@@ -271,7 +271,7 @@ async function getOrganizationData() {
       name: "TriGyna Health & Wellness",
       phone: "+91 917-277-2326",
       email: "trigyna.health@gmail.com",
-      website: "https://www.trigyna.com",
+      website: "https://www.trigyna.in",
     }
   );
 }

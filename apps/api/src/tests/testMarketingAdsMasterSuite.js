@@ -195,7 +195,7 @@ async function runSuite() {
         headline: "Evidence-Based Integrative Gut Care",
         description: "Consult qualified clinical nutritionists and integrative doctors.",
         cta: "Book Consultation",
-        destinationUrl: "https://trigyna.com/services/gut-health",
+        destinationUrl: "https://www.trigyna.in/services/gut-health",
       },
       tracking: {
         utmSource: "facebook",
@@ -280,7 +280,7 @@ async function runSuite() {
     console.log("\n--- Suite 5: First-Party Website UTM Link Engine ---");
 
     const utmRes = await request("POST", "/api/v1/marketing/utm", {
-      destinationUrl: "https://trigyna.com/services/eczema-psoriasis",
+      destinationUrl: "https://www.trigyna.in/services/eczema-psoriasis",
       utmSource: "google",
       utmMedium: "cpc",
       utmCampaign: "chronic_eczema_psoriasis",

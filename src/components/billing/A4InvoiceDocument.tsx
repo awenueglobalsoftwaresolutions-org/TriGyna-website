@@ -300,7 +300,7 @@ export function A4InvoiceDocument({
     address: "Baner Road, Pune, Maharashtra 411045",
     phone: "+91 917-277-2326",
     email: "trigyna.health@gmail.com",
-    website: "www.trigyna.com",
+    website: "www.trigyna.in",
     gstin: "27AABCT9988C1ZR",
   };
 
@@ -659,7 +659,7 @@ export function A4InvoiceDocument({
                         <p>Bank: ICICI Bank Ltd., Baner Branch</p>
                         <p>Account No.: 104805004921 | IFSC: ICIC0001048</p>
                         <p className="text-[11px] text-amber-800 pt-1 font-medium">
-                          Pay Online: Log in to your patient dashboard at trigyna.com/patient/payments to complete instant settlement.
+                          Pay Online: Log in to your patient dashboard at trigyna.in/patient/payments to complete instant settlement.
                         </p>
                       </div>
                     </div>
@@ -691,7 +691,7 @@ export function A4InvoiceDocument({
                     value={
                       typeof window !== "undefined"
                         ? `${window.location.origin}/verify-document?ref=${encodeURIComponent(data.invoiceNumber || data._id || "")}`
-                        : `https://trigyna.com/verify-document?ref=${encodeURIComponent(data.invoiceNumber || data._id || "")}`
+                        : `https://www.trigyna.in/verify-document?ref=${encodeURIComponent(data.invoiceNumber || data._id || "")}`
                     }
                     size={68}
                   />

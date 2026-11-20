@@ -436,7 +436,7 @@ Employee ID: ${employeeCode || "Pending"}
 
 Please activate your account securely using the activation link sent to your registered email address.
 
-Login Portal: ${portalUrl || "https://trigyna.health/login"}
+Login Portal: ${portalUrl || "https://www.trigyna.in/login"}
 
 Please complete your account activation to set your credentials and access your assigned dashboard.
 

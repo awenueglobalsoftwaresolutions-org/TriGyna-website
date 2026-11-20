@@ -84,7 +84,7 @@ const APPROVED_TEMPLATES = [
     language: "en_IN",
     status: "APPROVED",
     header: "Appointment Cancelled: {{1}}",
-    body: "Your appointment on {{2}} has been cancelled as per request. You can rebook anytime at trigyna.health or call +91 917-277-2326.",
+    body: "Your appointment on {{2}} has been cancelled as per request. You can rebook anytime at www.trigyna.in or call +91 917-277-2326.",
     footer: "TriGyna Support",
     variables: ["Patient Name", "Cancelled Date"],
   },

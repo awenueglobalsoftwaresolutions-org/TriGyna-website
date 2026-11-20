@@ -749,7 +749,7 @@ export function AdminDashboardShell({
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold text-[#111827] leading-tight">Need Help?</p>
                   <a
-                    href="mailto:support@trigyna.com"
+                    href="mailto:support@trigyna.in"
                     className="text-[11px] text-[#64748B] hover:text-[#087A50] leading-tight mt-0.5 block truncate transition-colors"
                   >
                     Contact support
@@ -1150,7 +1150,7 @@ export function AdminDashboardShell({
                 <div className="absolute right-0 mt-2 w-56 bg-white border border-[#E5EAF0] rounded-2xl shadow-xl p-1.5 z-50 text-xs animate-fade-in space-y-1">
                   <div className="p-2 border-b border-[#E5EAF0]">
                     <p className="font-bold text-[#111827] truncate leading-tight">{displayName}</p>
-                    <p className="text-[10px] text-[#64748B] truncate mt-0.5">{user?.email || "admin@trigyna.com"}</p>
+                    <p className="text-[10px] text-[#64748B] truncate mt-0.5">{user?.email || "admin@trigyna.in"}</p>
                     <span className="inline-block mt-1 text-[9px] uppercase font-bold text-[#087A50] bg-[#E9F8F0] px-2 py-0.5 rounded-full border border-[#D1F2E0]">
                       {user?.role || "admin"}
                     </span>

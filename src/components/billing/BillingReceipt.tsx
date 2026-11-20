@@ -402,7 +402,7 @@ export function BillingReceipt({
   const isPartial = pStatus === "partially_paid" || pStatus === "partial";
   const isRefunded = pStatus === "refunded";
 
-  const [origin, setOrigin] = useState("https://trigyna.com");
+  const [origin, setOrigin] = useState("https://www.trigyna.in");
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.origin) {
@@ -718,7 +718,7 @@ export function BillingReceipt({
               Tamper-evident healthcare audit record.
             </p>
             <p className="text-[8.5px] text-[#7A8B83] mt-0.5">
-              Scan QR code to verify live on trigyna.com
+              Scan QR code to verify live on trigyna.in
             </p>
             <Link
               href={fullVerifyUrl}

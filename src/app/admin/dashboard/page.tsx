@@ -1068,7 +1068,7 @@ export default function AdminDashboardPage() {
                       type="email"
                       value={provisionForm.email}
                       onChange={(e) => setProvisionForm({ ...provisionForm, email: e.target.value })}
-                      placeholder="staff@trigyna.com"
+                      placeholder="staff@trigyna.in"
                       className="w-full px-3.5 py-2 border border-[#E5EAF0] rounded-xl focus:ring-2 focus:ring-[#087A50] focus:outline-none"
                     />
                   </div>

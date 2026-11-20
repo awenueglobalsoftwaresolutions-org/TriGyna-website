@@ -736,7 +736,7 @@ export function DashboardShell({
                   className="hidden lg:flex items-center gap-1.5 h-9 px-3 rounded-xl border border-[#E8E2D6] bg-white hover:bg-[#F9F7F1] text-xs font-semibold text-[#154734] transition-colors"
                   title="Open public website in new tab"
                 >
-                  <span>TriGyna.com</span>
+                  <span>TriGyna.in</span>
                   <ArrowUpRight className="w-3.5 h-3.5" />
                 </Link>
               </div>

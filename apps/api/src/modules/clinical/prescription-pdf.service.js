@@ -62,7 +62,7 @@ async function generatePrescriptionPdf(data) {
         .fontSize(8.5)
         .fillColor(COLORS.textSecondary)
         .text("Holistic Women's Health & Homoeopathic Wellness Clinics", margin, y + 26)
-        .text("Web: https://trigyna.com | Email: care@trigyna.test | Helpline: +91 91727 72326", margin, y + 38);
+        .text("Web: https://www.trigyna.in | Email: care@trigyna.test | Helpline: +91 91727 72326", margin, y + 38);
 
       // Rx Code & Date Box (Right aligned)
       const rxBoxWidth = 160;

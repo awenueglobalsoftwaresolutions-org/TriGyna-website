@@ -50,7 +50,7 @@ export function CreateCampaignModal({
     descriptionText: "",
     adCopy: "",
     cta: "Book Consultation",
-    destinationUrl: "https://trigyna.com/services/pcos",
+    destinationUrl: "https://www.trigyna.in/services/pcos",
     utmSource: "facebook",
     utmMedium: "cpc",
     utmCampaign: "",

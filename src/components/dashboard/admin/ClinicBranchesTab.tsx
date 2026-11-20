@@ -397,7 +397,7 @@ export function ClinicBranchesTab({ showNotification }: ClinicBranchesTabProps) 
                     </label>
                     <input
                       type="email"
-                      placeholder="branch@trigyna.com"
+                      placeholder="branch@trigyna.in"
                       value={newBranch.email}
                       onChange={(e) => setNewBranch({ ...newBranch, email: e.target.value })}
                       className="w-full px-3 py-2 border border-[#E5EAF0] rounded-xl focus:ring-2 focus:ring-[#087A50] focus:outline-none"

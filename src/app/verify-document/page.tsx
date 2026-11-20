@@ -778,7 +778,7 @@ function VerifyDocumentContent() {
 
         {/* Footer Guarantee */}
         <p className="text-center text-[11px] text-[#68766F]">
-          TriGyna Women Health &amp; Wellness • Pune, Maharashtra, India • care@trigyna.com
+          TriGyna Women Health &amp; Wellness • Pune, Maharashtra, India • www.trigyna.in
         </p>
       </div>
     </div>

@@ -2119,7 +2119,7 @@ export function WhatsAppInboxTab({
             <div className="p-4 bg-[#F8FAFC] rounded-xl border border-[#E5EAF0] space-y-2 text-xs">
               <h3 className="font-bold text-[#111827]">Webhook Handshake Endpoint</h3>
               <p className="font-mono text-[11px] bg-white p-2 rounded-lg border border-[#E5EAF0] text-[#111827]">
-                https://api.trigyna.health/api/v1/webhooks/whatsapp
+                https://www.trigyna.in/api/v1/webhooks/whatsapp
               </p>
               <p className="text-[#64748B] text-[11px]">
                 Supports HMAC SHA-256 raw signature verification (`X-Hub-Signature-256`) with automatic idempotency deduplication.

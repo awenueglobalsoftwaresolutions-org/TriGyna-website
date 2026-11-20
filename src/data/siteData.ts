@@ -61,6 +61,9 @@ export const siteConfig = {
   tagline: "Better Health for a Brighter Tomorrow",
   subheading:
     "Personalised consultation and holistic care for men and women — 100% secure online video consultations.",
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://www.trigyna.in",
+  canonicalHostname: "www.trigyna.in",
+  domain: "www.trigyna.in",
   phone: "+91 917-277-2326",
   whatsappNumber: "+919172772326",
   whatsappUrl: "https://wa.me/919172772326?text=Hello%20TriGyna%2C%20I%20would%20like%20to%20enquire%20about%20a%20consultation",

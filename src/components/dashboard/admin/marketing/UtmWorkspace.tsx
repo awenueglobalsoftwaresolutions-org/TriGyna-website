@@ -25,7 +25,7 @@ export function UtmWorkspace({ showNotification }: UtmWorkspaceProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Form State
-  const [destinationUrl, setDestinationUrl] = useState("https://trigyna.com/services/pcos");
+  const [destinationUrl, setDestinationUrl] = useState("https://www.trigyna.in/services/pcos");
   const [utmSource, setUtmSource] = useState("facebook");
   const [utmMedium, setUtmMedium] = useState("cpc");
   const [utmCampaign, setUtmCampaign] = useState("pcos_root_cause_healing");
@@ -37,7 +37,7 @@ export function UtmWorkspace({ showNotification }: UtmWorkspaceProps) {
   // Compute live full URL
   const computeFullUrl = () => {
     try {
-      const url = new URL(destinationUrl || "https://trigyna.com");
+      const url = new URL(destinationUrl || "https://www.trigyna.in");
       if (utmSource) url.searchParams.set("utm_source", utmSource);
       if (utmMedium) url.searchParams.set("utm_medium", utmMedium);
       if (utmCampaign) url.searchParams.set("utm_campaign", utmCampaign);
@@ -135,7 +135,7 @@ export function UtmWorkspace({ showNotification }: UtmWorkspaceProps) {
                 type="url"
                 value={destinationUrl}
                 onChange={(e) => setDestinationUrl(e.target.value)}
-                placeholder="https://trigyna.com/services/pcos"
+                placeholder="https://www.trigyna.in/services/pcos"
                 className="w-full text-xs sm:text-sm border border-[#E5EAF0] rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-[#087A50]"
               />
             </div>

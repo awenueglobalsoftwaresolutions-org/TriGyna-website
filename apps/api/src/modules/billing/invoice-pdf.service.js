@@ -61,7 +61,7 @@ function generateInvoicePdf(invoiceData, stream, orgData) {
         name: "TriGyna Health & Wellness",
         phone: "+91 917-277-2326",
         email: "trigyna.health@gmail.com",
-        website: "www.trigyna.com",
+        website: "www.trigyna.in",
         address: "Baner Road, Pune, Maharashtra 411045",
         gstin: "27AABCT9988C1ZR",
       };
@@ -414,7 +414,7 @@ function generateInvoicePdf(invoiceData, stream, orgData) {
           .font("Helvetica-Bold")
           .fontSize(7.5)
           .fillColor(COLORS.amber)
-          .text("Online Portal: Login to trigyna.com/patient/payments to pay instantly", leftMargin + 14, remY + 7, {
+          .text("Online Portal: Login to trigyna.in/patient/payments to pay instantly", leftMargin + 14, remY + 7, {
             width: cardWidth - 28,
             align: "center",
           });
@@ -574,7 +574,7 @@ function generateInvoicePdf(invoiceData, stream, orgData) {
       const city = org.address?.city || "Pune";
       const phone = org.phone || "+91 917-277-2326";
       const email = org.email || "trigyna.health@gmail.com";
-      const website = org.website ? org.website.replace(/^https?:\/\//, "") : "www.trigyna.com";
+      const website = org.website ? org.website.replace(/^https?:\/\//, "").replace(/trigyna\.com/g, "trigyna.in") : "www.trigyna.in";
       doc.text(`${city}, India   |   ${phone}   |   ${email}   |   ${website}`, leftMargin + 12, stripY + 5);
 
       doc

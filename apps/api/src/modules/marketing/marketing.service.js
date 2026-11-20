@@ -70,7 +70,7 @@ class MarketingService {
           headline: "Natural PCOS Reversal & Hormonal Care",
           description: "Evidence-based Ayurvedic & Holistic Care with TriGyna Specialists.",
           cta: "Book Consultation",
-          destinationUrl: "https://trigyna.com/services/pcos",
+          destinationUrl: "https://www.trigyna.in/services/pcos",
         },
         tracking: {
           utmSource: "facebook",
@@ -107,7 +107,7 @@ class MarketingService {
           headline: "Specialist Care for Eczema & Psoriasis",
           description: "Long-term skin healing without harsh steroids.",
           cta: "Consult Specialist",
-          destinationUrl: "https://trigyna.com/services/eczema-psoriasis",
+          destinationUrl: "https://www.trigyna.in/services/eczema-psoriasis",
         },
         tracking: {
           utmSource: "google",
@@ -144,7 +144,7 @@ class MarketingService {
           headline: "Comprehensive Natural Fertility Care",
           description: "Prepare your body naturally with experienced integrative gynecologists.",
           cta: "Schedule Call",
-          destinationUrl: "https://trigyna.com/services/fertility",
+          destinationUrl: "https://www.trigyna.in/services/fertility",
         },
         tracking: {
           utmSource: "instagram",

@@ -134,7 +134,7 @@ const organizationSchema = new mongoose.Schema(
     },
     website: {
       type: String,
-      default: "https://trigyna.com",
+      default: "https://www.trigyna.in",
     },
     timezone: {
       type: String,

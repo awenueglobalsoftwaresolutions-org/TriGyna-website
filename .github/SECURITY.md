@@ -8,8 +8,8 @@ If you discover a security vulnerability or sensitive information exposure withi
 
 Instead, please report it immediately to our security response team:
 
-- **Email:** `security@trigyna.com`
-- **Secondary Contact:** `tech@trigyna.com`
+- **Email:** `security@trigyna.in`
+- **Secondary Contact:** `tech@trigyna.in`
 
 Please include in your report:
 1. Detailed description of the vulnerability.

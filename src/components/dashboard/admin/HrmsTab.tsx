@@ -1025,7 +1025,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                     type="email"
                     value={staffForm.email}
                     onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
-                    placeholder="anjali@trigyna.com"
+                    placeholder="anjali@trigyna.in"
                     className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none"
                   />
                 </div>

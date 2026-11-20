@@ -246,7 +246,7 @@ class AIAgentService {
       reply = `Namaste ${conv.customerName}, our clinical team specializes in constitutional root-cause care for ${classification.serviceInterest}. Would you like to consult our specialist this week?`;
       templateName = "lead_followup";
     } else if (classification.intent === "billing_inquiry") {
-      reply = `Hello ${conv.customerName}, you can view and verify all active consultations, invoices, and formal tax receipts directly inside your TriGyna Patient Portal at trigyna.health/portal.`;
+      reply = `Hello ${conv.customerName}, you can view and verify all active consultations, invoices, and formal tax receipts directly inside your TriGyna Patient Portal at https://www.trigyna.in/patient/dashboard.`;
       templateName = "payment_reminder";
     }
 

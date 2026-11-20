@@ -64,7 +64,9 @@ app.use(
       if (!origin) return callback(null, true);
       // Allow localhost frontend on 3000 or custom origin
       if (
+        (env.ALLOWED_ORIGINS && env.ALLOWED_ORIGINS.includes(origin)) ||
         origin === env.FRONTEND_ORIGIN ||
+        origin === env.FRONTEND_URL ||
         origin.startsWith("http://localhost:") ||
         origin.startsWith("http://127.0.0.1:")
       ) {

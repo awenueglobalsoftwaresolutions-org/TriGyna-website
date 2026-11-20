@@ -66,7 +66,7 @@ function generateReceiptPdf(receiptData, stream, orgData) {
         name: "TriGyna Health & Wellness",
         phone: "+91 917-277-2326",
         email: "trigyna.health@gmail.com",
-        website: "www.trigyna.com",
+        website: "www.trigyna.in",
       };
 
       const doc = new PDFDocument({
@@ -674,7 +674,7 @@ function generateReceiptPdf(receiptData, stream, orgData) {
       const city = org.address?.city || "Pune";
       const phone = org.phone || "+91 917-277-2326";
       const email = org.email || "trigyna.health@gmail.com";
-      const website = org.website ? org.website.replace(/^https?:\/\//, "") : "www.trigyna.com";
+      const website = org.website ? org.website.replace(/^https?:\/\//, "").replace(/trigyna\.com/g, "trigyna.in") : "www.trigyna.in";
       const contactText = `${city}, India    |    ${phone}    |    ${email}    |    ${website}`;
       doc.text(contactText, leftMargin + 12, stripY + 6);
 
