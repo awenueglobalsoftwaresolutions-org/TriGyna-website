@@ -47,8 +47,25 @@ const authLimiter = rateLimit({
   },
 });
 
+// Document verification rate limiter (60 checks per 15 minutes in prod)
+const documentVerificationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === "production" ? 60 : 10000,
+  skip: (req) => process.env.NODE_ENV === "test" || (process.env.NODE_ENV !== "production" && (req.ip === "127.0.0.1" || req.ip === "::1" || req.ip === "::ffff:127.0.0.1")),
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    return sendError(res, {
+      statusCode: 429,
+      code: "TOO_MANY_VERIFICATION_REQUESTS",
+      message: "Too many document verification requests. Please wait 15 minutes before trying again.",
+    });
+  },
+});
+
 module.exports = {
   apiLimiter,
   enquiryLimiter,
   authLimiter,
+  documentVerificationLimiter,
 };

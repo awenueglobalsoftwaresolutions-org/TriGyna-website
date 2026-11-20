@@ -15,6 +15,8 @@ import {
   Printer,
 } from "lucide-react";
 import { api } from "@/lib/api/client";
+import StaffOnboardingModal from "./StaffOnboardingModal";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 interface PayslipData {
   _id: string;
@@ -160,6 +162,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(false);
   const [staffSearch, setStaffSearch] = useState("");
   const [isAddStaffModalOpen, setIsAddStaffModalOpen] = useState(false);
+  const [isStaffOnboardingOpen, setIsStaffOnboardingOpen] = useState(false);
   const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
   const [staffForm, setStaffForm] = useState({
     name: "",
@@ -490,7 +493,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
               <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
                 <UserCheck className="w-5 h-5" />
               </div>
-              <h2 className="text-base font-serif font-bold text-[#17221D]">Human Resources Management (HRMS)</h2>
+              <h2 className="text-base font-sans font-bold text-[#17221D]">Human Resources Management (HRMS)</h2>
             </div>
             <p className="text-xs text-[#626B63] mt-1">
               Staff directory, attendance station, daily timecards, leave management, activity monitoring, and monthly payroll.
@@ -499,11 +502,11 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsAddStaffModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#154734] hover:bg-[#0E3828] text-white text-xs font-semibold rounded-2xl shadow-xs transition-colors cursor-pointer"
+              onClick={() => setIsStaffOnboardingOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#087A50] hover:bg-[#075B3D] text-white text-xs font-semibold rounded-2xl shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Staff Member</span>
+              <span>Onboard Staff Member</span>
             </button>
           </div>
         </div>
@@ -522,7 +525,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
               onClick={() => setSubTab(tab.id as typeof subTab)}
               className={`px-3.5 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 ${
                 subTab === tab.id
-                  ? "bg-[#154734] text-white shadow-xs"
+                  ? "bg-[#087A50] text-white shadow-xs"
                   : "bg-gray-50 text-[#626B63] hover:bg-gray-100"
               }`}
             >
@@ -552,12 +555,12 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                 placeholder="Search by staff name, code, designation..."
                 value={staffSearch}
                 onChange={(e) => setStaffSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-xs border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#154734] focus:outline-none"
+                className="w-full pl-9 pr-3 py-2 text-xs border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none"
               />
             </div>
             <button
               onClick={loadEmployees}
-              className="p-2 border border-[#E8E2D6] rounded-xl hover:bg-gray-50 text-[#154734] cursor-pointer"
+              className="p-2 border border-[#E8E2D6] rounded-xl hover:bg-gray-50 text-[#087A50] cursor-pointer"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
@@ -565,7 +568,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
 
           {isLoadingEmployees ? (
             <div className="py-12 text-center text-xs text-[#626B63] flex flex-col items-center gap-3">
-              <Loader2 className="w-6 h-6 animate-spin text-[#154734]" />
+              <Loader2 className="w-6 h-6 animate-spin text-[#087A50]" />
               <span>Loading staff directory...</span>
             </div>
           ) : filteredEmployees.length === 0 ? (
@@ -587,7 +590,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                 <tbody className="divide-y divide-[#E8E2D6]/60">
                   {filteredEmployees.map((emp) => (
                     <tr key={emp._id} className="hover:bg-[#F9F7F1]/50 transition-colors">
-                      <td className="py-3 px-3 font-mono font-bold text-[#154734]">{emp.employeeCode}</td>
+                      <td className="py-3 px-3 font-mono font-bold text-[#087A50]">{emp.employeeCode}</td>
                       <td className="py-3 px-3">
                         <div className="font-bold text-[#17221D]">{emp.userId?.name || "Staff Member"}</div>
                         <div className="text-[10px] text-[#626B63] font-mono">
@@ -596,7 +599,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                       </td>
                       <td className="py-3 px-3 text-[#17221D] font-medium">{emp.department}</td>
                       <td className="py-3 px-3 text-[#626B63]">{emp.designation}</td>
-                      <td className="py-3 px-3 font-mono text-[#154734] font-semibold capitalize">{emp.shift}</td>
+                      <td className="py-3 px-3 font-mono text-[#087A50] font-semibold capitalize">{emp.shift}</td>
                       <td className="py-3 px-3 font-mono font-bold text-[#17221D]">
                         ₹{emp.salary ? emp.salary.toLocaleString() : "N/A"}
                       </td>
@@ -620,7 +623,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
           {/* Punch Station Card */}
           <div className="bg-white rounded-3xl border border-[#E8E2D6] p-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-              <h3 className="text-sm font-bold text-[#17221D] font-serif">Quick Attendance Punch Station</h3>
+              <h3 className="text-sm font-bold text-[#17221D] font-sans">Quick Attendance Punch Station</h3>
               <p className="text-xs text-[#626B63] mt-0.5">
                 Staff and administrators can clock in upon arrival and clock out upon shift completion.
               </p>
@@ -692,7 +695,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
 
           {/* Today's Log Table */}
           <div className="bg-white rounded-3xl border border-[#E8E2D6] p-6 shadow-xs">
-            <h3 className="text-sm font-bold text-[#17221D] mb-4 font-serif">Daily Attendance Records</h3>
+            <h3 className="text-sm font-bold text-[#17221D] mb-4 font-sans">Daily Attendance Records</h3>
             {todayAttendance.length === 0 ? (
               <div className="py-8 text-center text-xs text-[#626B63]">No punches logged yet today.</div>
             ) : (
@@ -717,8 +720,8 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                           <strong>{att.employeeId?.userId?.name || "Staff"}</strong>{" "}
                           <span className="text-[#626B63] font-mono">({att.employeeId?.employeeCode})</span>
                         </td>
-                        <td className="py-2.5 px-3 text-[#154734] font-bold">{att.checkInTime || "--:--"}</td>
-                        <td className="py-2.5 px-3 text-[#154734]">{att.checkOutTime || "--:--"}</td>
+                        <td className="py-2.5 px-3 text-[#087A50] font-bold">{att.checkInTime || "--:--"}</td>
+                        <td className="py-2.5 px-3 text-[#087A50]">{att.checkOutTime || "--:--"}</td>
                         <td className="py-2.5 px-3 font-bold text-[#17221D]">{att.totalHoursWorked || 0} hrs</td>
                         <td className="py-2.5 px-3">
                           {att.isLate ? (
@@ -745,7 +748,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
       {/* SUB-TAB 3: LEAVE MANAGEMENT */}
       {subTab === "leaves" && (
         <div className="bg-white rounded-3xl border border-[#E8E2D6] p-6 shadow-xs space-y-4">
-          <h3 className="text-sm font-bold text-[#17221D] font-serif">Staff Leave Requests</h3>
+          <h3 className="text-sm font-bold text-[#17221D] font-sans">Staff Leave Requests</h3>
           {leaves.length === 0 ? (
             <div className="py-12 text-center text-xs text-[#626B63]">No leave requests on file.</div>
           ) : (
@@ -805,25 +808,25 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-white p-5 rounded-3xl border border-[#E8E2D6] shadow-xs">
               <span className="text-[10px] uppercase font-bold text-[#626B63]">Active Employees</span>
-              <p className="text-2xl font-bold font-serif text-[#17221D] mt-1">
+              <p className="text-2xl font-bold font-sans text-[#17221D] mt-1">
                 {activityData?.summary?.totalStaff ?? employees.length}
               </p>
             </div>
             <div className="bg-white p-5 rounded-3xl border border-[#E8E2D6] shadow-xs">
               <span className="text-[10px] uppercase font-bold text-emerald-800">Present Today</span>
-              <p className="text-2xl font-bold font-serif text-emerald-900 mt-1">
+              <p className="text-2xl font-bold font-sans text-emerald-900 mt-1">
                 {activityData?.summary?.presentToday ?? 0}
               </p>
             </div>
             <div className="bg-white p-5 rounded-3xl border border-[#E8E2D6] shadow-xs">
               <span className="text-[10px] uppercase font-bold text-amber-800">Pending Tasks</span>
-              <p className="text-2xl font-bold font-serif text-amber-900 mt-1">
+              <p className="text-2xl font-bold font-sans text-amber-900 mt-1">
                 {activityData?.summary?.tasksPending ?? 0}
               </p>
             </div>
             <div className="bg-white p-5 rounded-3xl border border-[#E8E2D6] shadow-xs">
               <span className="text-[10px] uppercase font-bold text-blue-800">Tasks Completed</span>
-              <p className="text-2xl font-bold font-serif text-blue-900 mt-1">
+              <p className="text-2xl font-bold font-sans text-blue-900 mt-1">
                 {activityData?.summary?.tasksCompleted ?? 0}
               </p>
             </div>
@@ -831,7 +834,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
 
           {/* Activity Logs */}
           <div className="bg-white rounded-3xl border border-[#E8E2D6] p-6 shadow-xs">
-            <h3 className="text-sm font-bold text-[#17221D] mb-4 font-serif">Recent Staff Operational Events</h3>
+            <h3 className="text-sm font-bold text-[#17221D] mb-4 font-sans">Recent Staff Operational Events</h3>
             {activityData?.recentActivities && activityData.recentActivities.length > 0 ? (
               <div className="divide-y divide-[#E8E2D6]/60">
                 {activityData.recentActivities.map((act) => (
@@ -860,7 +863,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
         <div className="space-y-6">
           <div className="bg-white rounded-3xl border border-[#E8E2D6] p-6 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-              <h3 className="text-sm font-bold text-[#17221D] font-serif">Monthly Payroll Calculations</h3>
+              <h3 className="text-sm font-bold text-[#17221D] font-sans">Monthly Payroll Calculations</h3>
               <p className="text-xs text-[#626B63] mt-0.5">
                 Calculate base salaries, attendance adjustments, statutory rules, and locked payslip distributions.
               </p>
@@ -877,7 +880,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                 type="button"
                 disabled={isCalculatingPayroll}
                 onClick={handleCalculatePayroll}
-                className="px-4 py-2 bg-[#154734] hover:bg-[#0E3828] text-white rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-60 flex items-center gap-1.5"
+                className="px-4 py-2 bg-[#087A50] hover:bg-[#075B3D] text-white rounded-xl text-xs font-semibold cursor-pointer disabled:opacity-60 flex items-center gap-1.5"
               >
                 {isCalculatingPayroll ? <Loader2 className="w-4 h-4 animate-spin" /> : <DollarSign className="w-4 h-4" />}
                 <span>Calculate Payroll</span>
@@ -923,7 +926,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                         <td className="py-3 px-3 text-emerald-700">+₹{p.allowances?.toLocaleString()}</td>
                         <td className="py-3 px-3 text-red-600">-₹{p.deductions?.toLocaleString()}</td>
                         <td className="py-3 px-3 font-bold text-[#17221D]">₹{p.grossPay?.toLocaleString()}</td>
-                        <td className="py-3 px-3 font-bold text-[#154734] text-xs">₹{p.netPay?.toLocaleString()}</td>
+                        <td className="py-3 px-3 font-bold text-[#087A50] text-xs">₹{p.netPay?.toLocaleString()}</td>
                         <td className="py-3 px-3">
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold border ${
@@ -939,7 +942,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                           <button
                             type="button"
                             onClick={() => handleOpenPayslip(p._id)}
-                            className="px-2.5 py-1 text-xs font-semibold text-[#154734] bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
+                            className="px-2.5 py-1 text-xs font-semibold text-[#087A50] bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors flex items-center gap-1 cursor-pointer"
                             title="View digital printable payslip"
                           >
                             <FileText className="w-3.5 h-3.5" />
@@ -950,7 +953,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                           {p.status !== "locked" ? (
                             <button
                               onClick={() => handleLockPayroll(p._id)}
-                              className="px-3 py-1 bg-[#154734] text-white rounded-lg text-[10px] font-bold hover:bg-[#0E3828] cursor-pointer"
+                              className="px-3 py-1 bg-[#087A50] text-white rounded-lg text-[10px] font-bold hover:bg-[#075B3D] cursor-pointer"
                             >
                               Approve &amp; Lock
                             </button>
@@ -972,27 +975,26 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
       )}
 
       {/* MODAL: ADD STAFF */}
-      {isAddStaffModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setIsAddStaffModalOpen(false)} />
-          <div className="relative bg-white border border-[#E8E2D6] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl z-10 animate-fade-in max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#E8E2D6]">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
-                  <UserCheck className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-serif font-bold text-[#154734]">Onboard New Staff Member</h3>
+      <ModalPortal isOpen={isAddStaffModalOpen} onClose={() => setIsAddStaffModalOpen(false)}>
+        <div className="bg-white border border-[#E8E2D6] rounded-3xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh] font-sans">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8E2D6] bg-neutral-50/70 shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center">
+                <UserCheck className="w-4 h-4" />
               </div>
-              <button
-                type="button"
-                onClick={() => setIsAddStaffModalOpen(false)}
-                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <h3 className="text-base font-sans font-bold text-[#087A50]">Onboard New Staff Member</h3>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsAddStaffModalOpen(false)}
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-            <form onSubmit={handleCreateStaff} className="space-y-4 text-xs">
+          <form onSubmit={handleCreateStaff} className="flex flex-col flex-1 overflow-hidden">
+            <div className="p-6 overflow-y-auto space-y-4 text-xs flex-1">
               <div>
                 <label className="block font-semibold text-[#17221D] mb-1">Full Name *</label>
                 <input
@@ -1001,7 +1003,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                   value={staffForm.name}
                   onChange={(e) => setStaffForm({ ...staffForm, name: e.target.value })}
                   placeholder="e.g. Anjali Srivastava"
-                  className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#154734] focus:outline-none"
+                  className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none"
                 />
               </div>
 
@@ -1014,7 +1016,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                     value={staffForm.phone}
                     onChange={(e) => setStaffForm({ ...staffForm, phone: e.target.value })}
                     placeholder="9876543210"
-                    className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#154734] focus:outline-none"
+                    className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none"
                   />
                 </div>
                 <div>
@@ -1024,7 +1026,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                     value={staffForm.email}
                     onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
                     placeholder="anjali@trigyna.com"
-                    className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#154734] focus:outline-none"
+                    className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none"
                   />
                 </div>
               </div>
@@ -1052,6 +1054,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                     className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl bg-white text-[#17221D] focus:outline-none"
                   >
                     <option value="reception">Receptionist</option>
+                    <option value="sales">Sales Executive</option>
                     <option value="crm">CRM Executive</option>
                     <option value="doctor">Doctor</option>
                     <option value="hrms">HR Manager</option>
@@ -1067,7 +1070,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                   value={staffForm.designation}
                   onChange={(e) => setStaffForm({ ...staffForm, designation: e.target.value })}
                   placeholder="e.g. Senior Patient Counselor"
-                  className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#154734] focus:outline-none"
+                  className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none"
                 />
               </div>
 
@@ -1079,7 +1082,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                     min="0"
                     value={staffForm.salary}
                     onChange={(e) => setStaffForm({ ...staffForm, salary: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#154734] focus:outline-none font-mono"
+                    className="w-full px-3 py-2 border border-[#E8E2D6] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none font-mono"
                   />
                 </div>
                 <div>
@@ -1097,34 +1100,33 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                   </select>
                 </div>
               </div>
+            </div>
 
-              <div className="pt-2 flex justify-end gap-2 border-t border-[#E8E2D6]">
-                <button
-                  type="button"
-                  onClick={() => setIsAddStaffModalOpen(false)}
-                  className="px-4 py-2 border border-[#E8E2D6] rounded-xl text-[#626B63] hover:bg-gray-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmittingStaff}
-                  className="px-5 py-2 bg-[#154734] text-white rounded-xl font-semibold hover:bg-[#0E3828] cursor-pointer disabled:opacity-60 flex items-center gap-2"
-                >
-                  {isSubmittingStaff ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                  <span>{isSubmittingStaff ? "Onboarding..." : "Onboard Staff"}</span>
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="px-6 py-3.5 flex justify-end gap-2 border-t border-[#E8E2D6] bg-neutral-50/70 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsAddStaffModalOpen(false)}
+                className="px-4 py-2 border border-[#E8E2D6] rounded-xl text-[#626B63] hover:bg-gray-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingStaff}
+                className="px-5 py-2 bg-[#087A50] text-white rounded-xl font-semibold hover:bg-[#075B3D] cursor-pointer disabled:opacity-60 flex items-center gap-2"
+              >
+                {isSubmittingStaff ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                <span>{isSubmittingStaff ? "Onboarding..." : "Onboard Staff"}</span>
+              </button>
+            </div>
+          </form>
         </div>
-      )}
+      </ModalPortal>
 
       {/* MODAL: DIGITAL PRINTABLE PAYSLIP */}
-      {selectedPayslip && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={() => setSelectedPayslip(null)} />
-          <div className="relative bg-white border border-[#E8E2D6] rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl z-10 animate-fade-in max-h-[92vh] overflow-y-auto">
+      <ModalPortal isOpen={!!selectedPayslip} onClose={() => setSelectedPayslip(null)}>
+        {selectedPayslip && (
+          <div className="bg-white border border-[#E8E2D6] rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl font-sans max-h-[92vh] overflow-y-auto">
             {/* Header / Actions */}
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-[#E8E2D6] print:hidden">
               <div className="flex items-center gap-2">
@@ -1132,7 +1134,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                   <FileText className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-serif font-bold text-[#154734]">Digital Payslip</h3>
+                  <h3 className="text-base font-sans font-bold text-[#087A50]">Digital Payslip</h3>
                   <p className="text-[11px] text-[#626B63] font-mono">{selectedPayslip.payslipNumber}</p>
                 </div>
               </div>
@@ -1140,7 +1142,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                 <button
                   type="button"
                   onClick={() => window.print()}
-                  className="px-3 py-1.5 bg-[#154734] hover:bg-[#0E3828] text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                  className="px-3 py-1.5 bg-[#087A50] hover:bg-[#075B3D] text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>Print Payslip</span>
@@ -1160,7 +1162,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
               {/* Clinic Branding */}
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-[#E8E2D6]">
                 <div>
-                  <h2 className="text-xl font-serif font-bold text-[#154734] tracking-tight">
+                  <h2 className="text-xl font-sans font-bold text-[#087A50] tracking-tight">
                     {selectedPayslip.organization?.name || "TriGyna Health & Wellness Clinic"}
                   </h2>
                   <p className="text-xs text-[#626B63] mt-1 max-w-sm">
@@ -1206,7 +1208,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                 </div>
                 <div>
                   <span className="text-[10px] text-[#626B63] uppercase font-bold block">Worked Days</span>
-                  <span className="font-mono font-bold text-[#154734]">{selectedPayslip.employee?.workedDays ?? 26}</span>
+                  <span className="font-mono font-bold text-[#087A50]">{selectedPayslip.employee?.workedDays ?? 26}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-[#626B63] uppercase font-bold block">Leave Days</span>
@@ -1226,7 +1228,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 {/* Earnings */}
                 <div className="bg-white rounded-xl border border-[#E8E2D6] overflow-hidden">
-                  <div className="bg-emerald-50/70 px-4 py-2 font-bold text-[#154734] border-b border-[#E8E2D6]">
+                  <div className="bg-emerald-50/70 px-4 py-2 font-bold text-[#087A50] border-b border-[#E8E2D6]">
                     Earnings Breakdown
                   </div>
                   <div className="p-4 space-y-2 font-mono">
@@ -1246,7 +1248,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
                       <span className="text-[#626B63] font-sans">Special Allowance:</span>
                       <span>₹{selectedPayslip.earnings?.special?.toLocaleString()}</span>
                     </div>
-                    <div className="pt-2 border-t border-[#E8E2D6] flex justify-between font-bold text-[#154734]">
+                    <div className="pt-2 border-t border-[#E8E2D6] flex justify-between font-bold text-[#087A50]">
                       <span className="font-sans">Gross Earnings:</span>
                       <span>₹{selectedPayslip.grossPay?.toLocaleString()}</span>
                     </div>
@@ -1280,7 +1282,7 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
               </div>
 
               {/* Net Pay Callout */}
-              <div className="bg-[#154734] text-white p-5 rounded-xl flex items-center justify-between">
+              <div className="bg-[#087A50] text-white p-5 rounded-xl flex items-center justify-between">
                 <div>
                   <span className="text-xs uppercase tracking-wider text-emerald-200 font-bold block">
                     Net Salary Payable
@@ -1310,8 +1312,16 @@ export function HrmsTab({ showNotification }: { showNotification: (msg: string, 
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ModalPortal>
+
+      {/* Admin Centralized Staff Onboarding Modal */}
+      <StaffOnboardingModal
+        isOpen={isStaffOnboardingOpen}
+        onClose={() => setIsStaffOnboardingOpen(false)}
+        defaultRole="sales"
+        onSuccess={loadEmployees}
+      />
     </div>
   );
 }

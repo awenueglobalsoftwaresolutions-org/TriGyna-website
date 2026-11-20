@@ -41,16 +41,20 @@ const appointmentSchema = new mongoose.Schema(
     },
     mode: {
       type: String,
-      enum: ["Online Video Consultation", "In-Clinic Consultation"],
+      enum: ["Online Video Consultation", "In-Clinic Consultation", "ONLINE_VIDEO"],
       default: "Online Video Consultation",
     },
     status: {
       type: String,
       enum: [
         "scheduled",
+        "confirmed",
         "checked_in",
         "waiting",
+        "in_queue",
+        "awaiting",
         "in_consultation",
+        "in_progress",
         "completed",
         "cancelled",
         "rescheduled",
@@ -75,7 +79,7 @@ const appointmentSchema = new mongoose.Schema(
     },
     bookingSource: {
       type: String,
-      enum: ["website", "crm_conversion", "reception_walkin", "portal"],
+      enum: ["website", "crm_conversion", "reception_walkin", "portal", "sales_onboarding"],
       default: "portal",
     },
     paymentStatus: {
@@ -83,11 +87,62 @@ const appointmentSchema = new mongoose.Schema(
       enum: ["unpaid", "paid", "waived"],
       default: "unpaid",
     },
+    meetingProvider: {
+      type: String,
+      enum: ["google_meet", "zoom", "none"],
+      default: "none",
+    },
+    meetingLink: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    meetingStatus: {
+      type: String,
+      enum: ["pending", "ready", "invalid", "updated", "expired"],
+      default: "pending",
+    },
+    meetingAddedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    meetingAddedAt: {
+      type: Date,
+    },
+    meetingUpdatedAt: {
+      type: Date,
+    },
+    isLegacy: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    legacyPreserved: {
+      type: Boolean,
+      default: false,
+    },
+    requiresOnlineMigrationReview: {
+      type: Boolean,
+      default: false,
+    },
+    migrationReviewNotes: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+appointmentSchema.pre("save", function (next) {
+  if (this.isNew && !this.isLegacy) {
+    if (this.mode !== "Online Video Consultation" && this.mode !== "ONLINE_VIDEO") {
+      this.mode = "Online Video Consultation";
+    }
+  }
+  next();
+});
 
 appointmentSchema.index({ appointmentDate: 1, doctorId: 1, status: 1 });
 appointmentSchema.index({ doctorId: 1, appointmentDate: 1, startTime: 1 });

@@ -6,7 +6,7 @@
  * 3. Approved leave integration with booking and availability
  */
 
-process.env.NODE_ENV = "test";
+// Test suite for Doctor Audit & Integration Verification
 const http = require("http");
 const mongoose = require("mongoose");
 const app = require("../app");
@@ -86,8 +86,9 @@ async function run() {
     assert(!hasMockNames, "No hardcoded mock patient names present in dashboard recentActivity");
 
     // 3. Connect to DB to test Leave Request Integration
+    const env = require("../config/env");
     if (mongoose.connection.readyState === 0) {
-      await mongoose.connect("mongodb://127.0.0.1:27017/trigyna_test");
+      await mongoose.connect(env.MONGODB_URI);
     }
     const User = require("../modules/users/user.model");
     const Doctor = require("../modules/doctors/doctor.model");

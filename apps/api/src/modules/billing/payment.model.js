@@ -12,13 +12,16 @@ const paymentSchema = new mongoose.Schema(
     invoiceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Invoice",
-      required: true,
+      index: true,
+    },
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
       index: true,
     },
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Patient",
-      required: true,
       index: true,
     },
     amount: {
@@ -46,6 +49,26 @@ const paymentSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    providerOrderId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    providerPaymentId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    doctorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Doctor",
+      index: true,
+    },
+    appointmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Appointment",
+      index: true,
+    },
     idempotencyKey: {
       type: String,
       trim: true,
@@ -55,7 +78,7 @@ const paymentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["initiated", "pending", "success", "failed", "refunded"],
+      enum: ["initiated", "pending", "success", "failed", "refunded", "partially_refunded"],
       default: "pending",
       index: true,
     },
@@ -69,6 +92,12 @@ const paymentSchema = new mongoose.Schema(
     recordedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+    },
+    refundSummary: {
+      refundedAmount: { type: Number, default: 0 },
+      refundStatus: { type: String, enum: ["none", "requested", "partial", "full"], default: "none" },
+      refundedAt: { type: Date },
+      reason: { type: String, trim: true },
     },
     notes: {
       type: String,

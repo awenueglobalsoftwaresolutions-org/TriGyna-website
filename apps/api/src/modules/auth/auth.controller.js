@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 const User = require("../users/user.model");
 const env = require("../../config/env");
 const { sendSuccess } = require("../../shared/response");
@@ -140,6 +141,7 @@ async function getMe(req, res, next) {
           role: req.user.role,
           status: req.user.status,
           lastLogin: req.user.lastLogin,
+          preferences: req.user.preferences || {},
         },
       },
       "Current user context retrieved"
@@ -149,8 +151,143 @@ async function getMe(req, res, next) {
   }
 }
 
+async function updateProfile(req, res, next) {
+  try {
+    const { name, phone, email, preferences, currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user._id).select("+passwordHash");
+
+    if (!user) {
+      return next(new UnauthorizedError("User session not found"));
+    }
+
+    if (name && name.trim()) user.name = name.trim();
+    if (phone && phone.trim()) user.phone = phone.trim();
+    if (email && email.trim()) user.email = email.trim().toLowerCase();
+    if (preferences && typeof preferences === "object") {
+      user.preferences = { ...(user.preferences || {}), ...preferences };
+    }
+
+    if (newPassword) {
+      if (!currentPassword) {
+        return next(new ValidationError("Current password is required to set a new password"));
+      }
+      const isMatch = await user.comparePassword(currentPassword);
+      if (!isMatch) {
+        return next(new ValidationError("Current password does not match"));
+      }
+      user.passwordHash = await bcrypt.hash(newPassword, 10);
+    }
+
+    await user.save();
+
+    await recordAudit({
+      actorId: user._id,
+      actorRole: user.role,
+      action: "USER_PROFILE_UPDATED",
+      targetEntity: "User",
+      targetId: user._id.toString(),
+      details: { name: user.name, phone: user.phone },
+      ipAddress: req.ip,
+    });
+
+    return sendSuccess(
+      res,
+      {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          status: user.status,
+          lastLogin: user.lastLogin,
+          preferences: user.preferences,
+        },
+      },
+      "Profile updated successfully"
+    );
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * GET /api/v1/auth/verify-activation-token?token=...
+ * Validates whether an activation token is valid, unexpired, and unused
+ */
+async function verifyActivationToken(req, res, next) {
+  try {
+    const rawToken = req.query.token;
+    if (!rawToken || typeof rawToken !== "string") {
+      return next(new ValidationError("Activation token is required"));
+    }
+
+    const StaffInvitation = require("../admin/staff-invitation.model");
+    const tokenHash = StaffInvitation.hashToken(rawToken);
+    const invitation = await StaffInvitation.findOne({ tokenHash });
+
+    if (!invitation) {
+      return next(new ValidationError("Invalid or unrecognized activation token"));
+    }
+
+    if (invitation.invitationStatus === "used" || invitation.usedAt) {
+      return next(new ValidationError("This activation token has already been used. Please log in."));
+    }
+
+    if (invitation.invitationStatus === "revoked") {
+      return next(new ValidationError("This activation link has been revoked by administration."));
+    }
+
+    if (new Date() > invitation.expiresAt) {
+      return next(new ValidationError("This activation link has expired. Please contact administration."));
+    }
+
+    const user = await User.findById(invitation.userId).select("name email phone role");
+    if (!user) {
+      return next(new ValidationError("Associated staff account not found"));
+    }
+
+    return sendSuccess(
+      res,
+      {
+        valid: true,
+        user: {
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      },
+      "Activation token is valid"
+    );
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * POST /api/v1/auth/activate-account
+ * Consumes activation token and securely establishes password
+ */
+async function activateAccount(req, res, next) {
+  try {
+    const { token, password, confirmPassword } = req.body;
+    const staffOnboardingService = require("../admin/staff-onboarding.service");
+    const result = await staffOnboardingService.activateAccount({
+      rawToken: token,
+      password,
+      confirmPassword,
+    });
+    return sendSuccess(res, result, "Account activated successfully. You can now log in.");
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   login,
   logout,
   getMe,
+  updateProfile,
+  verifyActivationToken,
+  activateAccount,
 };

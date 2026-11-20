@@ -42,7 +42,7 @@ export default function PrivacyPolicyPage() {
               </p>
               <ul className="list-disc list-inside space-y-1 pl-2">
                 <li>Contact Information: Full name, phone number, email address.</li>
-                <li>Consultation Preferences: Preferred mode (online video or in-clinic visit).</li>
+                <li>Consultation Preferences: Preferred schedule and communication language for secure online video consultation.</li>
                 <li>Health Information: Clinical concerns, medical histories, or lab reports shared voluntarily for diagnostic review.</li>
               </ul>
             </section>

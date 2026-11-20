@@ -259,6 +259,8 @@ async function runIndependentVerification() {
       qualifications: "MBBS, MD (OBGYN)",
       consultationFee: 1200,
       status: "active",
+      isVerified: true,
+      verificationStatus: "verified",
     });
 
     const docUserB = await User.create({
@@ -275,6 +277,8 @@ async function runIndependentVerification() {
       qualifications: "MBBS, MD (Derm)",
       consultationFee: 1000,
       status: "active",
+      isVerified: true,
+      verificationStatus: "verified",
     });
 
     const inactiveDocUser = await User.create({
@@ -372,7 +376,7 @@ async function runIndependentVerification() {
       appointmentDate: "2026-11-01",
       startTime: "09:00",
       endTime: "09:30",
-      mode: "In-Clinic Consultation",
+      mode: "Online Video Consultation",
       status: "completed",
     });
 
@@ -406,7 +410,7 @@ async function runIndependentVerification() {
       appointmentDate: "2026-11-05",
       startTime: "14:00",
       endTime: "14:30",
-      mode: "In-Clinic Consultation",
+      mode: "Online Video Consultation",
       status: "in_consultation",
     });
 
@@ -667,7 +671,7 @@ async function runIndependentVerification() {
           appointmentDate: targetDate,
           startTime: targetTime,
           endTime: "10:30",
-          mode: "In-Clinic Consultation",
+          mode: "Online Video Consultation",
           notes: `Concurrent test attempt ${idx + 1}`,
         }
       )
@@ -713,7 +717,7 @@ async function runIndependentVerification() {
         appointmentDate: targetDate,
         startTime: "10:15",
         endTime: "10:45",
-        mode: "In-Clinic Consultation",
+        mode: "Online Video Consultation",
       }
     );
     recordAuditItem(
@@ -738,7 +742,7 @@ async function runIndependentVerification() {
         appointmentDate: targetDate,
         startTime: "10:30",
         endTime: "11:00",
-        mode: "In-Clinic Consultation",
+        mode: "Online Video Consultation",
       }
     );
     const adjacentAppt = resAdjacent.data?.data?.appointment || resAdjacent.data?.data;
@@ -1005,16 +1009,16 @@ async function runIndependentVerification() {
     const resRecepInv = await makeRequest("GET", `/api/v1/invoices/${invoiceA._id}`, makeAuthHeader(receptionUser));
     const resPatAInv = await makeRequest("GET", `/api/v1/invoices/${invoiceA._id}`, makeAuthHeader(patientUserA));
     const resPatBInv = await makeRequest("GET", `/api/v1/invoices/${invoiceA._id}`, makeAuthHeader(patientUserB));
-    const resCrmInv = await makeRequest("GET", `/api/v1/invoices/${invoiceA._id}`, makeAuthHeader(crmUser));
+    const resHrmsInv = await makeRequest("GET", `/api/v1/invoices/${invoiceA._id}`, makeAuthHeader(hrmsUser));
 
     recordAuditItem(
       "BIL-01",
       "Billing Integrity",
-      "Invoice access control: Reception 200, Owning Patient 200, Unrelated Patient 403, CRM 403",
-      resRecepInv.status === 200 && resPatAInv.status === 200 && resPatBInv.status === 403 && resCrmInv.status === 403
+      "Invoice access control: Reception 200, Owning Patient 200, Unrelated Patient 403, HRMS 403",
+      resRecepInv.status === 200 && resPatAInv.status === 200 && resPatBInv.status === 403 && resHrmsInv.status === 403
         ? "PASS"
         : "FAIL",
-      `Reception: ${resRecepInv.status}, PatA: ${resPatAInv.status}, PatB: ${resPatBInv.status}, CRM: ${resCrmInv.status}`
+      `Reception: ${resRecepInv.status}, PatA: ${resPatAInv.status}, PatB: ${resPatBInv.status}, HRMS: ${resHrmsInv.status}`
     );
 
     // 4.2 Receipt PDF Stream

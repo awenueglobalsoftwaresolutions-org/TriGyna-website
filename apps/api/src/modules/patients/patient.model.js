@@ -80,6 +80,11 @@ const patientSchema = new mongoose.Schema(
       ref: "Patient",
       index: true,
     },
+    assignedDoctorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Doctor",
+      index: true,
+    },
   },
   {
     timestamps: true,

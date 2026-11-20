@@ -220,16 +220,15 @@ export default function EnquiryForm({
           <label className="block text-xs font-semibold text-[#17221D] mb-1.5 uppercase tracking-wider">
             Consultation Mode
           </label>
-          <select
-            value={formData.consultationMode}
-            onChange={(e) =>
-              setFormData({ ...formData, consultationMode: e.target.value })
-            }
-            className="w-full px-4 py-2.5 rounded-xl border border-[#E8E2D6] bg-white text-sm text-[#17221D] focus:outline-none focus:ring-2 focus:ring-[#154734]"
-          >
-            <option value="Online Video Consultation">Online Video Consultation</option>
-            <option value="In-Clinic Visit (Prayagraj)">In-Clinic Visit (Prayagraj)</option>
-          </select>
+          <div className="w-full px-4 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 text-sm font-semibold text-[#154734] flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Online Video Consultation
+            </span>
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+              Online Only
+            </span>
+          </div>
         </div>
       </div>
 

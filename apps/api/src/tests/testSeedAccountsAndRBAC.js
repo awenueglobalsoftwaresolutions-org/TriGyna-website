@@ -66,6 +66,7 @@ async function verifyAllSeedAccounts() {
     { role: "doctor", email: "doctor@trigyna.test", identifier: "doctor@trigyna.test", password: "TriGyna@123", name: "Dr. Aarav Sharma", expectedDashboard: "/doctor/dashboard" },
     { role: "reception", email: "reception@trigyna.test", identifier: "reception@trigyna.test", password: "TriGyna@123", name: "Rahul Gupta", expectedDashboard: "/reception/dashboard" },
     { role: "patient", email: "patient@trigyna.test", identifier: "patient@trigyna.test", password: "TriGyna@123", name: "Ananya Mishra", expectedDashboard: "/patient/dashboard" },
+    { role: "sales", email: "sales@trigyna.test", identifier: "sales@trigyna.test", password: "TriGyna@123", name: "Priya Verma", expectedDashboard: "/sales/dashboard" },
     // CRM and HRMS are modules of Admin, test users authenticate with role 'admin'
     { role: "admin", email: "crm@trigyna.test", identifier: "crm@trigyna.test", password: "TriGyna@123", name: "Priya Verma", expectedDashboard: "/admin/dashboard", label: "crm_manager" },
     { role: "admin", email: "hrms@trigyna.test", identifier: "hrms@trigyna.test", password: "TriGyna@123", name: "Neha Singh", expectedDashboard: "/admin/dashboard", label: "hrms_manager" }
@@ -163,6 +164,19 @@ async function verifyAllSeedAccounts() {
 
   const doctorUsersRes = await makeRequest("GET", "/api/v1/users", null, tokens["doctor"]);
   assert(doctorUsersRes.status === 403, "Doctor is forbidden (403) from accessing /api/v1/users");
+
+  // Sales team access
+  const salesCrmRes = await makeRequest("GET", "/api/v1/crm/leads", null, tokens["sales"]);
+  assert(salesCrmRes.status === 200, "Sales can access CRM leads module (/api/v1/crm/leads)");
+
+  const salesPkgRes = await makeRequest("GET", "/api/v1/packages", null, tokens["sales"]);
+  assert(salesPkgRes.status === 200, "Sales can access packages catalogue (/api/v1/packages)");
+
+  const salesUsersRes = await makeRequest("GET", "/api/v1/users", null, tokens["sales"]);
+  assert(salesUsersRes.status === 403, "Sales is forbidden (403) from accessing /api/v1/users");
+
+  const salesHrmsRes = await makeRequest("GET", "/api/v1/hrms/employees", null, tokens["sales"]);
+  assert(salesHrmsRes.status === 403, "Sales is forbidden (403) from accessing /api/v1/hrms/employees");
 
   console.log("\n--- Suite 3: Notifications Feed ---");
   const notificationsRes = await makeRequest("GET", "/api/v1/notifications", null, tokens["admin"]);

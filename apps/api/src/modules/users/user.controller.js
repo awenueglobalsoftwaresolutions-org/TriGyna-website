@@ -3,6 +3,7 @@ const AuditLog = require("../audit/audit.model");
 const { sendSuccess } = require("../../shared/response");
 const { ValidationError, NotFoundError, ForbiddenError } = require("../../shared/errors");
 const { recordAudit } = require("../audit/audit.service");
+const { safeRegex } = require("../../shared/regex.utils");
 
 async function listUsers(req, res, next) {
   try {
@@ -11,9 +12,11 @@ async function listUsers(req, res, next) {
 
     if (role) query.role = role;
     if (status) query.status = status;
-    if (search) {
-      const regex = new RegExp(search.trim(), "i");
-      query.$or = [{ name: regex }, { email: regex }, { phone: regex }];
+    if (search && search.trim()) {
+      const regex = safeRegex(search);
+      if (regex) {
+        query.$or = [{ name: regex }, { email: regex }, { phone: regex }];
+      }
     }
 
     const users = await User.find(query).sort({ createdAt: -1 }).select("-passwordHash");
@@ -216,11 +219,14 @@ async function getAuditLogs(req, res, next) {
 
     if (action) filter.action = action;
     if (targetEntity) filter.targetEntity = targetEntity;
-    if (search) {
-      filter.$or = [
-        { action: new RegExp(search.trim(), "i") },
-        { targetEntity: new RegExp(search.trim(), "i") },
-      ];
+    if (search && search.trim()) {
+      const regex = safeRegex(search);
+      if (regex) {
+        filter.$or = [
+          { action: regex },
+          { targetEntity: regex },
+        ];
+      }
     }
 
     const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);

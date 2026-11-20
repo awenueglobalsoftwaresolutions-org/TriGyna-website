@@ -20,8 +20,8 @@ export default function PortalRedirectPage() {
     const role = user.role?.toLowerCase();
     if (role === "doctor") {
       router.replace("/doctor/dashboard");
-    } else if (role === "reception") {
-      router.replace("/reception/dashboard");
+    } else if (role === "sales" || role === "crm") {
+      router.replace("/sales/dashboard");
     } else if (role === "patient") {
       router.replace("/patient/dashboard");
     } else {

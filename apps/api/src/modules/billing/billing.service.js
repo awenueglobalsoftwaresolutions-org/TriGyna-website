@@ -280,10 +280,53 @@ async function createReceiptForPayment(params) {
   return receipt;
 }
 
+const FinancialLedger = require("./financial-ledger.model");
+
+// Record immutable double-entry style financial transaction
+async function recordLedgerEntry({
+  entryType,
+  classification,
+  amount,
+  currency = "INR",
+  invoiceId,
+  paymentId,
+  receiptId,
+  refundId,
+  patientId,
+  description,
+  balanceAfter,
+  recordedBy,
+  gatewayRef,
+}) {
+  try {
+    const entryNumber = `TXN-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
+    return await FinancialLedger.create({
+      entryNumber,
+      entryType,
+      classification,
+      amount: roundToTwo(amount),
+      currency,
+      invoiceId,
+      paymentId,
+      receiptId,
+      refundId,
+      patientId,
+      description,
+      balanceAfter: balanceAfter !== undefined ? roundToTwo(balanceAfter) : undefined,
+      recordedBy,
+      gatewayRef,
+    });
+  } catch (err) {
+    console.warn("[Ledger] Entry notice:", err.message);
+    return null;
+  }
+}
+
 module.exports = {
   roundToTwo,
   generateInvoiceNumber,
   generateReceiptNumber,
   calculateInvoiceTotals,
   createReceiptForPayment,
+  recordLedgerEntry,
 };

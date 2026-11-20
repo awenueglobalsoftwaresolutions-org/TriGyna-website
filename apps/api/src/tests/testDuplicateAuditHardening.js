@@ -68,11 +68,11 @@ async function runTests() {
   console.log("--- Suite 1: Sanitization & Redaction Utilities ---");
 
   test("sanitizeMongoUri masks credentials from connection string", () => {
-    const raw = "mongodb://app_audit_user:SuperSecretP@ssword@127.0.0.1:27017/trigyna";
+    const raw = "mongodb://test_audit_user:test_placeholder_password@127.0.0.1:27017/trigyna";
     const sanitized = sanitizeMongoUri(raw);
     assert.strictEqual(sanitized, "mongodb://***:***@127.0.0.1:27017/trigyna");
-    assert.strictEqual(sanitized.includes("SuperSecret"), false);
-    assert.strictEqual(sanitized.includes("app_audit_user"), false);
+    assert.strictEqual(sanitized.includes("test_placeholder_password"), false);
+    assert.strictEqual(sanitized.includes("test_audit_user"), false);
   });
 
   test("redactCode masks internal patient code components", () => {

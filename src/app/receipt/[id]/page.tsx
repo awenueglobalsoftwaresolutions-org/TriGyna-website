@@ -143,14 +143,14 @@ export default function StandaloneReceiptPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F0F5F2] py-6 px-3 sm:px-6 print:min-h-0 print:p-0 print:m-0 print:bg-white">
+    <div className="min-h-screen bg-[#F0F5F2] py-6 px-3 sm:px-6 print:min-h-0 print:p-0 print:m-0 print:bg-white flex flex-col items-center">
       {/* Top Navigation Bar - Hidden on print */}
-      <div className="no-print max-w-[210mm] mx-auto mb-6 flex items-center justify-between">
+      <div className="no-print w-full max-w-[350px] mx-auto mb-3 flex items-center justify-between">
         <button
           onClick={() => router.back()}
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#14251F] bg-white border border-[#E4EEE7] hover:bg-gray-50 transition cursor-pointer shadow-2xs"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#14251F] bg-white border border-[#E4EEE7] hover:bg-gray-50 transition cursor-pointer shadow-2xs"
         >
-          <ArrowLeft className="w-4 h-4 text-[#087443]" />
+          <ArrowLeft className="w-3.5 h-3.5 text-[#087443]" />
           <span>Back</span>
         </button>
 
@@ -162,14 +162,14 @@ export default function StandaloneReceiptPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#087443] bg-[#EDF8F1] border border-[#D5E8DC] hover:bg-[#E2F3E8] transition shadow-2xs"
             >
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Verify Document</span>
+              <span>Verify Receipt</span>
             </Link>
           )}
         </div>
       </div>
 
-      {/* Render the Exact Reference A4 Receipt Component with authentic database data */}
-      <div className="max-w-[210mm] mx-auto print:max-w-none print:w-full print:m-0 print:p-0">
+      {/* Render the Premium Billing Receipt Slip */}
+      <div className="w-full max-w-[350px] mx-auto print:max-w-none print:w-full print:m-0 print:p-0 flex justify-center">
         <A4PaymentReceipt receipt={receiptData} showActions={true} />
       </div>
     </div>

@@ -60,7 +60,7 @@ export const siteConfig = {
   descriptor: "WOMEN | HEALTH | WELLNESS",
   tagline: "Better Health for a Brighter Tomorrow",
   subheading:
-    "Personalised consultation and holistic care for men and women — online and in-clinic.",
+    "Personalised consultation and holistic care for men and women — 100% secure online video consultations.",
   phone: "+91 917-277-2326",
   whatsappNumber: "+919172772326",
   whatsappUrl: "https://wa.me/919172772326?text=Hello%20TriGyna%2C%20I%20would%20like%20to%20enquire%20about%20a%20consultation",
@@ -140,7 +140,7 @@ export const siteConfig = {
     {
       step: "02",
       title: "Submit an Enquiry",
-      desc: "Share your health concerns and preferred consultation mode (online video consultation or in-clinic visit in Prayagraj).",
+      desc: "Share your health concerns and select your preferred consultation schedule for a 100% secure online video consultation via Google Meet or Zoom.",
     },
     {
       step: "03",

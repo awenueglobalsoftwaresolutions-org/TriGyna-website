@@ -20,12 +20,17 @@ function requireRole(...allowedRoles) {
         allowedRoles.includes("owner") ||
         allowedRoles.includes("super_admin") ||
         allowedRoles.includes("crm") ||
+        allowedRoles.includes("sales") ||
         allowedRoles.includes("hrms"))
     ) {
       return next();
     }
 
-    if (!allowedRoles.includes(userRole)) {
+    // Sales and CRM roles are interchangeable synonyms for Sales Team CRM portal
+    const normalizedRole = userRole === "crm" ? "sales" : userRole;
+    const normalizedAllowed = allowedRoles.map((r) => (r === "crm" ? "sales" : r));
+
+    if (!normalizedAllowed.includes(normalizedRole)) {
       return next(
         new ForbiddenError(`Access denied. Allowed role(s): [${allowedRoles.join(", ")}], your role: '${userRole}'`)
       );

@@ -16,16 +16,25 @@ import { api } from "@/lib/api/client";
 
 interface VerificationResult {
   verified: boolean;
+  outcome?: string;
+  outcomeLabel?: string;
+  documentType?: string;
+  documentNumber?: string;
   receiptNumber?: string;
   invoiceNumber?: string;
   amountReceived?: number;
+  amountPaid?: number;
+  totalAmount?: number;
+  balanceAmount?: number;
   currency?: string;
   issuedAt?: string;
   status?: string;
   maskedPatient?: string;
   serviceName?: string;
+  serviceCategory?: string;
   consultantName?: string;
   organization?: string;
+  organizationName?: string;
   verificationTimestamp?: string;
   message?: string;
 }
@@ -152,14 +161,14 @@ export default function ReceiptVerificationPage() {
                 <div className="p-3.5 bg-[#FAFDFB] flex items-center justify-between">
                   <span className="text-[#68766F] font-medium">Receipt Identifier:</span>
                   <span className="font-mono font-bold text-[#087443] text-sm">
-                    {data.receiptNumber}
+                    {data.receiptNumber || data.documentNumber}
                   </span>
                 </div>
 
                 <div className="p-3.5 flex items-center justify-between">
                   <span className="text-[#68766F]">Invoice Number:</span>
                   <span className="font-mono font-semibold text-[#14251F]">
-                    {data.invoiceNumber}
+                    {data.invoiceNumber || "—"}
                   </span>
                 </div>
 
@@ -167,7 +176,7 @@ export default function ReceiptVerificationPage() {
                   <span className="text-[#68766F]">Patient (Privacy Masked):</span>
                   <span className="font-semibold text-[#14251F] flex items-center gap-1.5">
                     <Lock className="w-3 h-3 text-[#68766F]" />
-                    <span>{data.maskedPatient || "A****a S****a"}</span>
+                    <span>{data.maskedPatient || "Valued Patient"}</span>
                   </span>
                 </div>
 
@@ -181,14 +190,14 @@ export default function ReceiptVerificationPage() {
                 <div className="p-3.5 flex items-center justify-between">
                   <span className="text-[#68766F]">Service / Programme:</span>
                   <span className="font-medium text-[#14251F]">
-                    {data.serviceName || "PCOS Management Consultation"}
+                    {data.serviceName || data.serviceCategory || "Clinical Consultation & Care"}
                   </span>
                 </div>
 
                 <div className="p-3.5 flex items-center justify-between">
                   <span className="text-[#68766F]">Verified Amount Received:</span>
                   <span className="font-bold text-[#087443] text-sm">
-                    ₹{Number(data.amountReceived || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    ₹{Number(data.amountReceived !== undefined ? data.amountReceived : data.amountPaid || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
                   </span>
                 </div>
 

@@ -10,18 +10,23 @@ async function bootstrapOwner() {
   await connectDB();
 
   try {
-    const existingOwner = await User.findOne({ role: "owner" });
-    if (existingOwner) {
-      console.log(`[Bootstrap] An Owner account already exists: ${existingOwner.name} (${existingOwner.phone})`);
-      console.log("[Bootstrap] Safe guard active: Provisioning aborted to avoid overwriting existing owner.");
-      return;
-    }
-
     // Default configuration for initial clinic owner
     const ownerName = process.env.OWNER_NAME || "Sushil Kushwaha";
     const ownerEmail = (process.env.OWNER_EMAIL || "trigyna.health@gmail.com").toLowerCase();
     const ownerPhone = process.env.OWNER_PHONE || "+919172772326";
     const ownerPassword = process.env.OWNER_PASSWORD || "TriGyna@2326";
+
+    const existingOwner = await User.findOne({
+      $or: [{ email: ownerEmail }, { phone: ownerPhone }],
+    });
+    if (existingOwner) {
+      if (existingOwner.role !== "owner") {
+        existingOwner.role = "owner";
+        await existingOwner.save();
+      }
+      console.log(`[Bootstrap] Canonical Owner account already exists: ${existingOwner.name} (${existingOwner.email || existingOwner.phone})`);
+      return existingOwner;
+    }
 
     const passwordHash = await User.hashPassword(ownerPassword);
 

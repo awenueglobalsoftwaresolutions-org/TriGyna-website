@@ -24,18 +24,32 @@ const patientMeRoutes = require("./modules/patients/patient.me.routes");
 const appointmentRoutes = require("./modules/appointments/appointment.routes");
 const clinicalRoutes = require("./modules/clinical/clinical.routes");
 const reportsRoutes = require("./modules/reports/reports.routes");
+const billingMasterRoutes = require("./modules/billing/billing.routes");
 const invoiceRoutes = require("./modules/billing/invoice.routes");
 const receiptRoutes = require("./modules/billing/receipt.routes");
 const paymentRoutes = require("./modules/billing/payment.routes");
+const documentVerificationRoutes = require("./modules/billing/document-verification.routes");
 const notificationRoutes = require("./modules/notifications/notification.routes");
 const organizationRoutes = require("./modules/organization/organization.routes");
 const approvalsRoutes = require("./modules/approvals/approvals.routes");
 const auditRoutes = require("./modules/audit/audit.routes");
 const integrationsRoutes = require("./modules/integrations/integrations.routes");
 const webhooksRoutes = require("./modules/integrations/webhooks.routes");
+const automationsRoutes = require("./modules/integrations/automations.routes");
+const campaignsRoutes = require("./modules/integrations/campaigns.routes");
+const aiRoutes = require("./modules/integrations/ai.routes");
 const calendarRoutes = require("./modules/calendar/calendar.routes");
 const taskRoutes = require("./modules/tasks/task.routes");
 const adminRoutes = require("./modules/admin/admin.routes");
+const packageRoutes = require("./modules/packages/package.routes");
+const salesTeamRoutes = require("./modules/sales-team/sales-team.routes");
+const orderRoutes = require("./modules/billing/order.routes");
+const checkoutRoutes = require("./modules/billing/checkout.routes");
+const serviceRoutes = require("./modules/services/service.routes");
+const marketingRoutes = require("./modules/marketing/marketing.routes");
+const { listFollowUps, addFollowUp, completeFollowUp } = require("./modules/crm/lead.controller");
+const { requireAuth } = require("./middleware/auth");
+const { requireRole } = require("./middleware/rbac");
 
 const app = express();
 
@@ -63,7 +77,14 @@ app.use(
 );
 
 app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
-app.use(express.json({ limit: "1mb" }));
+app.use(
+  express.json({
+    limit: "1mb",
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 // Root health checks
@@ -95,13 +116,30 @@ app.get(["/ready", "/api/v1/ready"], (req, res) => {
 app.use("/api/v1", apiLimiter);
 
 // Public website endpoints (no auth required)
-app.post("/api/v1/public/enquiries", enquiryLimiter, submitPublicEnquiry);
+app.post(["/api/v1/public/enquiries", "/api/v1/enquiries"], enquiryLimiter, submitPublicEnquiry);
+app.post("/api/v1/leads", (req, res, next) => {
+  if (req.headers.authorization) {
+    return leadRoutes(req, res, next);
+  }
+  return enquiryLimiter(req, res, () => submitPublicEnquiry(req, res, next));
+});
+
+// Follow-ups Hub Router
+const followUpRouter = express.Router();
+followUpRouter.use(requireAuth);
+followUpRouter.use(requireRole("owner", "admin", "crm", "sales", "reception"));
+followUpRouter.get("/", listFollowUps);
+followUpRouter.post("/", addFollowUp);
+followUpRouter.patch("/:id", completeFollowUp);
+followUpRouter.patch("/:id/complete", completeFollowUp);
+followUpRouter.post("/:id/complete", completeFollowUp);
 
 // Mount domain routes under /api/v1
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/crm", crmRoutes);
-app.use("/api/v1/crm/leads", leadRoutes);
+app.use(["/api/v1/leads", "/api/v1/crm/leads"], leadRoutes);
+app.use(["/api/v1/follow-ups", "/api/v1/tasks/follow-ups"], followUpRouter);
 app.use("/api/v1/hrms", hrmsRoutes);
 app.use("/api/v1/doctors", doctorRoutes);
 app.use(["/api/v1/doctor", "/api/v1/doctors/workspace"], doctorWorkspaceRoutes);
@@ -110,18 +148,29 @@ app.use(["/api/v1/patient", "/api/v1/patients", "/api/v1/patient-portal"], patie
 app.use("/api/v1/appointments", appointmentRoutes);
 app.use("/api/v1/clinical", clinicalRoutes);
 app.use("/api/v1/reports", reportsRoutes);
+app.use(["/api/v1/orders", "/api/v1/billing/orders"], orderRoutes);
+app.use(["/api/v1/checkout", "/api/v1/public/checkout"], checkoutRoutes);
+app.use("/api/v1/services", serviceRoutes);
+app.use(["/api/v1/billing", "/api/v1/finance"], billingMasterRoutes);
 app.use(["/api/v1/invoices", "/api/v1/billing/invoices"], invoiceRoutes);
 app.use(["/api/v1/receipts", "/api/v1/billing/receipts"], receiptRoutes);
 app.use(["/api/v1/payments", "/api/v1/billing/payments"], paymentRoutes);
+app.use(["/api/v1/public/document-verification", "/api/v1/public/verify-document", "/api/v1/verify-document"], documentVerificationRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/organization", organizationRoutes);
 app.use("/api/v1/approvals", approvalsRoutes);
 app.use("/api/v1/audit", auditRoutes);
 app.use("/api/v1/integrations", integrationsRoutes);
+app.use(["/api/v1/automations", "/api/v1/automation"], automationsRoutes);
+app.use(["/api/v1/whatsapp/campaigns", "/api/v1/campaigns"], campaignsRoutes);
+app.use("/api/v1/ai", aiRoutes);
 app.use(["/api/v1/webhooks", "/webhooks"], webhooksRoutes);
 app.use("/api/v1/calendar", calendarRoutes);
 app.use("/api/v1/tasks", taskRoutes);
 app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/packages", packageRoutes);
+app.use(["/api/v1/sales-team", "/api/v1/sales"], salesTeamRoutes);
+app.use("/api/v1/marketing", marketingRoutes);
 
 // Catch-all for undefined routes
 app.use("*", (req, res) => {

@@ -47,6 +47,8 @@ async function seedDoctorAnanya() {
       consultationFee: 800,
       bio: "Senior consultant with 12+ years experience in obstetrics, fertility, and high-risk pregnancy care.",
       status: "active",
+      isVerified: true,
+      verificationStatus: "verified",
       workingHours: [
         { dayOfWeek: 1, startTime: "09:00", endTime: "18:00", slotDurationMinutes: 30 },
         { dayOfWeek: 2, startTime: "09:00", endTime: "18:00", slotDurationMinutes: 30 },

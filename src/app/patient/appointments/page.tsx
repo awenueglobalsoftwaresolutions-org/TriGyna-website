@@ -34,6 +34,9 @@ interface AppointmentRecord {
   status: "scheduled" | "checked_in" | "in_consultation" | "completed" | "cancelled" | "no_show";
   paymentStatus: "paid" | "unpaid" | "refunded";
   notes?: string;
+  meetingProvider?: string;
+  meetingLink?: string;
+  meetingStatus?: "pending" | "ready" | "expired";
   doctorId?: {
     _id: string;
     qualifications?: string;
@@ -485,13 +488,23 @@ export default function PatientAppointmentsPage() {
 
                   <div className="flex items-center gap-2">
                     {isUpcoming && isOnline && (
-                      <Link
-                        href={`/patient/consultations?room=${appt.appointmentCode}`}
-                        className="px-3.5 py-1.5 bg-[#075B35] hover:bg-[#064A2D] text-white text-xs font-semibold rounded-lg flex items-center gap-1 shadow-xs"
-                      >
-                        <Video className="w-3.5 h-3.5" />
-                        <span>Join Call</span>
-                      </Link>
+                      appt.meetingStatus === "ready" && appt.meetingLink ? (
+                        <a
+                          href={appt.meetingLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3.5 py-1.5 bg-[#075B35] hover:bg-[#064A2D] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-xs"
+                        >
+                          <Video className="w-3.5 h-3.5" />
+                          <span>Join {appt.meetingProvider === "zoom" ? "Zoom" : "Google Meet"}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : (
+                        <span className="px-2.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-medium rounded-lg flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-amber-600" />
+                          <span>Link pending</span>
+                        </span>
+                      )
                     )}
 
                     {isUpcoming && appt.status === "scheduled" && (
@@ -589,31 +602,14 @@ export default function PatientAppointmentsPage() {
                 {/* Mode Selection */}
                 <div>
                   <label className="font-bold text-[#14251F] block mb-1.5">Consultation Mode</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedMode("Online Video Consultation")}
-                      className={`p-3 rounded-xl border text-left flex items-center gap-2 cursor-pointer transition ${
-                        selectedMode === "Online Video Consultation"
-                          ? "border-[#075B35] bg-[#EDF8F1] text-[#075B35] font-bold"
-                          : "border-gray-200 bg-white text-[#68766F]"
-                      }`}
-                    >
-                      <Video className="w-4 h-4" />
-                      <span>Video (Online)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedMode("In-Clinic Consultation")}
-                      className={`p-3 rounded-xl border text-left flex items-center gap-2 cursor-pointer transition ${
-                        selectedMode === "In-Clinic Consultation"
-                          ? "border-[#075B35] bg-[#EDF8F1] text-[#075B35] font-bold"
-                          : "border-gray-200 bg-white text-[#68766F]"
-                      }`}
-                    >
-                      <MapPin className="w-4 h-4" />
-                      <span>In-Clinic Visit</span>
-                    </button>
+                  <div className="p-3 rounded-xl border border-[#075B35]/30 bg-[#EDF8F1] text-[#075B35] font-semibold flex items-center justify-between text-xs">
+                    <span className="flex items-center gap-2">
+                      <Video className="w-4 h-4 text-[#075B35]" />
+                      <span>Online Video Consultation (Google Meet / Zoom)</span>
+                    </span>
+                    <span className="bg-[#075B35] text-white text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold">
+                      Online Only
+                    </span>
                   </div>
                 </div>
 

@@ -38,6 +38,7 @@ import {
   Headphones,
   MapPin,
   Sparkles,
+  Award,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/authContext";
 import { api } from "@/lib/api/client";
@@ -52,7 +53,7 @@ export interface NavItem {
 }
 
 interface DashboardShellProps {
-  role: "admin" | "doctor" | "reception" | "patient";
+  role: "admin" | "doctor" | "sales" | "patient" | "reception";
   title?: string;
   subtitle?: string;
   children: React.ReactNode;
@@ -78,8 +79,10 @@ export function DashboardShell({
       ? "Admin Management Console"
       : role === "doctor"
       ? "Doctor Clinical Practice"
+      : role === "sales"
+      ? "Sales & CRM Command Center"
       : role === "reception"
-      ? "Reception Desk & Intake"
+      ? "Front Desk & Intake"
       : "Personal Patient Portal");
   const { user, logout, isOwner } = useAuth();
   const pathname = usePathname();
@@ -161,6 +164,7 @@ export function DashboardShell({
 
           // Growth & CRM
           { id: "crm", label: "CRM & Leads", icon: Briefcase, section: "Growth & CRM" },
+          { id: "sales", label: "Sales Team", icon: Award, section: "Growth & CRM" },
           { id: "whatsapp", label: "Communication", icon: MessageSquare, section: "Growth & CRM" },
           { id: "marketing", label: "Marketing & Ads", icon: Megaphone, section: "Growth & CRM" },
           { id: "services", label: "Services Catalogue", icon: Layers, section: "Growth & CRM" },
@@ -184,6 +188,14 @@ export function DashboardShell({
           { id: "patients", label: "Assigned Patients", icon: Users },
           { id: "records", label: "Clinical Records", icon: ClipboardList },
           { id: "prescriptions", label: "Prescription Builder", icon: HeartPulse },
+        ];
+      case "sales":
+        return [
+          { id: "pipeline", label: "Pipeline & Kanban", icon: Briefcase },
+          { id: "leads", label: "Leads Directory", icon: Users },
+          { id: "followups", label: "Follow-up Tasks", icon: Clock },
+          { id: "packages", label: "Package Catalog", icon: Layers },
+          { id: "analytics", label: "Conversion Analytics", icon: BarChart3 },
         ];
       case "reception":
         return [
@@ -228,6 +240,8 @@ export function DashboardShell({
     ? "Administrator"
     : role === "doctor"
     ? "Doctor Specialist"
+    : role === "sales"
+    ? "Sales Executive / CRM"
     : role === "reception"
     ? "Front Desk / Reception"
     : "Patient";
@@ -238,12 +252,14 @@ export function DashboardShell({
     ? "bg-emerald-100 text-emerald-800 border-emerald-200"
     : role === "doctor"
     ? "bg-blue-100 text-blue-800 border-blue-200"
+    : role === "sales"
+    ? "bg-amber-100 text-amber-900 border-amber-300"
     : role === "reception"
     ? "bg-teal-100 text-teal-800 border-teal-200"
     : "bg-amber-100 text-amber-800 border-amber-200";
 
   return (
-    <div className={`min-h-screen ${role === "reception" ? "bg-[#F7FAF8] text-[#101828]" : "bg-[#F9F7F1] text-[#17221D]"} flex flex-col md:flex-row`}>
+    <div className="h-screen h-[100dvh] w-full bg-[#F9F7F1] text-[#17221D] flex flex-col md:flex-row overflow-hidden">
       {/* Mobile Header Bar */}
       <div className="md:hidden bg-white border-b border-[#E8E2D6] px-4 py-3 flex items-center justify-between sticky top-0 z-40 shadow-xs">
         <Link href="/" className="flex items-center gap-2">
@@ -272,7 +288,7 @@ export function DashboardShell({
       </div>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 lg:w-68 bg-white border-r border-[#E2E9E3] shrink-0 min-h-screen sticky top-0 h-screen z-30">
+      <aside className="hidden md:flex flex-col w-64 lg:w-68 bg-white border-r border-[#E2E9E3] shrink-0 h-screen h-[100dvh] max-h-screen overflow-hidden z-30">
         {/* Brand Header */}
         <div className="p-5 border-b border-[#E2E9E3] flex items-center justify-between">
           <Link href="/" className="block">
@@ -285,8 +301,8 @@ export function DashboardShell({
           </span>
         </div>
 
-        {/* User Card (non-admin and non-reception roles) */}
-        {role !== "admin" && role !== "reception" && (
+        {/* User Card (non-admin roles) */}
+        {role !== "admin" && (
           <div className="p-4 mx-3 my-3 bg-[#F9F7F1] border border-[#E8E2D6] rounded-2xl">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#154734] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
@@ -309,16 +325,11 @@ export function DashboardShell({
             const Icon = item.icon;
             const isSelected = activeTab ? activeTab === item.id : item.href === pathname;
             const showSection = item.section && (index === 0 || navItems[index - 1].section !== item.section);
-            const isReception = role === "reception";
 
-            const selectedClass = isReception
-              ? "bg-[#EAF7F0] text-[#08784E] font-bold shadow-2xs"
-              : "bg-[#154734] text-white shadow-xs";
-            const unselectedClass = isReception
-              ? "text-[#667085] hover:text-[#101828] hover:bg-[#F7FAF8]"
-              : "text-[#626B63] hover:text-[#17221D] hover:bg-[#F7F9F7]";
-            const iconSelected = isReception ? "text-[#08784E]" : "text-white";
-            const iconUnselected = isReception ? "text-[#667085]" : "text-[#154734]";
+            const selectedClass = "bg-[#154734] text-white shadow-xs";
+            const unselectedClass = "text-[#626B63] hover:text-[#17221D] hover:bg-[#F7F9F7]";
+            const iconSelected = "text-white";
+            const iconUnselected = "text-[#154734]";
 
             return (
               <React.Fragment key={item.id}>
@@ -384,45 +395,26 @@ export function DashboardShell({
           })}
         </nav>
 
-        {/* Botanical Promo Card matching exact reference image */}
-        {role === "reception" ? (
-          <div className="mx-3.5 my-2.5 p-4 rounded-2xl bg-[#EAF7F0] border border-[#D5EADB] relative overflow-hidden">
-            <div className="relative z-10">
-              <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-[#08784E] mb-2.5">
-                <Sparkles className="w-4 h-4 text-[#08784E]" />
-              </div>
-              <h4 className="text-xs font-serif font-bold text-[#101828] leading-snug">
-                Care with<br />Compassion<br />for Every Woman
+        {/* Botanical Promo Card */}
+        <div className="mx-3.5 my-2.5 p-3.5 rounded-2xl bg-gradient-to-br from-[#E8F3EC] via-[#DFEFE5] to-[#D5EADC] border border-[#C6E2D1] shadow-2xs relative overflow-hidden group">
+          <div className="flex items-start justify-between relative z-10 gap-2">
+            <div>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-[#154734]/80">Holistic Care</span>
+              <h4 className="text-xs font-serif font-bold text-[#154734] leading-snug mt-0.5">
+                Healthy Women<br />Brighter Tomorrows
               </h4>
             </div>
-            <div className="absolute -bottom-2 -right-2 w-20 h-20 opacity-25 pointer-events-none text-emerald-700">
-              <svg viewBox="0 0 100 100" fill="currentColor" className="w-full h-full">
-                <path d="M20 80 Q 50 10 80 80 Q 50 60 20 80 Z" opacity="0.8"/>
-                <path d="M40 90 Q 70 30 90 90" stroke="currentColor" strokeWidth="3" fill="none"/>
-              </svg>
+            <div className="w-11 h-11 relative opacity-95 shrink-0 group-hover:scale-105 transition-transform">
+              <Image src="/images/about/about-artwork.webp" alt="TriGyna Wellness" fill sizes="44px" className="object-contain" />
             </div>
           </div>
-        ) : (
-          <div className="mx-3.5 my-2.5 p-3.5 rounded-2xl bg-gradient-to-br from-[#E8F3EC] via-[#DFEFE5] to-[#D5EADC] border border-[#C6E2D1] shadow-2xs relative overflow-hidden group">
-            <div className="flex items-start justify-between relative z-10 gap-2">
-              <div>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-[#154734]/80">Holistic Care</span>
-                <h4 className="text-xs font-serif font-bold text-[#154734] leading-snug mt-0.5">
-                  Healthy Women<br />Brighter Tomorrows
-                </h4>
-              </div>
-              <div className="w-11 h-11 relative opacity-95 shrink-0 group-hover:scale-105 transition-transform">
-                <Image src="/images/about/about-artwork.webp" alt="TriGyna Wellness" fill sizes="44px" className="object-contain" />
-              </div>
+          <div className="mt-2.5 pt-2 border-t border-[#154734]/15 flex items-center justify-between">
+            <div className="relative h-4 w-16">
+              <Image src="/images/brand/logo.png" alt="TriGyna" fill sizes="64px" priority className="object-contain" />
             </div>
-            <div className="mt-2.5 pt-2 border-t border-[#154734]/15 flex items-center justify-between">
-              <div className="relative h-4 w-16">
-                <Image src="/images/brand/logo.png" alt="TriGyna" fill sizes="64px" priority className="object-contain" />
-              </div>
-              <span className="text-[9px] font-semibold text-[#154734]/70 font-mono">Prayagraj</span>
-            </div>
+            <span className="text-[9px] font-semibold text-[#154734]/70 font-mono">Prayagraj</span>
           </div>
-        )}
+        </div>
 
         {/* Sidebar Footer with Live Health Indicator & Logout */}
         <div className="p-3 border-t border-[#E2E9E3] flex items-center justify-between">
@@ -527,12 +519,22 @@ export function DashboardShell({
       )}
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <div className="flex-1 h-screen h-[100dvh] flex flex-col min-w-0 overflow-hidden">
         {/* Top Header Bar */}
-        <header className="bg-white border-b border-[#E2E9E3] px-4 sm:px-6 lg:px-8 py-3 sticky top-0 z-20">
+        <header className="bg-white border-b border-[#E2E9E3] px-4 sm:px-6 lg:px-8 py-2.5 shrink-0 z-20 shadow-2xs">
           {role === "admin" ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1 max-w-xl">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 flex-1 max-w-xl">
+                {/* Mobile Menu Trigger Button */}
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(true)}
+                  aria-label="Open navigation menu"
+                  className="md:hidden w-9 h-9 rounded-xl border border-[#E2E9E3] bg-[#F7F9F7] text-[#154734] hover:bg-[#EBF3E8] flex items-center justify-center cursor-pointer shrink-0 transition-colors"
+                >
+                  <Menu className="w-4 h-4 stroke-[2.2]" />
+                </button>
+
                 <div className="hidden lg:flex items-center gap-1.5 text-xs text-[#68756D] shrink-0 font-medium">
                   <span className="hover:text-[#154734] cursor-pointer" onClick={() => onTabChange?.("overview")}>
                     Admin
@@ -542,28 +544,29 @@ export function DashboardShell({
                     {navItems.find((n) => n.id === activeTab)?.label || "Dashboard"}
                   </span>
                 </div>
+
                 {/* Global Search Bar */}
                 <div className="relative flex-1">
-                  <Search className="w-4 h-4 text-[#68756D] absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Search className="w-4 h-4 text-[#68756D] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     value={globalSearch}
                     onChange={(e) => setGlobalSearch(e.target.value)}
                     placeholder="Search patients, leads, appointments, staff..."
-                    className="w-full pl-9 pr-16 py-2 text-xs bg-[#F7F9F7] border border-[#E2E9E3] rounded-xl text-[#18231D] placeholder:text-[#68756D] focus:bg-white focus:outline-none focus:border-[#154734] transition-all"
+                    className="w-full h-9 pl-9 pr-14 text-xs bg-[#F7F9F7] border border-[#E2E9E3] rounded-xl text-[#18231D] placeholder:text-[#68756D] focus:bg-white focus:outline-none focus:border-[#154734] transition-colors"
                   />
-                  <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-[10px] font-mono font-medium text-[#68756D] bg-white border border-[#E2E9E3] rounded-md shadow-2xs pointer-events-none">
+                  <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 text-[9px] font-mono font-medium text-[#68756D] bg-white border border-[#E2E9E3] rounded-md shadow-2xs pointer-events-none">
                     Ctrl K
                   </kbd>
                 </div>
               </div>
 
               {/* Right Header Controls */}
-              <div className="flex items-center gap-3 self-end sm:self-auto">
+              <div className="flex items-center gap-2 sm:gap-2.5">
                 {/* Today Date Filter Button */}
                 <button
                   type="button"
-                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#E4EAE5] bg-white text-xs font-semibold text-[#17211B] hover:bg-[#F7F9F7] transition-colors cursor-pointer"
+                  className="hidden sm:flex items-center gap-1.5 h-9 px-3 rounded-xl border border-[#E2E9E3] bg-white text-xs font-semibold text-[#17211B] hover:bg-[#F7F9F7] transition-colors cursor-pointer"
                 >
                   <Calendar className="w-3.5 h-3.5 text-[#68746D]" />
                   <span>Today</span>
@@ -575,7 +578,7 @@ export function DashboardShell({
                   <button
                     type="button"
                     onClick={() => setNotificationsOpen(!notificationsOpen)}
-                    className="p-2 rounded-xl border border-[#E4EAE5] bg-white hover:bg-[#F7F9F7] text-[#68746D] hover:text-[#154734] relative cursor-pointer transition-colors"
+                    className="w-9 h-9 rounded-xl border border-[#E2E9E3] bg-white hover:bg-[#F7F9F7] text-[#68746D] hover:text-[#154734] relative cursor-pointer transition-colors flex items-center justify-center"
                     title="Notifications"
                   >
                     <Bell className="w-4 h-4" />
@@ -629,16 +632,16 @@ export function DashboardShell({
                   <button
                     type="button"
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 p-1 sm:pr-2.5 rounded-xl hover:bg-[#F7F9F7] border border-transparent hover:border-[#E4EAE5] transition-all cursor-pointer"
+                    className="flex items-center gap-2 h-9 px-2 rounded-xl hover:bg-[#F7F9F7] border border-transparent hover:border-[#E2E9E3] transition-colors cursor-pointer"
                   >
-                    <div className="w-8 h-8 rounded-full bg-[#154734] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                    <div className="w-7 h-7 rounded-full bg-[#154734] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
                       {user?.name ? user.name.charAt(0).toUpperCase() : "A"}
                     </div>
                     <div className="hidden sm:block text-left">
                       <p className="text-xs font-bold text-[#17211B] leading-tight">
                         {user?.name || "Admin"}
                       </p>
-                      <p className="text-[10px] text-[#68746D]">
+                      <p className="text-[10px] text-[#68756D]">
                         Super Admin
                       </p>
                     </div>
@@ -648,7 +651,7 @@ export function DashboardShell({
                     <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E4EAE5] rounded-2xl shadow-xl p-2 z-50 animate-fade-in">
                       <div className="px-3 py-2 border-b border-[#E4EAE5] mb-1">
                         <p className="text-xs font-bold text-[#17211B] truncate">{user?.name || "Admin"}</p>
-                        <p className="text-[10px] text-[#68746D] truncate">{user?.email || "trigyna.health@gmail.com"}</p>
+                        <p className="text-[10px] text-[#68756D] truncate">{user?.email || "trigyna.health@gmail.com"}</p>
                       </div>
                       <button
                         type="button"
@@ -674,123 +677,31 @@ export function DashboardShell({
                 </div>
               </div>
             </div>
-          ) : role === "reception" ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              {/* Global Search Bar */}
-              <div className="relative flex-1 max-w-xl">
-                <Search className="w-4 h-4 text-[#667085] absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={globalSearch}
-                  onChange={(e) => setGlobalSearch(e.target.value)}
-                  placeholder="Search patients by name, phone or ID..."
-                  className="w-full pl-9 pr-4 py-2 text-xs bg-white border border-[#E4EBE7] rounded-xl text-[#101828] placeholder:text-[#667085] focus:outline-none focus:border-[#08784E] transition-all shadow-2xs"
-                />
-              </div>
-
-              {/* Right Header Controls: Branch Selector, Notifications, User Chip */}
-              <div className="flex items-center gap-3 self-end sm:self-auto">
-                {/* Branch Selector */}
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E4EBE7] bg-[#F7FAF8] text-xs font-semibold text-[#101828]">
-                  <MapPin className="w-3.5 h-3.5 text-[#08784E]" />
-                  <span>Indiranagar Branch</span>
-                  <ChevronDown className="w-3 h-3 text-[#667085] ml-0.5" />
-                </div>
-
-                {/* Notifications Bell */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setNotificationsOpen(!notificationsOpen)}
-                    className="p-2 rounded-xl border border-[#E4EBE7] bg-white hover:bg-[#F7FAF8] text-[#667085] hover:text-[#08784E] relative cursor-pointer transition-colors"
-                    title="Notifications"
-                  >
-                    <Bell className="w-4 h-4" />
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
-                      3
-                    </span>
-                  </button>
-
-                  {notificationsOpen && (
-                    <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white border border-[#E4EBE7] rounded-2xl shadow-xl p-3 z-50 animate-fade-in">
-                      <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#E4EBE7]">
-                        <span className="text-xs font-bold text-[#101828]">Notifications Feed</span>
-                        <span className="text-[10px] text-[#08784E] bg-[#EAF7F0] px-2 py-0.5 rounded-md font-semibold">
-                          Live Reception
-                        </span>
-                      </div>
-                      <div className="space-y-2 text-xs">
-                        <div className="p-2 bg-[#F7FAF8] rounded-xl border border-[#E4EBE7]">
-                          <p className="font-bold text-[#101828]">6 Patients in Waiting Queue</p>
-                          <p className="text-[11px] text-[#667085]">Average waiting duration: 28 min</p>
-                        </div>
-                        <div className="p-2 bg-[#F7FAF8] rounded-xl border border-[#E4EBE7]">
-                          <p className="font-bold text-[#101828]">Dr. Aarti Deshmukh On Leave</p>
-                          <p className="text-[11px] text-[#667085]">Scheduled slots redistributed to Dr. Priya Sharma</p>
-                        </div>
-                        <div className="p-2 bg-[#F7FAF8] rounded-xl border border-[#E4EBE7]">
-                          <p className="font-bold text-[#101828]">5 Outstanding Invoices</p>
-                          <p className="text-[11px] text-[#667085]">₹ 28,450 pending front-desk payment collection</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Reception Staff Profile Chip */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 p-1 sm:pr-2.5 rounded-xl hover:bg-[#F7FAF8] border border-transparent hover:border-[#E4EBE7] transition-all cursor-pointer"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-[#154734] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
-                      RS
-                    </div>
-                    <div className="hidden sm:block text-left">
-                      <p className="text-xs font-bold text-[#101828] leading-tight">
-                        Reception Staff
-                      </p>
-                      <p className="text-[10px] text-[#667085]">
-                        Reception
-                      </p>
-                    </div>
-                    <ChevronDown className="w-3 h-3 text-[#667085] hidden sm:block" />
-                  </button>
-
-                  {userMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white border border-[#E4EBE7] rounded-2xl shadow-xl p-2 z-50 animate-fade-in">
-                      <div className="px-3 py-2 border-b border-[#E4EBE7] mb-1">
-                        <p className="text-xs font-bold text-[#101828] truncate">{user?.name || "Reception Staff"}</p>
-                        <p className="text-[10px] text-[#667085] truncate">{user?.email || "reception@trigyna.com"}</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={logout}
-                        className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 flex items-center gap-2"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>Sign Out</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           ) : (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xl sm:text-2xl font-serif font-bold text-[#17221D] tracking-tight">{displayTitle}</h1>
-                  <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-50 text-emerald-800 border border-emerald-200">
-                    Verified EHR
-                  </span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                {/* Mobile Menu Trigger Button for non-admin */}
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(true)}
+                  aria-label="Open navigation menu"
+                  className="md:hidden w-9 h-9 rounded-xl border border-[#E2E9E3] bg-[#F7F9F7] text-[#154734] hover:bg-[#EBF3E8] flex items-center justify-center cursor-pointer shrink-0 transition-colors"
+                >
+                  <Menu className="w-4 h-4 stroke-[2.2]" />
+                </button>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-base sm:text-lg font-bold text-[#17221D] tracking-tight">{displayTitle}</h1>
+                    <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      Verified EHR
+                    </span>
+                  </div>
+                  {subtitle && <p className="text-xs text-[#626B63] mt-0.5">{subtitle}</p>}
                 </div>
-                {subtitle && <p className="text-xs sm:text-sm text-[#626B63] mt-0.5">{subtitle}</p>}
               </div>
 
-              <div className="flex items-center gap-3 self-end sm:self-auto">
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F9F7F1] border border-[#E8E2D6] text-xs font-medium">
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                <div className="hidden sm:flex items-center gap-1.5 h-9 px-3 rounded-xl bg-[#F9F7F1] border border-[#E8E2D6] text-xs font-medium">
                   <span
                     className={`w-2 h-2 rounded-full ${
                       backendHealth === "online" ? "bg-emerald-500 animate-pulse" : "bg-amber-500"
@@ -805,7 +716,7 @@ export function DashboardShell({
                   <button
                     type="button"
                     onClick={() => setNotificationsOpen(!notificationsOpen)}
-                    className="p-2 rounded-xl border border-[#E8E2D6] bg-white hover:bg-[#F9F7F1] text-[#626B63] hover:text-[#154734] relative cursor-pointer transition-colors"
+                    className="w-9 h-9 rounded-xl border border-[#E8E2D6] bg-white hover:bg-[#F9F7F1] text-[#626B63] hover:text-[#154734] relative cursor-pointer transition-colors flex items-center justify-center"
                     title="Notifications"
                   >
                     <Bell className="w-4 h-4" />
@@ -822,7 +733,7 @@ export function DashboardShell({
                 <Link
                   href="/"
                   target="_blank"
-                  className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E8E2D6] bg-white hover:bg-[#F9F7F1] text-xs font-semibold text-[#154734] transition-colors"
+                  className="hidden lg:flex items-center gap-1.5 h-9 px-3 rounded-xl border border-[#E8E2D6] bg-white hover:bg-[#F9F7F1] text-xs font-semibold text-[#154734] transition-colors"
                   title="Open public website in new tab"
                 >
                   <span>TriGyna.com</span>
@@ -834,8 +745,8 @@ export function DashboardShell({
         </header>
 
         {/* Content Body */}
-        <div className="flex-1 p-4 sm:p-6 lg:p-8">{children}</div>
-      </main>
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto overflow-x-hidden min-w-0 scrollbar-thin">{children}</main>
+      </div>
     </div>
   );
 }

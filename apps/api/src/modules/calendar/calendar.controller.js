@@ -1,154 +1,285 @@
-const Appointment = require("../appointments/appointment.model");
-const FollowUp = require("../clinical/followup.model");
-const LeaveRequest = require("../hrms/leave.model");
-const Task = require("../tasks/task.model");
-const Doctor = require("../doctors/doctor.model");
+const calendarService = require("./calendar.service");
 const { sendSuccess } = require("../../shared/response");
+const { ValidationError } = require("../../shared/errors");
+const AuditLog = require("../audit/audit.model");
 
+/**
+ * GET /api/v1/calendar/events
+ * Aggregates all calendar events across operational sources
+ */
 async function getCalendarEvents(req, res, next) {
   try {
-    const { startDate, endDate, doctorId, employeeId, type = "all" } = req.query;
+    const { startDate, endDate, doctorId, patientId, staffId, branchId, status, search, type = "all" } = req.query;
 
-    const start = startDate ? new Date(startDate) : new Date(new Date().setDate(new Date().getDate() - 15));
-    const end = endDate ? new Date(endDate) : new Date(new Date().setDate(new Date().getDate() + 30));
+    const events = await calendarService.getAggregatedEvents({
+      startDate,
+      endDate,
+      type,
+      doctorId,
+      patientId,
+      staffId,
+      branchId,
+      status,
+      search,
+      user: req.user,
+    });
 
-    const events = [];
-
-    // 1. Fetch Appointments
-    if (type === "all" || type === "appointment") {
-      const apptQuery = {
-        appointmentDate: {
-          $gte: start.toISOString().split("T")[0],
-          $lte: end.toISOString().split("T")[0],
-        },
-      };
-      if (doctorId) apptQuery.doctorId = doctorId;
-
-      const appointments = await Appointment.find(apptQuery)
-        .populate("patientId", "fullName patientCode phone")
-        .populate({
-          path: "doctorId",
-          populate: { path: "userId", select: "name" },
-        });
-
-      appointments.forEach((a) => {
-        const docName = a.doctorId?.userId?.name || "Dr. TriGyna Specialist";
-        const patName = a.patientId?.fullName || "Patient";
-        events.push({
-          id: `appt-${a._id}`,
-          rawId: a._id,
-          title: `Dr. ${docName} - ${patName} (${a.consultationType || "Consultation"})`,
-          eventType: "appointment",
-          date: a.appointmentDate,
-          time: a.slotTime,
-          status: a.status,
-          doctorName: docName,
-          patientName: patName,
-          details: `Slot: ${a.slotTime} | Status: ${a.status} | Reason: ${a.reasonForVisit || "Routine"}`,
-          color: a.status === "completed" ? "emerald" : a.status === "cancelled" ? "red" : "blue",
-        });
-      });
-    }
-
-    // 2. Fetch Follow-ups
-    if (type === "all" || type === "followup") {
-      const flwQuery = {
-        dueDate: { $gte: start, $lte: end },
-      };
-      if (doctorId) flwQuery.doctorId = doctorId;
-
-      const followUps = await FollowUp.find(flwQuery)
-        .populate("patientId", "fullName patientCode phone")
-        .populate({
-          path: "doctorId",
-          populate: { path: "userId", select: "name" },
-        });
-
-      followUps.forEach((f) => {
-        const patName = f.patientId?.fullName || "Patient";
-        events.push({
-          id: `flw-${f._id}`,
-          rawId: f._id,
-          title: `Follow-up: ${patName} (${f.serviceName})`,
-          eventType: "followup",
-          date: f.dueDate.toISOString().split("T")[0],
-          time: f.scheduledTime || "11:30 AM",
-          status: f.status,
-          patientName: patName,
-          details: `Service: ${f.serviceName} | Interval: ${f.interval} | Mode: ${f.mode}`,
-          color: f.status === "completed" ? "emerald" : "purple",
-        });
-      });
-    }
-
-    // 3. Fetch Approved Staff Leaves
-    if (type === "all" || type === "leave") {
-      const leaves = await LeaveRequest.find({
-        status: "approved",
-      }).populate({
-        path: "employeeId",
-        populate: { path: "userId", select: "name" },
-      });
-
-      leaves.forEach((l) => {
-        const staffName = l.employeeId?.userId?.name || "Staff Member";
-        events.push({
-          id: `leave-${l._id}`,
-          rawId: l._id,
-          title: `Leave: ${staffName} (${l.leaveType})`,
-          eventType: "leave",
-          date: l.startDate,
-          endDate: l.endDate,
-          time: "All Day",
-          status: "approved",
-          staffName,
-          details: `Days: ${l.totalDays} | Reason: ${l.reason}`,
-          color: "amber",
-        });
-      });
-    }
-
-    // 4. Fetch Tasks
-    if (type === "all" || type === "task") {
-      const taskQuery = {
-        dueDate: { $gte: start, $lte: end },
-      };
-      if (employeeId) taskQuery.assignedTo = employeeId;
-
-      const tasks = await Task.find(taskQuery).populate("assignedTo", "name phone");
-
-      tasks.forEach((t) => {
-        events.push({
-          id: `task-${t._id}`,
-          rawId: t._id,
-          title: `Task: ${t.title} [${t.priority.toUpperCase()}]`,
-          eventType: "task",
-          date: t.dueDate ? t.dueDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-          time: "By End of Day",
-          status: t.status,
-          assignedStaff: t.assignedTo?.name || "Unassigned",
-          details: `Module: ${t.module} | Priority: ${t.priority}`,
-          color: t.status === "completed" ? "gray" : t.priority === "high" ? "red" : "teal",
-        });
-      });
-    }
-
-    // Sort chronologically
-    events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const streamCounts = {
+      appointments: events.filter((e) => e.category === "appointment").length,
+      followups: events.filter((e) => e.category === "followup").length,
+      doctorSessions: events.filter((e) => e.category === "doctor_session").length,
+      staffLeaves: events.filter((e) => e.category === "staff_leave").length,
+      clinicalTasks: events.filter((e) => e.category === "task").length,
+      administrativeEvents: events.filter((e) => e.category === "institutional").length,
+    };
 
     return sendSuccess(
       res,
       {
         events,
         total: events.length,
-        summary: {
-          appointments: events.filter((e) => e.eventType === "appointment").length,
-          followups: events.filter((e) => e.eventType === "followup").length,
-          leaves: events.filter((e) => e.eventType === "leave").length,
-          tasks: events.filter((e) => e.eventType === "task").length,
-        },
+        summary: streamCounts,
       },
-      "Calendar events retrieved successfully"
+      "Unified calendar events retrieved successfully"
+    );
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * GET /api/v1/calendar/events/:eventId
+ * Single event rich detail projection
+ */
+async function getCalendarEventById(req, res, next) {
+  try {
+    const { eventId } = req.params;
+    const event = await calendarService.getEventDetail(eventId, req.user);
+    return sendSuccess(res, { event }, "Calendar event details retrieved");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * GET /api/v1/calendar/stats
+ * Dynamic 5 KPI cards data for selected month
+ */
+async function getCalendarStats(req, res, next) {
+  try {
+    const { year, month } = req.query;
+    const stats = await calendarService.getCalendarStats({
+      year,
+      month,
+      user: req.user,
+    });
+    return sendSuccess(res, stats, "Calendar KPI metrics retrieved successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * GET /api/v1/calendar/agenda
+ * Upcoming today chronological timeline agenda
+ */
+async function getCalendarAgenda(req, res, next) {
+  try {
+    const { date, doctorId, branchId } = req.query;
+    const agenda = await calendarService.getCalendarAgenda({
+      date,
+      doctorId,
+      branchId,
+      user: req.user,
+    });
+    return sendSuccess(res, agenda, "Calendar agenda retrieved successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * GET /api/v1/calendar/streams
+ * Stream counts for right sidebar
+ */
+async function getCalendarStreams(req, res, next) {
+  try {
+    const { startDate, endDate } = req.query;
+    const streams = await calendarService.getStreamCounts({
+      startDate,
+      endDate,
+      user: req.user,
+    });
+    return sendSuccess(res, { streams }, "Calendar stream counts retrieved successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * POST /api/v1/calendar/events
+ * Create new event in its appropriate source module
+ */
+async function createCalendarEvent(req, res, next) {
+  try {
+    const event = await calendarService.createCalendarEvent(req.body, req.user);
+    return sendSuccess(res, { event }, "Event scheduled successfully in source module", 201);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * POST /api/v1/calendar/events/:eventId/reschedule
+ * Atomically reschedules event with conflict check
+ */
+async function rescheduleCalendarEvent(req, res, next) {
+  try {
+    const { eventId } = req.params;
+    const { newDate, newStartTime, newEndTime, reason } = req.body;
+    const event = await calendarService.rescheduleCalendarEvent(
+      eventId,
+      { newDate, newStartTime, newEndTime, reason },
+      req.user
+    );
+    return sendSuccess(res, { event }, "Event rescheduled successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * POST /api/v1/calendar/events/:eventId/cancel
+ * Safely cancels event in its source module
+ */
+async function cancelCalendarEvent(req, res, next) {
+  try {
+    const { eventId } = req.params;
+    const { reason } = req.body;
+    const result = await calendarService.cancelCalendarEvent(eventId, { reason }, req.user);
+    return sendSuccess(res, result, "Event cancelled successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * GET /api/v1/calendar/events/:eventId/history
+ * Audit log and change history for event
+ */
+async function getCalendarEventHistory(req, res, next) {
+  try {
+    const { eventId } = req.params;
+    const rawId = eventId.split("-").slice(1).join("-");
+
+    const logs = await AuditLog.find({
+      $or: [{ targetId: rawId }, { targetId: eventId }, { "details.appointmentCode": rawId }],
+    })
+      .populate("actorId", "name email role")
+      .sort({ timestamp: -1 })
+      .limit(20)
+      .lean();
+
+    return sendSuccess(res, { history: logs }, "Event history retrieved");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * POST /api/v1/calendar/validate-schedule
+ * Scheduling conflict detector API
+ */
+async function validateSchedule(req, res, next) {
+  try {
+    const { doctorId, staffId, date, startTime, endTime, excludeEventId } = req.body;
+    const validation = await calendarService.validateScheduleConflict({
+      doctorId,
+      staffId,
+      date,
+      startTime,
+      endTime,
+      excludeEventId,
+    });
+    return sendSuccess(res, validation, "Schedule validation completed");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * GET /api/v1/calendar/export
+ * Exports calendar data in CSV or ICS format
+ */
+async function exportCalendar(req, res, next) {
+  try {
+    const { startDate, endDate, format = "csv", type = "all" } = req.query;
+    const exportData = await calendarService.exportCalendarEvents({
+      startDate,
+      endDate,
+      format,
+      type,
+      user: req.user,
+    });
+
+    res.setHeader("Content-Type", exportData.contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${exportData.filename}"`);
+    return res.status(200).send(exportData.data);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * POST /api/v1/calendar/import/preview & execute
+ * Calendar file import workflow
+ */
+async function importCalendar(req, res, next) {
+  try {
+    const { events = [], previewOnly = true } = req.body;
+    if (!Array.isArray(events) || events.length === 0) {
+      throw new ValidationError("No valid calendar events array provided for import");
+    }
+
+    const previewResults = [];
+    let importedCount = 0;
+
+    for (const item of events) {
+      const conflict = await calendarService.validateScheduleConflict({
+        doctorId: item.doctorId,
+        date: item.date,
+        startTime: item.startTime,
+        endTime: item.endTime,
+      });
+
+      previewResults.push({
+        ...item,
+        hasConflict: conflict.hasConflict,
+        conflicts: conflict.conflicts,
+        valid: !conflict.hasCriticalConflict,
+      });
+
+      if (!previewOnly && !conflict.hasCriticalConflict) {
+        try {
+          await calendarService.createCalendarEvent(item, req.user);
+          importedCount++;
+        } catch {
+          // Skip failing rows in batch import
+        }
+      }
+    }
+
+    return sendSuccess(
+      res,
+      {
+        total: events.length,
+        validCount: previewResults.filter((p) => p.valid).length,
+        conflictCount: previewResults.filter((p) => p.hasConflict).length,
+        importedCount,
+        preview: previewResults,
+        previewOnly,
+      },
+      previewOnly ? "Import preview generated" : `Successfully imported ${importedCount} events`
     );
   } catch (err) {
     return next(err);
@@ -157,4 +288,15 @@ async function getCalendarEvents(req, res, next) {
 
 module.exports = {
   getCalendarEvents,
+  getCalendarEventById,
+  getCalendarStats,
+  getCalendarAgenda,
+  getCalendarStreams,
+  createCalendarEvent,
+  rescheduleCalendarEvent,
+  cancelCalendarEvent,
+  getCalendarEventHistory,
+  validateSchedule,
+  exportCalendar,
+  importCalendar,
 };

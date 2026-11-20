@@ -17,7 +17,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import { api } from "@/lib/api/client";
+import { api, getToken, getBaseUrl } from "@/lib/api/client";
 
 interface MedicationItem {
   name: string;
@@ -56,7 +56,41 @@ interface PrescriptionRecord {
 export default function PrescriptionsPage() {
   const [prescriptions, setPrescriptions] = useState<PrescriptionRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState<PrescriptionRecord | null>(null);
+
+  const handleDownloadPdf = async (prescriptionId: string, code: string) => {
+    try {
+      setDownloading(true);
+      const token = getToken();
+      const baseUrl = getBaseUrl();
+      const res = await fetch(`${baseUrl}/clinical/prescriptions/${prescriptionId}/pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to download PDF (${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Prescription-${code || prescriptionId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("PDF download failed, falling back to window.open:", err);
+      const token = getToken();
+      const baseUrl = getBaseUrl();
+      window.open(
+        `${baseUrl}/clinical/prescriptions/${prescriptionId}/pdf?token=${encodeURIComponent(token || "")}`,
+        "_blank"
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     async function loadPrescriptions() {
@@ -92,13 +126,32 @@ export default function PrescriptionsPage() {
         </div>
 
         {selectedPrescription && (
-          <button
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#075B35] hover:bg-[#064A2D] text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Print Active Slip</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() =>
+                handleDownloadPdf(
+                  selectedPrescription._id,
+                  selectedPrescription.prescriptionCode
+                )
+              }
+              disabled={downloading}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#075B35] hover:bg-[#064A2D] disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
+            >
+              {downloading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              <span>{downloading ? "Preparing PDF..." : "Download Official PDF"}</span>
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-[#D5E8DC] hover:bg-[#F2F7F4] text-[#14251F] text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Slip</span>
+            </button>
+          </div>
         )}
       </div>
 

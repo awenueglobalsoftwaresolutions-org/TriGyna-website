@@ -272,7 +272,7 @@ async function runMasterVerification() {
     const convertDate = `2026-11-${String((Date.now() % 25) + 1).padStart(2, "0")}`;
     const convertTime = "11:30";
     await Appointment.deleteMany({ doctorId: doctor._id, appointmentDate: convertDate, startTime: convertTime });
-    await SlotReservation.deleteMany({ doctorId: doctor._id, appointmentDate: convertDate, slotTime: convertTime });
+    await SlotReservation.deleteMany({ doctorId: doctor._id, appointmentDate: convertDate, slotTime: { $in: [convertTime, "11:45"] } });
 
     const convertRes = await request(
       "POST",
@@ -457,6 +457,7 @@ async function runMasterVerification() {
     const sharedAptDate = `2026-12-${String((Date.now() % 25) + 1).padStart(2, "0")}`;
     const sharedAptTime = "10:00";
     await Appointment.deleteMany({ doctorId: doctor._id, appointmentDate: sharedAptDate, startTime: sharedAptTime });
+    await SlotReservation.deleteMany({ doctorId: doctor._id, appointmentDate: sharedAptDate, slotTime: { $in: [sharedAptTime, "10:15"] } });
 
     const aptRes = await request(
       "POST",

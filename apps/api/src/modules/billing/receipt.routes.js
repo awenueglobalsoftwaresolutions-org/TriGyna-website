@@ -6,20 +6,20 @@ const {
   getReceiptById,
   getReceiptByInvoiceId,
   getReceiptByPaymentId,
-  verifyReceiptByToken,
   downloadReceiptPdf,
 } = require("./receipt.controller");
+const { verifyDocument } = require("./document-verification.controller");
 
 const router = express.Router();
 
 // 1. Public Verification Route (Open for QR Code Scanner)
-router.get("/verify/:token", verifyReceiptByToken);
-router.get("/verify", verifyReceiptByToken);
+router.get("/verify/:token", verifyDocument);
+router.get("/verify", verifyDocument);
 
 // 2. Protected Routes (Require User Authentication & Role Authorization)
 router.use(requireAuth);
 
-const allowedBillingRoles = requireRole("owner", "admin", "reception", "doctor", "patient");
+const allowedBillingRoles = requireRole("owner", "admin", "reception", "doctor", "sales", "crm", "patient");
 
 router.get("/", allowedBillingRoles, listReceipts);
 router.get("/by-invoice/:invoiceId", allowedBillingRoles, getReceiptByInvoiceId);

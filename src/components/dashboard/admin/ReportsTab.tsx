@@ -118,7 +118,7 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
   const loadReportData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await api.get<RawApiSummaryResponse>("/reports/summary");
+      const res = await api.get<RawApiSummaryResponse>(`/reports/summary?range=${encodeURIComponent(reportRange)}`);
       if (res.data) {
         setData(normalizeSummary(res.data));
       }
@@ -127,26 +127,11 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
     } finally {
       setIsLoading(false);
     }
-  }, [showNotification]);
+  }, [reportRange, showNotification]);
 
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const res = await api.get<RawApiSummaryResponse>("/reports/summary");
-        if (isMounted && res.data) {
-          setData(normalizeSummary(res.data));
-        }
-      } catch {
-        if (isMounted) showNotification("Failed to load institutional reports", true);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [showNotification]);
+    loadReportData();
+  }, [loadReportData]);
 
   const handleExportCsv = (section: string) => {
     if (!data) return;
@@ -193,15 +178,15 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
   return (
     <div className="space-y-6">
       {/* Header & Controls */}
-      <div className="bg-white rounded-2xl border border-[#E2E9E3] p-5 lg:p-6 shadow-sm">
+      <div className="bg-white rounded-2xl border border-[#E5EAF0] p-5 lg:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#154734]/10 text-[#154734] flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-[#087A50]/10 text-[#087A50] flex items-center justify-center font-bold">
               <BarChart3 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-[#18231D]">Institutional Analytics &amp; Reports</h2>
-              <p className="text-xs text-[#68756D] mt-0.5">
+              <h2 className="text-xl font-semibold text-[#111827]">Institutional Analytics &amp; Reports</h2>
+              <p className="text-xs text-[#64748B] mt-0.5">
                 Cross-system audit analytics derived from verified database transactions with zero fabricated totals
               </p>
             </div>
@@ -211,7 +196,7 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
             <select
               value={reportRange}
               onChange={(e) => setReportRange(e.target.value)}
-              className="px-3 py-2 text-xs border border-[#E2E9E3] rounded-xl bg-white text-[#18231D] focus:outline-none font-medium flex-1 sm:flex-initial"
+              className="px-3 py-2 text-xs border border-[#E5EAF0] rounded-xl bg-white text-[#111827] focus:outline-none font-medium flex-1 sm:flex-initial"
             >
               <option value="all_time">All-Time Cumulative</option>
               <option value="current_month">Current Financial Month</option>
@@ -220,7 +205,7 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
             <button
               onClick={loadReportData}
               disabled={isLoading}
-              className="p-2 border border-[#E2E9E3] rounded-xl hover:bg-gray-50 text-[#154734] cursor-pointer transition-colors"
+              className="p-2 border border-[#E5EAF0] rounded-xl hover:bg-gray-50 text-[#087A50] cursor-pointer transition-colors"
               title="Refresh Analytics"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
@@ -230,26 +215,26 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
       </div>
 
       {isLoading ? (
-        <div className="bg-white rounded-2xl border border-[#E2E9E3] p-16 text-center text-xs text-[#68756D] flex flex-col items-center gap-3 shadow-sm">
-          <Loader2 className="w-6 h-6 animate-spin text-[#154734]" />
+        <div className="bg-white rounded-2xl border border-[#E5EAF0] p-16 text-center text-xs text-[#64748B] flex flex-col items-center gap-3 shadow-sm">
+          <Loader2 className="w-6 h-6 animate-spin text-[#087A50]" />
           <span>Aggregating transactional reporting database...</span>
         </div>
       ) : !data ? (
-        <div className="bg-white rounded-2xl border border-[#E2E9E3] p-12 text-center text-xs text-[#68756D] shadow-sm">
+        <div className="bg-white rounded-2xl border border-[#E5EAF0] p-12 text-center text-xs text-[#64748B] shadow-sm">
           No reporting metrics available.
         </div>
       ) : (
         <div className="space-y-6">
           {/* SECTION 1: FINANCIAL OVERVIEW */}
-          <div className="bg-white rounded-2xl border border-[#E2E9E3] p-5 lg:p-6 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#E2E9E3]">
+          <div className="bg-white rounded-2xl border border-[#E5EAF0] p-5 lg:p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#E5EAF0]">
               <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-[#154734]" />
-                <h3 className="text-base font-semibold text-[#18231D]">Financial &amp; Revenue Analytics</h3>
+                <CreditCard className="w-4 h-4 text-[#087A50]" />
+                <h3 className="text-base font-semibold text-[#111827]">Financial &amp; Revenue Analytics</h3>
               </div>
               <button
                 onClick={() => handleExportCsv("financial")}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E2E9E3] rounded-xl text-xs font-semibold text-[#154734] hover:bg-gray-50 cursor-pointer w-fit transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E5EAF0] rounded-xl text-xs font-semibold text-[#087A50] hover:bg-gray-50 cursor-pointer w-fit transition-colors"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
                 <span>Export Financial CSV</span>
@@ -257,12 +242,12 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="p-4 bg-[#F7F9F7] border border-[#E2E9E3] rounded-xl">
-                <span className="text-[11px] uppercase font-medium text-[#68756D] tracking-wider">Total Invoiced</span>
-                <p className="text-xl font-bold font-mono text-[#18231D] mt-1">
+              <div className="p-4 bg-[#F7F9F7] border border-[#E5EAF0] rounded-xl">
+                <span className="text-[11px] uppercase font-medium text-[#64748B] tracking-wider">Total Invoiced</span>
+                <p className="text-xl font-bold font-mono text-[#111827] mt-1">
                   ₹{(data.billing?.totalBilled ?? 0).toLocaleString()}
                 </p>
-                <span className="text-[11px] text-[#68756D] mt-0.5 block">Gross billed charges</span>
+                <span className="text-[11px] text-[#64748B] mt-0.5 block">Gross billed charges</span>
               </div>
 
               <div className="p-4 bg-emerald-50/60 border border-emerald-200/80 rounded-xl">
@@ -292,15 +277,15 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
           </div>
 
           {/* SECTION 2: CRM & CONVERSIONS */}
-          <div className="bg-white rounded-2xl border border-[#E2E9E3] p-5 lg:p-6 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#E2E9E3]">
+          <div className="bg-white rounded-2xl border border-[#E5EAF0] p-5 lg:p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#E5EAF0]">
               <div className="flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-[#154734]" />
-                <h3 className="text-base font-semibold text-[#18231D]">Patient Acquisition &amp; CRM Funnel</h3>
+                <Briefcase className="w-4 h-4 text-[#087A50]" />
+                <h3 className="text-base font-semibold text-[#111827]">Patient Acquisition &amp; CRM Funnel</h3>
               </div>
               <button
                 onClick={() => handleExportCsv("crm")}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E2E9E3] rounded-xl text-xs font-semibold text-[#154734] hover:bg-gray-50 cursor-pointer w-fit transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E5EAF0] rounded-xl text-xs font-semibold text-[#087A50] hover:bg-gray-50 cursor-pointer w-fit transition-colors"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
                 <span>Export CRM CSV</span>
@@ -308,9 +293,9 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-              <div className="p-4 bg-[#F7F9F7] border border-[#E2E9E3] rounded-xl">
-                <span className="text-[11px] uppercase font-medium text-[#68756D] tracking-wider">Total Inquiries</span>
-                <p className="text-xl font-bold font-mono text-[#18231D] mt-1">{data.crm?.totalLeads ?? 0}</p>
+              <div className="p-4 bg-[#F7F9F7] border border-[#E5EAF0] rounded-xl">
+                <span className="text-[11px] uppercase font-medium text-[#64748B] tracking-wider">Total Inquiries</span>
+                <p className="text-xl font-bold font-mono text-[#111827] mt-1">{data.crm?.totalLeads ?? 0}</p>
               </div>
               <div className="p-4 bg-blue-50/60 border border-blue-200/80 rounded-xl">
                 <span className="text-[11px] uppercase font-medium text-blue-800 tracking-wider">New / Uncontacted</span>
@@ -324,9 +309,9 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
                 <span className="text-[11px] uppercase font-medium text-emerald-800 tracking-wider">Converted Patients</span>
                 <p className="text-xl font-bold font-mono text-emerald-900 mt-1">{data.crm?.convertedLeads ?? 0}</p>
               </div>
-              <div className="p-4 bg-[#154734]/10 border border-[#154734]/20 rounded-xl col-span-2 lg:col-span-1">
-                <span className="text-[11px] uppercase font-medium text-[#154734] tracking-wider">Conversion Rate</span>
-                <p className="text-xl font-bold font-mono text-[#154734] mt-1">{data.crm?.conversionRate ?? 0}%</p>
+              <div className="p-4 bg-[#087A50]/10 border border-[#087A50]/20 rounded-xl col-span-2 lg:col-span-1">
+                <span className="text-[11px] uppercase font-medium text-[#087A50] tracking-wider">Conversion Rate</span>
+                <p className="text-xl font-bold font-mono text-[#087A50] mt-1">{data.crm?.conversionRate ?? 0}%</p>
               </div>
             </div>
 
@@ -355,7 +340,7 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
                   title="Converted Leads"
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-4 text-[11px] text-[#68756D] mt-2 font-medium">
+              <div className="flex flex-wrap items-center gap-4 text-[11px] text-[#64748B] mt-2 font-medium">
                 <span className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-blue-400" /> New ({data.crm?.newLeads ?? 0})
                 </span>
@@ -372,15 +357,15 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
           {/* SECTION 3: CLINICAL OPERATIONS & HRMS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Clinical Operations */}
-            <div className="bg-white rounded-2xl border border-[#E2E9E3] p-5 lg:p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-[#E2E9E3]">
+            <div className="bg-white rounded-2xl border border-[#E5EAF0] p-5 lg:p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#E5EAF0]">
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-[#154734]" />
-                  <h3 className="text-base font-semibold text-[#18231D]">Healthcare Encounters</h3>
+                  <Calendar className="w-4 h-4 text-[#087A50]" />
+                  <h3 className="text-base font-semibold text-[#111827]">Healthcare Encounters</h3>
                 </div>
                 <button
                   onClick={() => handleExportCsv("clinical")}
-                  className="flex items-center gap-1 px-2.5 py-1 border border-[#E2E9E3] rounded-lg text-xs font-semibold text-[#154734] hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="flex items-center gap-1 px-2.5 py-1 border border-[#E5EAF0] rounded-lg text-xs font-semibold text-[#087A50] hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>CSV</span>
@@ -388,10 +373,10 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3.5 bg-[#F7F9F7] border border-[#E2E9E3] rounded-xl">
-                  <span className="text-[11px] uppercase font-medium text-[#68756D]">Total Patients</span>
-                  <p className="text-xl font-bold font-mono text-[#18231D] mt-1">{data.clinical?.totalPatients ?? 0}</p>
-                  <span className="text-[11px] text-[#68756D] mt-0.5 block">Medical health records</span>
+                <div className="p-3.5 bg-[#F7F9F7] border border-[#E5EAF0] rounded-xl">
+                  <span className="text-[11px] uppercase font-medium text-[#64748B]">Total Patients</span>
+                  <p className="text-xl font-bold font-mono text-[#111827] mt-1">{data.clinical?.totalPatients ?? 0}</p>
+                  <span className="text-[11px] text-[#64748B] mt-0.5 block">Medical health records</span>
                 </div>
 
                 <div className="p-3.5 bg-blue-50/60 border border-blue-200/80 rounded-xl">
@@ -419,15 +404,15 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
             </div>
 
             {/* HRMS & Workforce */}
-            <div className="bg-white rounded-2xl border border-[#E2E9E3] p-5 lg:p-6 shadow-sm space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-[#E2E9E3]">
+            <div className="bg-white rounded-2xl border border-[#E5EAF0] p-5 lg:p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-[#E5EAF0]">
                 <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#154734]" />
-                  <h3 className="text-base font-semibold text-[#18231D]">HRMS Workforce Metrics</h3>
+                  <Users className="w-4 h-4 text-[#087A50]" />
+                  <h3 className="text-base font-semibold text-[#111827]">HRMS Workforce Metrics</h3>
                 </div>
                 <button
                   onClick={() => handleExportCsv("hrms")}
-                  className="flex items-center gap-1 px-2.5 py-1 border border-[#E2E9E3] rounded-lg text-xs font-semibold text-[#154734] hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="flex items-center gap-1 px-2.5 py-1 border border-[#E5EAF0] rounded-lg text-xs font-semibold text-[#087A50] hover:bg-gray-50 cursor-pointer transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>CSV</span>
@@ -435,10 +420,10 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3.5 bg-[#F7F9F7] border border-[#E2E9E3] rounded-xl">
-                  <span className="text-[11px] uppercase font-medium text-[#68756D]">Active Employees</span>
-                  <p className="text-xl font-bold font-mono text-[#18231D] mt-1">{data.hrms?.totalEmployees ?? 0}</p>
-                  <span className="text-[11px] text-[#68756D] mt-0.5 block">Verified staff headcount</span>
+                <div className="p-3.5 bg-[#F7F9F7] border border-[#E5EAF0] rounded-xl">
+                  <span className="text-[11px] uppercase font-medium text-[#64748B]">Active Employees</span>
+                  <p className="text-xl font-bold font-mono text-[#111827] mt-1">{data.hrms?.totalEmployees ?? 0}</p>
+                  <span className="text-[11px] text-[#64748B] mt-0.5 block">Verified staff headcount</span>
                 </div>
 
                 <div className="p-3.5 bg-emerald-50/60 border border-emerald-200/80 rounded-xl">
@@ -453,10 +438,10 @@ export function ReportsTab({ showNotification }: { showNotification: (msg: strin
                   <span className="text-[11px] text-amber-700 mt-0.5 block">Awaiting manager approval</span>
                 </div>
 
-                <div className="p-3.5 bg-[#154734]/10 border border-[#154734]/20 rounded-xl">
-                  <span className="text-[11px] uppercase font-medium text-[#154734]">Active Clinicians</span>
-                  <p className="text-xl font-bold font-mono text-[#154734] mt-1">{data.clinical?.activeDoctors ?? 0}</p>
-                  <span className="text-[11px] text-[#154734] mt-0.5 block">On active duty roster</span>
+                <div className="p-3.5 bg-[#087A50]/10 border border-[#087A50]/20 rounded-xl">
+                  <span className="text-[11px] uppercase font-medium text-[#087A50]">Active Clinicians</span>
+                  <p className="text-xl font-bold font-mono text-[#087A50] mt-1">{data.clinical?.activeDoctors ?? 0}</p>
+                  <span className="text-[11px] text-[#087A50] mt-0.5 block">On active duty roster</span>
                 </div>
               </div>
             </div>

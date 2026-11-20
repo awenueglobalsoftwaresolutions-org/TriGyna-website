@@ -156,6 +156,8 @@ async function runMasterSuite() {
         { startTime: "11:00", endTime: "11:30" },
         { startTime: "14:00", endTime: "14:30" },
       ],
+      isVerified: true,
+      verificationStatus: "verified",
     });
 
     employee = await Employee.create({

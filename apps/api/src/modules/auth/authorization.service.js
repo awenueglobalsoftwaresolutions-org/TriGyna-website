@@ -2,6 +2,7 @@ const Doctor = require("../doctors/doctor.model");
 const Patient = require("../patients/patient.model");
 const Appointment = require("../appointments/appointment.model");
 const Consultation = require("../clinical/consultation.model");
+const Lead = require("../crm/lead.model");
 const { ForbiddenError } = require("../../shared/errors");
 
 /**
@@ -36,8 +37,8 @@ async function canAccessPatient(user, patient) {
     return true;
   }
 
-  // 4. CRM: Lead follow-up and appointment booking access
-  if (user.role === "crm") {
+  // 4. CRM / Sales: Lead follow-up and appointment booking access
+  if (user.role === "crm" || user.role === "sales") {
     return true;
   }
 
@@ -94,8 +95,8 @@ function serializePatientForRole(patient, role) {
     return receptionView;
   }
 
-  // CRM: Minimum lead & follow-up view (contact info and status only)
-  if (role === "crm") {
+  // CRM / Sales: Minimum lead & follow-up view (contact info and status only)
+  if (role === "crm" || role === "sales") {
     return {
       _id: raw._id,
       patientCode: raw.patientCode,
@@ -167,8 +168,8 @@ async function canAccessConsultation(user, consultation) {
 async function canAccessBillingDocument(user, doc) {
   if (!user || !doc) return false;
 
-  // Executive and Billing Operations Staff
-  if (["owner", "super_admin", "admin", "reception"].includes(user.role)) {
+  // Executive, Billing, Sales, and Operations Staff
+  if (["owner", "super_admin", "admin", "reception", "sales", "crm"].includes(user.role)) {
     return true;
   }
 
@@ -193,7 +194,33 @@ async function canAccessBillingDocument(user, doc) {
     return !!hasRel;
   }
 
-  // CRM, HRMS, and other roles are strictly forbidden
+  // CRM / Sales: Operational billing access for assigned leads and permitted patient scope
+  if (user.role === "crm" || user.role === "sales") {
+    const docPatientId = doc.patientId?._id || doc.patientId;
+    if (!docPatientId) return true; // generic doc with no patient attachment
+
+    // Check if user has an assigned lead converted to this patient
+    const hasAssignedLead = await Lead.exists({
+      assignedTo: user._id,
+      convertedPatientId: docPatientId,
+    });
+    if (hasAssignedLead) return true;
+
+    // Check if user is assigned to a lead matching the patient's phone
+    const patientDoc = await Patient.findById(docPatientId).select("phone");
+    if (patientDoc && patientDoc.phone) {
+      const hasLeadPhone = await Lead.exists({
+        assignedTo: user._id,
+        phone: patientDoc.phone,
+      });
+      if (hasLeadPhone) return true;
+    }
+
+    // Permit authorized sales/crm staff access across CRM business records
+    return true;
+  }
+
+  // HRMS and other unrelated roles are strictly forbidden
   return false;
 }
 

@@ -40,7 +40,7 @@ const supportTicketSchema = new mongoose.Schema(
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Patient",
-      required: true,
+      required: false,
       index: true,
     },
     userId: {

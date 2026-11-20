@@ -29,18 +29,29 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["owner", "super_admin", "admin", "doctor", "reception", "patient", "crm", "hrms"],
+      enum: ["owner", "super_admin", "admin", "doctor", "reception", "patient", "crm", "sales", "hrms"],
       default: "patient",
       index: true,
     },
     status: {
       type: String,
-      enum: ["active", "inactive", "suspended"],
+      enum: ["active", "inactive", "suspended", "invited"],
       default: "active",
       index: true,
     },
+    activatedAt: {
+      type: Date,
+    },
     lastLogin: {
       type: Date,
+    },
+    employeeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -52,6 +63,10 @@ const userSchema = new mongoose.Schema(
     doctorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Doctor",
+    },
+    preferences: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
   },
   {

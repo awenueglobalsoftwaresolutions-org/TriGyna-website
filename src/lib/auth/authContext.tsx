@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter } from "next/navigation";
 import { api, setToken, removeToken, getToken } from "@/lib/api/client";
 
-export type UserRole = "owner" | "admin" | "doctor" | "reception" | "patient" | "crm" | "hrms" | "hr";
+export type UserRole = "owner" | "admin" | "doctor" | "reception" | "patient" | "crm" | "sales" | "hrms" | "hr";
 
 export interface AuthUser {
   _id: string;
@@ -27,9 +27,10 @@ interface AuthContextType {
   isOwner: boolean;
   isAdmin: boolean;
   isDoctor: boolean;
+  isSales: boolean;
+  isCrm: boolean;
   isReception: boolean;
   isPatient: boolean;
-  isCrm: boolean;
   isHr: boolean;
 }
 
@@ -154,11 +155,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isOwner = user?.role === "owner";
-  const isAdmin = user?.role === "admin" || isOwner || user?.role === "crm" || user?.role === "hrms";
+  const isAdmin = user?.role === "admin" || isOwner || user?.role === "hrms";
   const isDoctor = user?.role === "doctor";
-  const isReception = user?.role === "reception";
+  const isSales = user?.role === "sales" || user?.role === "crm" || isAdmin;
+  const isCrm = isSales;
+  const isReception = user?.role === "reception" || isSales;
   const isPatient = user?.role === "patient";
-  const isCrm = isAdmin;
   const isHr = isAdmin;
 
   return (
@@ -174,8 +176,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isOwner,
         isAdmin,
         isDoctor,
-        isReception,
+        isSales,
         isCrm,
+        isReception,
         isHr,
         isPatient,
       }}

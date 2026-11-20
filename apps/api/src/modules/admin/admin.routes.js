@@ -6,6 +6,7 @@ const {
   getAdminActionCenter,
   getAdminDomainReports,
   getAdminSystemHealth,
+  searchAdminGlobal,
 } = require("./admin.dashboard.controller");
 const { requireAuth } = require("../../middleware/auth");
 const { requireRole } = require("../../middleware/rbac");
@@ -20,11 +21,21 @@ const hrmsRoutes = require("../hrms/hrms.routes");
 const invoiceRoutes = require("../billing/invoice.routes");
 const receiptRoutes = require("../billing/receipt.routes");
 const paymentRoutes = require("../billing/payment.routes");
+const orderRoutes = require("../billing/order.routes");
+const {
+  listRefundRequests,
+  approveRefundRequest,
+  rejectRefundRequest,
+} = require("../billing/order.controller");
 const userRoutes = require("../users/user.routes");
 const approvalsRoutes = require("../approvals/approvals.routes");
 const auditRoutes = require("../audit/audit.routes");
 const integrationsRoutes = require("../integrations/integrations.routes");
+const automationsRoutes = require("../integrations/automations.routes");
 const notificationRoutes = require("../notifications/notification.routes");
+const packageRoutes = require("../packages/package.routes");
+const serviceRoutes = require("../services/service.routes");
+const staffRoutes = require("./staff.routes");
 
 const router = express.Router();
 
@@ -44,7 +55,10 @@ router.get("/reports/:domain", getAdminDomainReports);
 // 3. Infrastructure & Gateways Health
 router.get("/system/health", getAdminSystemHealth);
 
-// 4. Aliased Module Routes under /api/v1/admin/*
+// 4. Global Search across All Clinical & Administrative Collections
+router.get("/search", searchAdminGlobal);
+
+// 5. Aliased Module Routes under /api/v1/admin/*
 router.use("/patients", patientRoutes);
 router.use("/doctors", doctorRoutes);
 router.use("/appointments", appointmentRoutes);
@@ -54,10 +68,20 @@ router.use("/hrms", hrmsRoutes);
 router.use(["/invoices", "/billing/invoices"], invoiceRoutes);
 router.use(["/receipts", "/billing/receipts"], receiptRoutes);
 router.use(["/payments", "/billing/payments"], paymentRoutes);
+router.use(["/orders", "/billing/orders"], orderRoutes);
+
+// Admin Refund Approvals & Management
+router.get(["/refunds", "/billing/refunds", "/billing/refund-requests"], listRefundRequests);
+router.post(["/refunds/:id/approve", "/billing/refunds/:id/approve"], approveRefundRequest);
+router.post(["/refunds/:id/reject", "/billing/refunds/:id/reject"], rejectRefundRequest);
 router.use("/users", userRoutes);
 router.use("/approvals", approvalsRoutes);
 router.use(["/audit", "/audit-logs"], auditRoutes);
 router.use("/integrations", integrationsRoutes);
+router.use(["/automation", "/automations"], automationsRoutes);
 router.use("/notifications", notificationRoutes);
+router.use(["/packages", "/billing/packages"], packageRoutes);
+router.use("/services", serviceRoutes);
+router.use("/staff", staffRoutes);
 
 module.exports = router;

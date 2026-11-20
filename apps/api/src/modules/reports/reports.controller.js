@@ -9,9 +9,36 @@ const Invoice = require("../billing/invoice.model");
 const Expense = require("../billing/expense.model");
 const { sendSuccess } = require("../../shared/response");
 
+function getDateFilter(range) {
+  if (!range || range === "all_time") return null;
+  const now = new Date();
+  if (range === "current_month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return {
+      dateObj: { $gte: start, $lte: now },
+      dateStr: { $gte: start.toISOString().split("T")[0], $lte: now.toISOString().split("T")[0] },
+    };
+  }
+  if (range === "last_quarter") {
+    const start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    return {
+      dateObj: { $gte: start, $lte: now },
+      dateStr: { $gte: start.toISOString().split("T")[0], $lte: now.toISOString().split("T")[0] },
+    };
+  }
+  return null;
+}
+
 async function getDashboardSummary(req, res, next) {
   try {
     const today = new Date().toISOString().split("T")[0];
+    const range = req.query.range || req.query.dateRange;
+    const filter = getDateFilter(range);
+
+    const leadBase = filter ? { createdAt: filter.dateObj } : {};
+    const apptBase = filter ? { appointmentDate: filter.dateStr } : {};
+    const invoiceQuery = filter ? { createdAt: filter.dateObj } : {};
+    const expenseQuery = filter ? { createdAt: filter.dateObj } : {};
 
     const [
       totalLeads,
@@ -30,21 +57,21 @@ async function getDashboardSummary(req, res, next) {
       invoices,
       expenses,
     ] = await Promise.all([
-      Lead.countDocuments(),
-      Lead.countDocuments({ status: "new" }),
-      Lead.countDocuments({ status: "qualified" }),
-      Lead.countDocuments({ status: "converted" }),
+      Lead.countDocuments(leadBase),
+      Lead.countDocuments({ ...leadBase, status: "new" }),
+      Lead.countDocuments({ ...leadBase, status: "qualified" }),
+      Lead.countDocuments({ ...leadBase, status: "converted" }),
       Appointment.countDocuments({ appointmentDate: today }),
-      Appointment.countDocuments(),
-      Appointment.countDocuments({ status: "completed" }),
-      Appointment.countDocuments({ status: "cancelled" }),
-      Patient.countDocuments(),
+      Appointment.countDocuments(apptBase),
+      Appointment.countDocuments({ ...apptBase, status: "completed" }),
+      Appointment.countDocuments({ ...apptBase, status: "cancelled" }),
+      Patient.countDocuments(filter ? { createdAt: filter.dateObj } : {}),
       Doctor.countDocuments({ status: "active" }),
       Attendance.countDocuments({ workDate: today }),
       Employee.countDocuments({ status: "active" }),
       LeaveRequest.countDocuments({ status: "pending" }),
-      Invoice.find(),
-      Expense.find(),
+      Invoice.find(invoiceQuery),
+      Expense.find(expenseQuery),
     ]);
 
     // Financial sums derived from stored records

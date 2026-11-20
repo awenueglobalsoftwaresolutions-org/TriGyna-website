@@ -95,7 +95,7 @@ export default function DoctorProfilePage() {
                   <Stethoscope className="w-4 h-4 text-[#6B8F5B] mb-1" />
                   <span className="text-xs text-[#7B817B] block">Mode</span>
                   <span className="font-serif text-sm font-semibold text-[#154734]">
-                    Online &amp; In-Clinic
+                    Online Video Only
                   </span>
                 </div>
                 <div className="bg-white p-3.5 rounded-xl border border-[#E8E2D6] col-span-2 sm:col-span-1">
@@ -147,7 +147,7 @@ export default function DoctorProfilePage() {
                   Request a Consultation
                 </h3>
                 <p className="text-xs text-[#626B63] mb-6">
-                  Online video consultation or in-person clinic visit in Prayagraj.
+                  100% secure online video consultation via Google Meet or Zoom.
                 </p>
                 <EnquiryForm />
               </div>

@@ -107,6 +107,31 @@ async function generateAtomicPrescriptionCode(session = null) {
   return `TG-RX-${seq}`;
 }
 
+/**
+ * Generate atomic collision-safe consultation code: TG-C-<seq>
+ */
+async function generateAtomicConsultationCode(session = null) {
+  const seq = await getNextSequence("consultation_code", 1000, session);
+  return `TG-C-${seq}`;
+}
+
+/**
+ * Generate atomic collision-safe treatment plan code: TG-TP-<seq>
+ */
+async function generateAtomicTreatmentPlanCode(session = null) {
+  const seq = await getNextSequence("treatment_plan_code", 1000, session);
+  return `TG-TP-${seq}`;
+}
+
+/**
+ * Generate atomic collision-safe order number: ORD-YYYY-XXXXX
+ */
+async function generateAtomicOrderNumber(session = null) {
+  const year = new Date().getFullYear();
+  const seq = await getNextSequence(`order_num_${year}`, 1000, session);
+  return `ORD-${year}-${seq}`;
+}
+
 module.exports = {
   Counter,
   getNextSequence,
@@ -116,4 +141,7 @@ module.exports = {
   generateAtomicReceiptNumber,
   generateAtomicFollowUpCode,
   generateAtomicPrescriptionCode,
+  generateAtomicConsultationCode,
+  generateAtomicTreatmentPlanCode,
+  generateAtomicOrderNumber,
 };

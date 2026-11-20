@@ -1,11 +1,32 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Sparkles, Sprout, ClipboardCheck, HeartPulse, Stethoscope, ArrowRight } from "lucide-react";
+import {
+  Sparkles,
+  Sprout,
+  ClipboardCheck,
+  HeartPulse,
+  Stethoscope,
+  ArrowRight,
+  Layers,
+} from "lucide-react";
+import { getPublicServices } from "@/lib/api/publicCatalog";
 
 export default function ServicesSection() {
+  const [dbServiceCount, setDbServiceCount] = useState<number>(26);
+
+  useEffect(() => {
+    getPublicServices()
+      .then((srvs) => {
+        if (srvs && srvs.length > 0) {
+          setDbServiceCount(srvs.length);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const services = [
     {
       id: "skin-hair",
@@ -89,7 +110,7 @@ export default function ServicesSection() {
               <Link
                 key={item.id}
                 href={`/services/${item.slug}`}
-                className="group bg-white rounded-[22px] overflow-hidden border border-[#E8E2D6]/85 shadow-[0_2px_12px_rgba(16,75,57,0.04)] hover:shadow-[0_16px_32px_-8px_rgba(16,75,57,0.12)] hover:border-[#A7C089] transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between"
+                className="group bg-white rounded-[22px] overflow-hidden border border-[#E8E2D6]/85 shadow-[0_2px_12px_rgba(16,75,57,0.04)] hover:shadow-[0_16px_32px_-8px_rgba(16,75,57,0.12)] hover:border-[#A7C089] transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between cursor-pointer"
               >
                 <div>
                   {/* Service Photography with optimized mobile aspect ratio & focal centering */}
@@ -134,6 +155,18 @@ export default function ServicesSection() {
               </Link>
             );
           })}
+        </div>
+
+        {/* View All Clinical Repertory Button */}
+        <div className="mt-12 text-center">
+          <Link
+            href="/services"
+            className="inline-flex items-center gap-3 px-8 py-3.5 rounded-full bg-white hover:bg-[#104B39] text-[#104B39] hover:text-white font-semibold text-sm border border-[#E8E2D6] hover:border-[#104B39] shadow-sm hover:shadow-md transition-all duration-300 group"
+          >
+            <Layers className="w-4 h-4 text-[#6B8F5B] group-hover:text-[#C5A880] transition-colors" />
+            <span>Explore All {dbServiceCount} Clinical Consultations &amp; Packages</span>
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+          </Link>
         </div>
       </div>
     </section>

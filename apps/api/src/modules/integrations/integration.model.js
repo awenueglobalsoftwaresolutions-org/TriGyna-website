@@ -16,7 +16,7 @@ const integrationSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
-      enum: ["meta", "whatsapp", "google_calendar", "razorpay"],
+      enum: ["meta", "whatsapp", "google_calendar", "razorpay", "email", "push"],
       index: true,
     },
     displayName: {
@@ -25,7 +25,7 @@ const integrationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["connected", "disconnected", "test_mode", "error"],
+      enum: ["connected", "disconnected", "test_mode", "error", "degraded"],
       default: "test_mode",
     },
     config: {

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const invoiceItemSchema = new mongoose.Schema(
   {
@@ -98,7 +99,16 @@ const invoiceSchema = new mongoose.Schema(
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Patient",
-      required: true,
+      index: true,
+    },
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+      index: true,
+    },
+    leadId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Lead",
       index: true,
     },
     appointmentId: {
@@ -113,6 +123,22 @@ const invoiceSchema = new mongoose.Schema(
     doctorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Doctor",
+      index: true,
+    },
+    branchId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Branch",
+      index: true,
+    },
+    branchName: {
+      type: String,
+      default: "Main Clinic (Pune - Baner)",
+      trim: true,
+    },
+    invoiceType: {
+      type: String,
+      enum: ["consultation", "service", "package", "follow-up", "procedure", "other"],
+      default: "consultation",
       index: true,
     },
     currency: {
@@ -144,6 +170,11 @@ const invoiceSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    taxBreakdown: {
+      cgst: { type: Number, default: 0 },
+      sgst: { type: Number, default: 0 },
+      igst: { type: Number, default: 0 },
+    },
     totalAmount: {
       type: Number,
       required: true,
@@ -152,15 +183,19 @@ const invoiceSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    refundedAmount: {
+      type: Number,
+      default: 0,
+    },
     balanceAmount: {
       type: Number,
       default: function () {
-        return this.totalAmount - (this.paidAmount || 0);
+        return Math.max(0, this.totalAmount - (this.paidAmount || 0));
       },
     },
     status: {
       type: String,
-      enum: ["pending", "paid", "partially_paid", "cancelled", "refunded"],
+      enum: ["draft", "issued", "pending", "partially_paid", "paid", "overdue", "cancelled", "refunded", "partially_refunded", "void"],
       default: "pending",
       index: true,
     },
@@ -190,9 +225,31 @@ const invoiceSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    updatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    organizationSnapshot: {
+      name: { type: String, trim: true },
+      address: { type: String, trim: true },
+      phone: { type: String, trim: true },
+      email: { type: String, trim: true },
+      gstin: { type: String, trim: true },
+    },
     notes: {
       type: String,
       trim: true,
+    },
+    verificationToken: {
+      type: String,
+      default: () => crypto.randomBytes(16).toString("hex"),
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+    verificationTokenHash: {
+      type: String,
+      index: true,
     },
   },
   {
@@ -200,8 +257,20 @@ const invoiceSchema = new mongoose.Schema(
   }
 );
 
+invoiceSchema.pre("save", function (next) {
+  if (this.verificationToken && (!this.verificationTokenHash || this.isModified("verificationToken"))) {
+    this.verificationTokenHash = crypto
+      .createHash("sha256")
+      .update(this.verificationToken)
+      .digest("hex");
+  }
+  next();
+});
+
 invoiceSchema.index({ createdAt: -1 });
 invoiceSchema.index({ patientId: 1, createdAt: -1 });
+invoiceSchema.index({ doctorId: 1, createdAt: -1 });
+invoiceSchema.index({ status: 1, createdAt: -1 });
 
 invoiceSchema.virtual("invoiceCode").get(function () {
   return this.invoiceNumber;

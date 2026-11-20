@@ -6,6 +6,20 @@ const Patient = require("../patients/patient.model");
 const { generateAtomicAppointmentCode } = require("../../shared/counter.service");
 const { ValidationError, NotFoundError, ConflictError } = require("../../shared/errors");
 const { recordAudit } = require("../audit/audit.service");
+const { reserveSessionCredit, releaseSessionCredit } = require("../packages/session-ledger.service");
+
+function parseTimeToMinutes(t) {
+  if (!t) return 600;
+  const isPM = /pm/i.test(t);
+  const isAM = /am/i.test(t);
+  const clean = t.replace(/[^0-9:]/g, "");
+  let [h, m] = clean.split(":").map(Number);
+  if (isNaN(h)) h = 10;
+  if (isNaN(m)) m = 0;
+  if (isPM && h < 12) h += 12;
+  if (isAM && h === 12) h = 0;
+  return h * 60 + m;
+}
 
 /**
  * Quantize a time range [startTime, endTime) into 15-minute slot blocks
@@ -15,11 +29,8 @@ const { recordAudit } = require("../audit/audit.service");
  * @returns {string[]} Array of 15-minute slot intervals
  */
 function quantizeSlotIntervals(startTime, endTime) {
-  const [sh, sm] = startTime.split(":").map(Number);
-  const [eh, em] = endTime.split(":").map(Number);
-
-  const startMinutes = sh * 60 + sm;
-  const endMinutes = eh * 60 + em;
+  const startMinutes = parseTimeToMinutes(startTime);
+  const endMinutes = parseTimeToMinutes(endTime);
 
   if (startMinutes >= endMinutes) {
     throw new ValidationError("Start time must be earlier than end time");
@@ -38,9 +49,9 @@ function quantizeSlotIntervals(startTime, endTime) {
  * Calculate default 30-minute end time if none provided
  */
 function calculateDefaultEndTime(startTime) {
-  const [h, m] = startTime.split(":").map(Number);
-  const endMin = (m + 30) % 60;
-  const endHour = h + Math.floor((m + 30) / 60);
+  const totalMinutes = parseTimeToMinutes(startTime) + 30;
+  const endHour = Math.floor(totalMinutes / 60) % 24;
+  const endMin = totalMinutes % 60;
   return `${String(endHour).padStart(2, "0")}:${String(endMin).padStart(2, "0")}`;
 }
 
@@ -72,6 +83,13 @@ async function bookAppointmentAtomic(bookingData, actor) {
     throw new ValidationError("Selected doctor is not active or available");
   }
 
+  // 1a. Doctor Credential Verification Gate (Crucial Safety Policy)
+  if (doctor.isVerified === false || (doctor.verificationStatus && doctor.verificationStatus !== "verified")) {
+    throw new ValidationError(
+      "Doctor's professional medical registration credentials are pending verification by administration. Clinical appointments cannot be scheduled until verified."
+    );
+  }
+
   // 1b. Check if Doctor is on approved HRMS leave on the requested date
   if (doctor.userId) {
     try {
@@ -101,6 +119,25 @@ async function bookAppointmentAtomic(bookingData, actor) {
     }
   }
 
+  // 1c. Verify Service status: Draft / unpublished services are strictly NOT bookable for public/patient callers
+  try {
+    const Service = mongoose.models.Service || require("../services/service.model");
+    const svc = await Service.findOne({
+      $or: [
+        { name: new RegExp(`^${serviceName.trim()}$`, "i") },
+        { code: serviceName.trim().toUpperCase() },
+      ],
+    });
+    if (svc) {
+      const isInternalStaff = actor && ["owner", "admin"].includes(actor.role);
+      if (!isInternalStaff && (svc.status !== "active" || !svc.isPublished)) {
+        throw new ValidationError(`The service '${svc.name}' is currently in draft mode and cannot be booked`);
+      }
+    }
+  } catch (svcErr) {
+    if (svcErr instanceof ValidationError) throw svcErr;
+  }
+
   // 2. Verify Patient exists
   const patient = await Patient.findById(patientId);
   if (!patient) {
@@ -112,6 +149,31 @@ async function bookAppointmentAtomic(bookingData, actor) {
 
   // 3. Pre-generate Appointment ObjectId
   const appointmentId = new mongoose.Types.ObjectId();
+
+  // 3b. Immediate conflict pre-check
+  const existingConflict = await SlotReservation.findOne({
+    doctorId,
+    appointmentDate,
+    slotTime: { $in: slotIntervals },
+    status: "confirmed",
+  });
+  if (existingConflict) {
+    throw new ConflictError(
+      `Doctor is already booked for the requested interval (${startTime} - ${calculatedEndTime}) on ${appointmentDate}. Please choose another time slot.`
+    );
+  }
+
+  const existingApptConflict = await Appointment.findOne({
+    doctorId,
+    appointmentDate,
+    startTime,
+    status: { $in: ["scheduled", "confirmed", "in_progress"] },
+  });
+  if (existingApptConflict) {
+    throw new ConflictError(
+      `Doctor is already booked for the requested interval (${startTime} - ${calculatedEndTime}) on ${appointmentDate}. Please choose another time slot.`
+    );
+  }
 
   const slotDocs = slotIntervals.map((slotTime) => ({
     doctorId,
@@ -141,10 +203,11 @@ async function bookAppointmentAtomic(bookingData, actor) {
   try {
     const appointmentCode = await generateAtomicAppointmentCode();
 
-    let normalizedMode = "Online Video Consultation";
-    if (mode && (mode.toLowerCase().includes("clinic") || mode.toLowerCase().includes("person"))) {
-      normalizedMode = "In-Clinic Consultation";
+    if (mode && (mode.toLowerCase().includes("clinic") || mode.toLowerCase().includes("person") || mode.toLowerCase().includes("offline"))) {
+      throw new ValidationError("TriGyna operates exclusively as an Online Video Healthcare platform. In-clinic consultations are not supported.");
     }
+
+    const normalizedMode = "Online Video Consultation";
 
     const appointment = await Appointment.create({
       _id: appointmentId,
@@ -156,6 +219,8 @@ async function bookAppointmentAtomic(bookingData, actor) {
       startTime,
       endTime: calculatedEndTime,
       mode: normalizedMode,
+      meetingProvider: "google_meet",
+      meetingStatus: "pending",
       status: "scheduled",
       notes: notes ? notes.trim() : "",
       bookingSource,
@@ -171,6 +236,18 @@ async function bookAppointmentAtomic(bookingData, actor) {
         targetId: appointment._id.toString(),
         details: { appointmentCode, appointmentDate, startTime, doctorId: doctorId.toString() },
       });
+    }
+
+    // Attempt to reserve session credit if patient holds an active package entitlement
+    try {
+      await reserveSessionCredit({
+        patientId,
+        appointmentId: appointment._id,
+        actor,
+      });
+    } catch (creditErr) {
+      // Non-blocking credit reservation failure
+      console.warn("[Booking] Credit reservation note:", creditErr.message);
     }
 
     return appointment;
@@ -327,6 +404,18 @@ async function cancelAppointmentAtomic(appointmentId, cancellationReason, actor)
       targetId: appointment._id.toString(),
       details: { cancellationReason: appointment.cancellationReason },
     });
+  }
+
+  // Release any reserved session credit back to available status
+  try {
+    await releaseSessionCredit({
+      patientId: appointment.patientId,
+      appointmentId: appointment._id,
+      reason: appointment.cancellationReason,
+      actor,
+    });
+  } catch (creditErr) {
+    console.warn("[Cancel] Credit release note:", creditErr.message);
   }
 
   return appointment;

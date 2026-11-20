@@ -26,6 +26,7 @@ const Payroll = require("../modules/hrms/payroll.model");
 const AttendanceCorrection = require("../modules/hrms/attendance-correction.model");
 const Organization = require("../modules/organization/organization.model");
 const Notification = require("../modules/notifications/notification.model");
+const Package = require("../modules/packages/package.model");
 const { recordAudit } = require("../modules/audit/audit.service");
 
 // Helper to calculate relative ISO date strings (YYYY-MM-DD)
@@ -130,6 +131,14 @@ async function runSeed() {
         role: "patient",
         status: "active",
       },
+      // Sales Executive account
+      {
+        name: "Priya Verma",
+        email: "sales@trigyna.test",
+        phone: "9000000008",
+        role: "sales",
+        status: "active",
+      },
       // Admin accounts managing CRM and HRMS sub-modules
       {
         name: "Priya Verma",
@@ -156,7 +165,7 @@ async function runSeed() {
       {
         name: "Dr. Rajesh Mehta",
         email: "rajesh.mehta@trigyna.test",
-        phone: "9000000008",
+        phone: "9000000009",
         role: "doctor",
         status: "active",
       },
@@ -166,9 +175,13 @@ async function runSeed() {
     const userMap = {};
 
     for (const def of testUserDefinitions) {
-      let user = await User.findOne({
-        $or: [{ email: def.email.toLowerCase() }, { phone: def.phone }],
-      });
+      let user = null;
+      if (def.email) {
+        user = await User.findOne({ email: def.email.toLowerCase() });
+      }
+      if (!user && def.phone) {
+        user = await User.findOne({ phone: def.phone });
+      }
 
       const userPwdHash = def.role === "owner" ? ownerPasswordHash : commonPasswordHash;
 
@@ -1317,7 +1330,7 @@ async function runSeed() {
         title: "Daily Operations Review",
         message: "Real-time clinic dashboard updated with 10 appointments and 12 CRM pipeline leads.",
         type: "system",
-        link: "/portal/admin",
+        link: "/admin/dashboard",
       },
       {
         recipientRole: "doctor",
@@ -1325,7 +1338,7 @@ async function runSeed() {
         title: "Upcoming Video Consultation",
         message: "You have an appointment today at 10:00 AM with Ananya Mishra.",
         type: "appointment",
-        link: "/portal/doctor",
+        link: "/doctor/dashboard",
       },
       {
         recipientRole: "crm",
@@ -1333,7 +1346,7 @@ async function runSeed() {
         title: "Leads Pending Follow-up",
         message: "2 website inquiries require contact follow-up today.",
         type: "lead",
-        link: "/portal/crm",
+        link: "/sales/dashboard",
       },
       {
         recipientRole: "hrms",
@@ -1341,7 +1354,7 @@ async function runSeed() {
         title: "Leave Application Received",
         message: "Priya Verma has submitted a sick leave application for review.",
         type: "leave",
-        link: "/portal/hrms",
+        link: "/admin/dashboard",
       },
       {
         recipientRole: "reception",
@@ -1349,7 +1362,7 @@ async function runSeed() {
         title: "Patient Check-in Reminder",
         message: "Sunita Deshmukh has arrived for 2:00 PM consultation.",
         type: "appointment",
-        link: "/portal/reception",
+        link: "/sales/dashboard",
       },
       {
         recipientRole: "patient",
@@ -1357,7 +1370,7 @@ async function runSeed() {
         title: "Digital Prescription Released",
         message: "Dr. Aarav Sharma has released your verified homeopathic prescription.",
         type: "clinical",
-        link: "/portal/patient",
+        link: "/patient/dashboard",
       },
     ];
 
@@ -1531,7 +1544,94 @@ async function runSeed() {
     }
 
     // --------------------------------------------------
-    // STEP 11: Legitimate Audit Log
+    // STEP 11: Seed Healthcare Packages
+    // --------------------------------------------------
+    console.log("\n--> 11. Seeding Official Healthcare Packages...");
+    const samplePackages = [
+      {
+        name: "Single Specialist Consultation",
+        slug: "single-specialist-consultation",
+        description: "Comprehensive 1-on-1 video consultation with our certified women's health specialist, including digital prescription.",
+        pricePaise: 99900,
+        currency: "INR",
+        totalSessions: 1,
+        sessionDurationMinutes: 30,
+        validityDays: 30,
+        consultationMode: "Online Video Consultation",
+        features: [
+          "1-on-1 Specialist Video Encounter",
+          "Comprehensive Symptom & Health Review",
+          "Digital Prescription with dosage & advice",
+          "Downloadable Signed PDF Receipt & Prescription",
+        ],
+        isPublished: true,
+      },
+      {
+        name: "PCOD/PCOS 3-Month Holistic Care",
+        slug: "pcod-pcos-holistic-care",
+        description: "Specialized three-month therapeutic program addressing hormonal balance, cycle regulation, and sustainable lifestyle intervention.",
+        pricePaise: 399900,
+        currency: "INR",
+        totalSessions: 6,
+        sessionDurationMinutes: 45,
+        validityDays: 90,
+        consultationMode: "Online Video Consultation",
+        features: [
+          "6 Scheduled Doctor Video Consultations",
+          "Root-cause Homoeopathic & Diet Roadmap",
+          "Cycle & Symptom Progress Monitoring",
+          "Dedicated Follow-up & Lifestyle Guidance",
+        ],
+        isPublished: true,
+      },
+      {
+        name: "Skin & Hair Renewal Program",
+        slug: "skin-hair-renewal-program",
+        description: "Targeted medical management for chronic acne, alopecia, pigmentation, and hormonal skin/hair changes.",
+        pricePaise: 249900,
+        currency: "INR",
+        totalSessions: 3,
+        sessionDurationMinutes: 30,
+        validityDays: 60,
+        consultationMode: "Online Video Consultation",
+        features: [
+          "3 Dedicated Dermatological & Clinical Sessions",
+          "Internal Balance & Topical Homoeopathic Regimen",
+          "Nutritional Support for Skin Cellular Repair",
+        ],
+        isPublished: true,
+      },
+      {
+        name: "Complete Women's Wellness & Hormonal Balance",
+        slug: "complete-womens-wellness",
+        description: "Our premium 10-session annual healthcare concierge plan covering holistic gynecology, metabolism, stress, and preventive health.",
+        pricePaise: 599900,
+        currency: "INR",
+        totalSessions: 10,
+        sessionDurationMinutes: 45,
+        validityDays: 120,
+        consultationMode: "Online Video Consultation",
+        features: [
+          "10 In-depth Consultations across the year",
+          "Multi-specialist review (Gynae + Homoeopathy + Nutrition)",
+          "Priority slot booking & rescheduling flexibility",
+          "Care coordinator assistance for tests and follow-ups",
+        ],
+        isPublished: true,
+      },
+    ];
+
+    for (const pkg of samplePackages) {
+      await Package.findOneAndUpdate(
+        { slug: pkg.slug },
+        { $set: pkg },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    }
+    console.log(`    ${samplePackages.length} official healthcare packages seeded and published.`);
+
+    // --------------------------------------------------
+    // STEP 12: Legitimate Audit Log
     // --------------------------------------------------
     await recordAudit({
       actorRole: "system",

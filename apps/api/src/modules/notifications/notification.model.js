@@ -9,7 +9,7 @@ const notificationSchema = new mongoose.Schema(
     },
     recipientRole: {
       type: String,
-      enum: ["owner", "admin", "doctor", "crm", "hrms", "reception", "patient", "all"],
+      enum: ["owner", "admin", "doctor", "crm", "sales", "hrms", "reception", "patient", "all"],
       default: "all",
       index: true,
     },

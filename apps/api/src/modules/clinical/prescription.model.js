@@ -50,6 +50,15 @@ const prescriptionSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    status: {
+      type: String,
+      enum: ["draft", "issued", "finalized", "cancelled"],
+      default: "finalized",
+      index: true,
+    },
+    validUntil: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

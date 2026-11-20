@@ -75,6 +75,41 @@ async function runAdminDashboardVerification() {
   console.log(`[TestServer] Ephemeral server running at ${baseUrl}`);
 
   try {
+    // Ensure required test accounts exist in test DB
+    let adminAcc = await User.findOne({ email: "admin@trigyna.test" });
+    if (!adminAcc) {
+      await User.create({
+        name: "Sushil Kumar",
+        email: "admin@trigyna.test",
+        phone: "+919172772320",
+        passwordHash: await User.hashPassword("TriGyna@123"),
+        role: "admin",
+        status: "active",
+      });
+    }
+    let doctorAcc = await User.findOne({ email: "doctor@trigyna.test" });
+    if (!doctorAcc) {
+      await User.create({
+        name: "Dr. Aarav Sharma",
+        email: "doctor@trigyna.test",
+        phone: "+919172772321",
+        passwordHash: await User.hashPassword("TriGyna@123"),
+        role: "doctor",
+        status: "active",
+      });
+    }
+    let patientAcc = await User.findOne({ email: "patient@trigyna.test" });
+    if (!patientAcc) {
+      await User.create({
+        name: "Ananya Mishra",
+        email: "patient@trigyna.test",
+        phone: "+919172772322",
+        passwordHash: await User.hashPassword("TriGyna@123"),
+        role: "patient",
+        status: "active",
+      });
+    }
+
     // 1. Authenticate Admin
     const loginRes = await request("POST", "/api/v1/auth/login", {
       identifier: "admin@trigyna.test",
@@ -201,13 +236,17 @@ async function runAdminDashboardVerification() {
 
     // 9. Test Aliased Domain Routes under /api/v1/admin/*
     console.log("\n--- Suite 8: Aliased Admin Domain Endpoints ---");
-    const [adminPatients, adminDoctors, adminAppts, adminCrm, adminHrms, adminInvoices] = await Promise.all([
+    const [adminPatients, adminDoctors, adminAppts, adminCrm, adminHrms, adminInvoices, adminPackages, adminAutomations, adminPayments, adminRefunds] = await Promise.all([
       request("GET", "/api/v1/admin/patients?limit=5", null, adminToken),
       request("GET", "/api/v1/admin/doctors", null, adminToken),
       request("GET", "/api/v1/admin/appointments?limit=5", null, adminToken),
       request("GET", "/api/v1/admin/crm/leads?limit=5", null, adminToken),
       request("GET", "/api/v1/admin/hrms/employees?limit=5", null, adminToken),
       request("GET", "/api/v1/admin/billing/invoices?limit=5", null, adminToken),
+      request("GET", "/api/v1/admin/packages", null, adminToken),
+      request("GET", "/api/v1/admin/automation/rules", null, adminToken),
+      request("GET", "/api/v1/admin/payments?limit=5", null, adminToken),
+      request("GET", "/api/v1/admin/refunds", null, adminToken),
     ]);
 
     assert.strictEqual(adminPatients.status, 200, "/admin/patients must return 200");
@@ -216,7 +255,11 @@ async function runAdminDashboardVerification() {
     assert.strictEqual(adminCrm.status, 200, "/admin/crm/leads must return 200");
     assert.strictEqual(adminHrms.status, 200, "/admin/hrms/employees must return 200");
     assert.strictEqual(adminInvoices.status, 200, "/admin/billing/invoices must return 200");
-    console.log("  ✓ [PASS] Aliased endpoints (/admin/patients, /doctors, /appointments, /crm, /hrms, /billing) verified 200 OK");
+    assert.strictEqual(adminPackages.status, 200, "/admin/packages must return 200");
+    assert.strictEqual(adminAutomations.status, 200, "/admin/automation/rules must return 200");
+    assert.strictEqual(adminPayments.status, 200, "/admin/payments must return 200");
+    assert.strictEqual(adminRefunds.status, 200, "/admin/refunds must return 200");
+    console.log("  ✓ [PASS] Aliased endpoints (/admin/patients, /doctors, /appointments, /crm, /hrms, /billing, /packages, /automation, /payments, /refunds) verified 200 OK");
 
     console.log("\n==================================================");
     console.log("ALL ADMIN DASHBOARD VERIFICATION TESTS PASSED (100%)");

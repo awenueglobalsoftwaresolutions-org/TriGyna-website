@@ -9,6 +9,7 @@ const { NotFoundError, ForbiddenError, ValidationError } = require("../../shared
 const { generateReceiptPdf } = require("./receipt-pdf.service");
 const { createReceiptForPayment } = require("./billing.service");
 const { canAccessBillingDocument } = require("../auth/authorization.service");
+const { safeRegex } = require("../../shared/regex.utils");
 
 // Helper to mask patient name for public verification (e.g. "Ananya Sharma" -> "A***** S*****")
 function maskName(name) {
@@ -27,9 +28,9 @@ async function listReceipts(req, res, next) {
     const { search, patientId, limit = 50, page = 1 } = req.query;
     const filter = {};
 
-    // Strictly reject unauthorized roles (CRM, HRMS)
-    if (["crm", "hrms"].includes(req.user.role)) {
-      return next(new ForbiddenError("Access denied: You are not authorized to view financial receipts"));
+    // Strictly reject unauthorized roles (HRMS)
+    if (req.user.role === "hrms") {
+      return next(new ForbiddenError("Access denied: HRMS staff are not authorized to view financial receipts"));
     }
 
     if (patientId) filter.patientId = patientId;
@@ -48,8 +49,11 @@ async function listReceipts(req, res, next) {
       filter.doctorId = doctor._id;
     }
 
-    if (search) {
-      filter.receiptNumber = new RegExp(search.trim(), "i");
+    if (search && search.trim()) {
+      const regex = safeRegex(search);
+      if (regex) {
+        filter.receiptNumber = regex;
+      }
     }
 
     const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);

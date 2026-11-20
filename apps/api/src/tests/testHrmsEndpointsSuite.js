@@ -88,7 +88,7 @@ async function run() {
     method: "POST",
     headers,
     body: JSON.stringify({
-      code: "weekend_emergency",
+      code: `weekend_emergency_${Date.now()}`,
       name: "Weekend Emergency On-Call",
       startTime: "08:00",
       endTime: "20:00",

@@ -15,6 +15,12 @@ const patientDocumentSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    consultationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Consultation",
+      index: true,
+      sparse: true,
+    },
     title: {
       type: String,
       required: [true, "Document title is required"],

@@ -28,8 +28,26 @@ const chatMessageSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["sent", "delivered", "read", "failed"],
+      enum: ["queued", "accepted", "sent", "delivered", "read", "failed"],
       default: "delivered",
+    },
+    mediaType: {
+      type: String,
+      enum: ["text", "image", "document", "audio", "video", "sticker", "interactive"],
+      default: "text",
+    },
+    mediaUrl: {
+      type: String,
+      trim: true,
+    },
+    mediaMetadata: {
+      type: mongoose.Schema.Types.Mixed,
+    },
+    interactiveData: {
+      type: mongoose.Schema.Types.Mixed,
+    },
+    error: {
+      type: mongoose.Schema.Types.Mixed,
     },
     timestamp: {
       type: Date,
@@ -80,6 +98,7 @@ const whatsappConversationSchema = new mongoose.Schema(
     assignedStaff: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      index: true,
     },
     status: {
       type: String,
@@ -87,9 +106,50 @@ const whatsappConversationSchema = new mongoose.Schema(
       default: "active",
       index: true,
     },
+    isEscalated: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    escalationReason: {
+      type: String,
+      trim: true,
+    },
+    escalatedAt: {
+      type: Date,
+    },
     unreadCount: {
       type: Number,
       default: 0,
+    },
+    serviceInterest: {
+      type: String,
+      trim: true,
+      default: "Hair Treatment",
+    },
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high", "urgent"],
+      default: "medium",
+    },
+    starred: {
+      type: Boolean,
+      default: false,
+    },
+    tags: {
+      type: [String],
+      default: [],
+    },
+    customerServiceWindowExpiresAt: {
+      type: Date,
+    },
+    lastInboundMessageAt: {
+      type: Date,
+    },
+    branch: {
+      type: String,
+      trim: true,
+      default: "Prayagraj Clinic",
     },
     lastMessage: {
       text: { type: String, default: "" },
@@ -103,6 +163,7 @@ const whatsappConversationSchema = new mongoose.Schema(
 );
 
 whatsappConversationSchema.index({ "lastMessage.timestamp": -1 });
+whatsappConversationSchema.index({ assignedStaff: 1, status: 1 });
 
 const WhatsAppConversation = mongoose.model("WhatsAppConversation", whatsappConversationSchema);
 

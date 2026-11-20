@@ -24,12 +24,12 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://trigyna.com"),
   title: "TriGyna — Women | Health | Wellness",
   description:
-    "Better Health for a Brighter Tomorrow. Personalised healthcare consultation and holistic wellness care for men and women — online and in-clinic.",
+    "Better Health for a Brighter Tomorrow. Personalised healthcare consultation and holistic wellness care for men and women — 100% online video consultations.",
   keywords: [
     "TriGyna",
     "women health",
-    "wellness clinic",
-    "homoeopathy",
+    "online video consultation",
+    "homoeopathy online",
     "PCOD PCOS treatment",
     "skin and hair care",
     "diet and nutrition",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "TriGyna — Women | Health | Wellness",
     description:
-      "Personalised consultation and holistic healthcare for men and women — online and in-clinic.",
+      "Personalised consultation and holistic healthcare for men and women — 100% online video consultations.",
     url: "https://trigyna.com",
     siteName: "TriGyna Healthcare",
     images: [
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "TriGyna — Women | Health | Wellness",
     description:
-      "Personalised consultation and holistic healthcare for men and women — online and in-clinic.",
+      "Personalised consultation and holistic healthcare for men and women — 100% online video consultations.",
     images: ["/images/hero/hero-couple.webp"],
   },
   icons: {

@@ -23,9 +23,9 @@ export const faqData: FAQItem[] = [
   {
     id: "faq-3",
     category: "Consultation",
-    question: "Can I book an in-person clinic consultation in Prayagraj?",
+    question: "Do you offer in-person clinic visits or only online consultations?",
     answer:
-      "Yes, in-person clinic visits are available at our Prayagraj location by prior appointment. When submitting your enquiry or connecting on WhatsApp, simply specify your preference for an in-clinic consultation.",
+      "TriGyna operates exclusively as a 100% online video consultation platform. All appointments are conducted via secure, high-definition Google Meet or Zoom video links, allowing you to consult with top specialists comfortably and confidentially from anywhere without traveling to a clinic.",
   },
   {
     id: "faq-4",

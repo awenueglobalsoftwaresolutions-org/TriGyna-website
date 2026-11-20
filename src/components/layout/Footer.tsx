@@ -28,7 +28,7 @@ export default function Footer() {
   const isDashboard =
     pathname?.startsWith("/admin") ||
     pathname?.startsWith("/doctor/dashboard") ||
-    pathname?.startsWith("/reception") ||
+    pathname?.startsWith("/sales") ||
     pathname?.startsWith("/patient") ||
     pathname?.startsWith("/portal") ||
     pathname?.startsWith("/login");
@@ -73,7 +73,7 @@ export default function Footer() {
             <div className="pt-2 text-xs text-[#A7C089] flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
               <span>
-                Accepting Online Video &amp; Prayagraj In-Clinic Consultations
+                Accepting 100% Online Video Consultations (Google Meet &amp; Zoom)
               </span>
             </div>
           </div>

@@ -56,6 +56,8 @@ interface NextAppointment {
   paymentStatus: string;
   joinEligible: boolean;
   meetingUrl: string | null;
+  meetingProvider?: string;
+  meetingStatus?: string;
   doctor: DoctorInfo;
 }
 
@@ -110,6 +112,7 @@ export default function PatientDashboardPage() {
   const [careJourney, setCareJourney] = useState<CareJourneyEvent[]>([]);
   const [upcomingFollowUps, setUpcomingFollowUps] = useState<FollowUpItem[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
+  const [packageSummary, setPackageSummary] = useState<any>(null);
 
   // Interactive Modal Dialogues
   const [activeModal, setActiveModal] = useState<
@@ -122,14 +125,17 @@ export default function PatientDashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<{
-        overview: OverviewMetrics;
-        nextAppointment: NextAppointment | null;
-        careJourney: CareJourneyEvent[];
-        upcomingFollowUps: FollowUpItem[];
-        recentActivity: ActivityItem[];
-        unreadNotificationsCount?: number;
-      }>("/patient/me/dashboard");
+      const [res, entRes] = await Promise.all([
+        api.get<{
+          overview: OverviewMetrics;
+          nextAppointment: NextAppointment | null;
+          careJourney: CareJourneyEvent[];
+          upcomingFollowUps: FollowUpItem[];
+          recentActivity: ActivityItem[];
+          unreadNotificationsCount?: number;
+        }>("/patient/me/dashboard"),
+        api.get<any>("/api/v1/packages/entitlements/my").catch(() => null),
+      ]);
 
       if (res.success && res.data) {
         setOverview(res.data.overview);
@@ -137,6 +143,9 @@ export default function PatientDashboardPage() {
         setCareJourney(res.data.careJourney || []);
         setUpcomingFollowUps(res.data.upcomingFollowUps || []);
         setRecentActivity(res.data.recentActivity || []);
+      }
+      if (entRes && (entRes as any).success && (entRes as any).data) {
+        setPackageSummary((entRes as any).data);
       }
     } catch (err: unknown) {
       console.error("Dashboard fetch error:", err);
@@ -147,36 +156,7 @@ export default function PatientDashboardPage() {
   };
 
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const res = await api.get<{
-          overview: OverviewMetrics;
-          nextAppointment: NextAppointment | null;
-          careJourney: CareJourneyEvent[];
-          upcomingFollowUps: FollowUpItem[];
-          recentActivity: ActivityItem[];
-          unreadNotificationsCount?: number;
-        }>("/patient/me/dashboard");
-
-        if (isMounted && res.success && res.data) {
-          setOverview(res.data.overview);
-          setNextAppointment(res.data.nextAppointment);
-          setCareJourney(res.data.careJourney || []);
-          setUpcomingFollowUps(res.data.upcomingFollowUps || []);
-          setRecentActivity(res.data.recentActivity || []);
-        }
-      } catch (err: unknown) {
-        console.error("Dashboard fetch error:", err);
-        if (isMounted) setError("Unable to load live dashboard metrics. Please check network connection.");
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
+    fetchDashboardData();
   }, []);
 
   return (
@@ -443,16 +423,29 @@ export default function PatientDashboardPage() {
                 View details
               </button>
 
-              <button
-                onClick={() => {
-                  setSelectedItemData(nextAppointment);
-                  setActiveModal("join_consultation");
-                }}
-                className="flex-1 lg:flex-none px-5 py-2.5 bg-[#075B35] hover:bg-[#064A2D] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Video className="w-4 h-4 stroke-[2]" />
-                <span>Join consultation</span>
-              </button>
+              {nextAppointment.joinEligible && nextAppointment.meetingUrl ? (
+                <a
+                  href={nextAppointment.meetingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 lg:flex-none px-5 py-2.5 bg-[#075B35] hover:bg-[#064A2D] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Video className="w-4 h-4 stroke-[2]" />
+                  <span>Join {nextAppointment.meetingProvider === "zoom" ? "Zoom" : "Google Meet"}</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              ) : (
+                <button
+                  onClick={() => {
+                    setSelectedItemData(nextAppointment);
+                    setActiveModal("join_consultation");
+                  }}
+                  className="flex-1 lg:flex-none px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Clock className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Video Link Pending</span>
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -493,6 +486,58 @@ export default function PatientDashboardPage() {
           </svg>
         </div>
       </div>
+
+      {/* Package Entitlements & Session Credit Ledger Card */}
+      {packageSummary && packageSummary.aggregate && packageSummary.aggregate.totalPurchased > 0 && (
+        <div className="bg-gradient-to-br from-[#F4FAF6] to-[#EDF8F1] rounded-2xl border border-[#CDE5D6] p-5 sm:p-6 shadow-xs animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#D5E8DC]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#075B35] text-white flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-[#075B35] uppercase tracking-wider">
+                  Active Healthcare Package
+                </span>
+                <h3 className="text-base font-bold text-[#14251F]">
+                  {packageSummary.entitlements?.[0]?.packageName || "TriGyna Care Plan"}
+                </h3>
+              </div>
+            </div>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white text-[#075B35] border border-[#CDE5D6] self-start sm:self-auto">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Verified Entitlement
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
+            <div className="bg-white p-3.5 rounded-xl border border-[#DCECE1] text-center">
+              <p className="text-[11px] text-[#68766F] font-medium">Total Sessions</p>
+              <p className="text-xl font-bold text-[#14251F] mt-0.5">
+                {packageSummary.aggregate.totalPurchased}
+              </p>
+            </div>
+            <div className="bg-white p-3.5 rounded-xl border border-emerald-300 text-center shadow-xs">
+              <p className="text-[11px] text-emerald-800 font-semibold">Available to Book</p>
+              <p className="text-xl font-bold text-[#075B35] mt-0.5">
+                {packageSummary.aggregate.totalAvailable}
+              </p>
+            </div>
+            <div className="bg-white p-3.5 rounded-xl border border-amber-200 text-center">
+              <p className="text-[11px] text-amber-800 font-medium">Reserved</p>
+              <p className="text-xl font-bold text-amber-700 mt-0.5">
+                {packageSummary.aggregate.totalReserved}
+              </p>
+            </div>
+            <div className="bg-white p-3.5 rounded-xl border border-gray-200 text-center">
+              <p className="text-[11px] text-gray-600 font-medium">Consumed</p>
+              <p className="text-xl font-bold text-gray-800 mt-0.5">
+                {packageSummary.aggregate.totalConsumed}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 3. Lower Dashboard Section (Two Columns) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -700,6 +745,44 @@ export default function PatientDashboardPage() {
         </div>
       </div>
 
+      {/* WhatsApp Communication & Verified Care Desk Card */}
+      <div className="bg-gradient-to-r from-[#0C2925] to-[#154734] rounded-2xl p-5 sm:p-6 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shrink-0">
+            <MessageSquare className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-serif font-bold text-base text-white">TriGyna Verified WhatsApp Care Desk</h3>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                Official Clinic Channel
+              </span>
+            </div>
+            <p className="text-xs text-emerald-100/80 mt-1 max-w-xl">
+              Receive appointment confirmations, signed prescriptions, and billing receipts directly on WhatsApp. You can also chat with our clinical reception desk at +91 917-277-2326.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0 w-full md:w-auto">
+          <Link
+            href="/patient/notifications"
+            className="flex-1 md:flex-none text-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-xl border border-white/20 transition cursor-pointer"
+          >
+            Preferences &amp; Opt-Out
+          </Link>
+          <a
+            href="https://wa.me/919172772326?text=Namaste%20TriGyna%20Care%20Desk%2C%20I%20am%20a%20registered%20patient."
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 md:flex-none px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <span>Open WhatsApp Chat</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      </div>
+
       {/* ========================================================================= */}
       {/* Interactive Working Modal Dialogues (View Details, Join, Prescription, Plan) */}
       {/* ========================================================================= */}
@@ -820,10 +903,36 @@ export default function PatientDashboardPage() {
                 <p className="text-[11px] text-gray-300 mt-3 max-w-sm">
                   Encrypted peer-to-peer room ready. Camera and microphone permissions verified.
                 </p>
-                <div className="mt-4 flex items-center gap-2 text-xs font-semibold px-3 py-1 bg-emerald-950/80 text-emerald-300 rounded-full border border-emerald-800">
+                <div className="mt-3 flex items-center gap-2 text-xs font-semibold px-3 py-1 bg-emerald-950/80 text-emerald-300 rounded-full border border-emerald-800">
                   <Shield className="w-3.5 h-3.5" />
-                  <span>256-bit HIPAA / EHR Compliant Session</span>
+                  <span>256-bit Encrypted Telehealth Session</span>
                 </div>
+
+                {nextAppointment?.joinEligible && nextAppointment?.meetingUrl ? (
+                  <div className="mt-4 flex flex-col items-center gap-2">
+                    <a
+                      href={nextAppointment.meetingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl flex items-center gap-2 shadow-lg transition"
+                    >
+                      <Video className="w-4 h-4" />
+                      <span>Join {nextAppointment.meetingProvider === "zoom" ? "Zoom Consultation" : "Google Meet Consultation"}</span>
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                    <span className="text-[11px] text-gray-400">Opens secure encrypted room in a new tab</span>
+                  </div>
+                ) : (
+                  <div className="mt-4 p-3 bg-amber-950/60 border border-amber-800/50 rounded-xl max-w-sm text-center">
+                    <p className="text-xs text-amber-300 font-semibold flex items-center justify-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" />
+                      Consultation Link Pending
+                    </p>
+                    <p className="text-[11px] text-amber-200/70 mt-1">
+                      Your consultant will attach the Google Meet/Zoom link prior to your scheduled time. You will receive an alert as soon as it is ready.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -838,14 +947,18 @@ export default function PatientDashboardPage() {
                 >
                   Close
                 </button>
-                <Link
-                  href="/patient/consultations"
-                  onClick={() => setActiveModal(null)}
-                  className="px-4 py-2 bg-[#075B35] hover:bg-[#064A2D] rounded-xl font-semibold flex items-center gap-1.5"
-                >
-                  <span>Open Full Video Workspace</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </Link>
+                {nextAppointment?.joinEligible && nextAppointment?.meetingUrl ? (
+                  <a
+                    href={nextAppointment.meetingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setActiveModal(null)}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold flex items-center gap-1.5 text-white"
+                  >
+                    <span>Launch {nextAppointment.meetingProvider === "zoom" ? "Zoom" : "Google Meet"}</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                ) : null}
               </div>
             </div>
           </div>

@@ -112,6 +112,23 @@ async function runDashboardIntegrationTests() {
   const convertedLeads = crmLeads.body.data.leads.filter((l) => l.status === "converted");
   assert(convertedLeads.length >= 3, `Converted leads with patient links verified: ${convertedLeads.length}`);
 
+  // 3b. Sales Team Dashboard Flow (/sales/dashboard)
+  console.log("\n--- Role 3b: Sales Team (Priya Verma -> /sales/dashboard) ---");
+  const salesLogin = await makeRequest("POST", "/api/v1/auth/login", {
+    identifier: "sales@trigyna.test",
+    password: "TriGyna@123",
+  });
+  assert(salesLogin.status === 200, "Sales team login successful");
+  assert(salesLogin.body && salesLogin.body.data && salesLogin.body.data.user.role === "sales", "Sales user role confirmed as 'sales'");
+  const salesToken = salesLogin.body.data.token;
+
+  const salesLeads = await makeRequest("GET", "/api/v1/crm/leads", null, salesToken);
+  assert(salesLeads.status === 200, "Sales loads live CRM leads (/api/v1/crm/leads)");
+  assert(salesLeads.body.data.leads.length >= 12, `Live CRM leads retrieved for Sales: ${salesLeads.body.data.leads.length}`);
+
+  const salesPkgs = await makeRequest("GET", "/api/v1/packages", null, salesToken);
+  assert(salesPkgs.status === 200, "Sales loads packages catalogue (/api/v1/packages)");
+
   // 4. HRMS Dashboard Flow
   console.log("\n--- Role 4: HRMS (Neha Singh -> /portal/hrms) ---");
   const hrmsLogin = await makeRequest("POST", "/api/v1/auth/login", {

@@ -31,13 +31,13 @@ export default function LoginPage() {
       const res = await login(identifier.trim(), password);
       const role = res.user.role;
 
-      // Canonical redirection to role dashboards
-      if (role === "owner" || role === "admin" || role === "crm" || role === "hrms" || role === "hr") {
+      // Canonical redirection to 4 role dashboards
+      if (role === "owner" || role === "admin" || role === "hrms" || role === "hr") {
         router.push("/admin/dashboard");
       } else if (role === "doctor") {
         router.push("/doctor/dashboard");
-      } else if (role === "reception") {
-        router.push("/reception/dashboard");
+      } else if (role === "sales" || role === "crm" || role === "reception") {
+        router.push("/sales/dashboard");
       } else if (role === "patient") {
         router.push("/patient/dashboard");
       } else {
@@ -65,8 +65,8 @@ export default function LoginPage() {
         router.push("/patient/dashboard");
       } else if (role === "doctor") {
         router.push("/doctor/dashboard");
-      } else if (role === "reception") {
-        router.push("/reception/dashboard");
+      } else if (role === "sales" || role === "crm" || role === "reception") {
+        router.push("/sales/dashboard");
       } else {
         router.push("/admin/dashboard");
       }
@@ -241,12 +241,10 @@ export default function LoginPage() {
 
             <div className="grid grid-cols-2 gap-2 text-xs">
               {[
-                { role: "Doctor", name: "Dr. Ananya Sharma", id: "ananya.sharma@trigyna.test", pass: "TriGyna@123", color: "hover:border-emerald-600 hover:bg-emerald-50/50 border-emerald-300 bg-emerald-50/20" },
-                { role: "Doctor", name: "Dr. Harshali Sutar", id: "harshali.sutar@trigyna.test", pass: "TriGyna@123", color: "hover:border-blue-600 hover:bg-blue-50/50" },
-                { role: "Patient", name: "Ananya Mishra", id: "patient@trigyna.test", pass: "TriGyna@123", color: "hover:border-rose-500 hover:bg-rose-50/50 border-rose-200 bg-rose-50/20" },
-                { role: "Admin", name: "Sushil Kumar", id: "admin@trigyna.test", pass: "TriGyna@123", color: "hover:border-emerald-600 hover:bg-emerald-50/50" },
-                { role: "Reception", name: "Rahul Gupta", id: "reception@trigyna.test", pass: "TriGyna@123", color: "hover:border-teal-600 hover:bg-teal-50/50" },
-                { role: "CRM", name: "Priya Verma", id: "crm@trigyna.test", pass: "TriGyna@123", color: "hover:border-purple-600 hover:bg-purple-50/50" },
+                { role: "1. Admin (Owner)", name: "Sushil Kumar", id: "admin@trigyna.test", pass: "TriGyna@123", color: "hover:border-emerald-600 hover:bg-emerald-50/50 border-emerald-300 bg-emerald-50/20" },
+                { role: "2. Doctor", name: "Dr. Ananya Sharma", id: "ananya.sharma@trigyna.test", pass: "TriGyna@123", color: "hover:border-blue-600 hover:bg-blue-50/50 border-blue-200 bg-blue-50/20" },
+                { role: "3. Sales Team (CRM)", name: "Priya Verma", id: "sales@trigyna.test", pass: "TriGyna@123", color: "hover:border-amber-600 hover:bg-amber-50/50 border-amber-300 bg-amber-50/20" },
+                { role: "4. Patient Portal", name: "Ananya Mishra", id: "patient@trigyna.test", pass: "TriGyna@123", color: "hover:border-rose-500 hover:bg-rose-50/50 border-rose-200 bg-rose-50/20" },
               ].map((acc) => (
                 <div
                   key={acc.id}

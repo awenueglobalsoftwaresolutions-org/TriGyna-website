@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -206,15 +206,15 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-2xl border border-[#E2E9E3] p-5 lg:p-6 shadow-sm">
+      <div className="bg-white rounded-2xl border border-[#E5EAF0] p-5 lg:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
               <CheckSquare className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-serif font-bold text-[#18231D]">Tasks &amp; Operational Workflows</h2>
-              <p className="text-xs text-[#68756D] mt-0.5">
+              <h2 className="text-xl font-sans font-bold text-[#111827]">Tasks &amp; Operational Workflows</h2>
+              <p className="text-xs text-[#64748B] mt-0.5">
                 Cross-departmental delegation: CRM follow-ups, clinical chart preps, billing checks, and compliance
               </p>
             </div>
@@ -223,7 +223,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#154734] hover:bg-[#0E3828] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#087A50] hover:bg-[#075B3D] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer w-full sm:w-auto"
             >
               <Plus className="w-4 h-4" />
               <span>Create Task</span>
@@ -232,7 +232,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
         </div>
 
         {/* Filter Bar */}
-        <div className="mt-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-4 border-t border-[#E2E9E3]">
+        <div className="mt-5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-4 border-t border-[#E5EAF0]">
           <div className="relative flex-1 max-w-sm">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
             <input
@@ -240,7 +240,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
               placeholder="Search task title or assigned staff..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs border border-[#E2E9E3] rounded-xl focus:ring-1 focus:ring-[#154734] focus:outline-none bg-white text-[#18231D]"
+              className="w-full pl-9 pr-3 py-2 text-xs border border-[#E5EAF0] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none bg-white text-[#111827]"
             />
           </div>
 
@@ -248,7 +248,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
             <select
               value={moduleFilter}
               onChange={(e) => setModuleFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-[#E2E9E3] rounded-xl bg-white text-[#18231D] focus:outline-none font-medium"
+              className="px-3 py-1.5 text-xs border border-[#E5EAF0] rounded-xl bg-white text-[#111827] focus:outline-none font-medium"
             >
               <option value="all">All Modules</option>
               <option value="crm">CRM &amp; Inquiries</option>
@@ -261,7 +261,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-[#E2E9E3] rounded-xl bg-white text-[#18231D] focus:outline-none font-medium"
+              className="px-3 py-1.5 text-xs border border-[#E5EAF0] rounded-xl bg-white text-[#111827] focus:outline-none font-medium"
             >
               <option value="all">All Priorities</option>
               <option value="urgent">Urgent</option>
@@ -273,7 +273,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-[#E2E9E3] rounded-xl bg-white text-[#18231D] focus:outline-none font-medium"
+              className="px-3 py-1.5 text-xs border border-[#E5EAF0] rounded-xl bg-white text-[#111827] focus:outline-none font-medium"
             >
               <option value="all">All Statuses</option>
               <option value="open">Open</option>
@@ -285,7 +285,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
             <button
               onClick={loadTasks}
               disabled={isLoading}
-              className="p-1.5 border border-[#E2E9E3] rounded-xl hover:bg-gray-50 text-[#154734] cursor-pointer transition-colors"
+              className="p-1.5 border border-[#E5EAF0] rounded-xl hover:bg-gray-50 text-[#087A50] cursor-pointer transition-colors"
               title="Refresh"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
@@ -295,17 +295,17 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
       </div>
 
       {/* Tasks Content */}
-      <div className="bg-white rounded-2xl border border-[#E2E9E3] shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E5EAF0] shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="py-16 text-center text-xs text-[#68756D] flex flex-col items-center gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-[#154734]" />
+          <div className="py-16 text-center text-xs text-[#64748B] flex flex-col items-center gap-3">
+            <Loader2 className="w-6 h-6 animate-spin text-[#087A50]" />
             <span>Loading task queue...</span>
           </div>
         ) : filteredTasks.length === 0 ? (
-          <div className="py-16 text-center text-xs text-[#68756D] flex flex-col items-center gap-2">
+          <div className="py-16 text-center text-xs text-[#64748B] flex flex-col items-center gap-2">
             <CheckSquare className="w-8 h-8 text-gray-300" />
-            <p className="font-semibold text-[#18231D]">No operational tasks found</p>
-            <p className="text-[11px] text-[#68756D]">Adjust filter criteria or create a new assignment.</p>
+            <p className="font-semibold text-[#111827]">No operational tasks found</p>
+            <p className="text-[11px] text-[#64748B]">Adjust filter criteria or create a new assignment.</p>
           </div>
         ) : (
           <>
@@ -313,7 +313,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-[#E2E9E3] bg-[#F7F9F7] text-[#68756D] font-semibold uppercase tracking-wider text-[11px]">
+                  <tr className="border-b border-[#E5EAF0] bg-[#F7F9F7] text-[#64748B] font-semibold uppercase tracking-wider text-[11px]">
                     <th className="py-3 px-4">Title &amp; Module</th>
                     <th className="py-3 px-4">Assigned To</th>
                     <th className="py-3 px-4">Priority</th>
@@ -322,24 +322,24 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E2E9E3]">
+                <tbody className="divide-y divide-[#E5EAF0]">
                   {filteredTasks.map((t) => (
                     <tr key={t._id} className="hover:bg-[#F7F9F7]/70 transition-colors">
                       <td className="py-3.5 px-4">
-                        <div className="font-semibold text-[#18231D]">{t.title}</div>
-                        <div className="text-[11px] text-[#68756D] flex items-center gap-1.5 mt-0.5">
+                        <div className="font-semibold text-[#111827]">{t.title}</div>
+                        <div className="text-[11px] text-[#64748B] flex items-center gap-1.5 mt-0.5">
                           <span className="uppercase font-mono font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px]">
                             {t.module}
                           </span>
-                          {t.description && <span className="truncate max-w-xs text-[#68756D]">{t.description}</span>}
+                          {t.description && <span className="truncate max-w-xs text-[#64748B]">{t.description}</span>}
                         </div>
                       </td>
                       <td className="py-3.5 px-4">
-                        <div className="font-medium text-[#18231D] flex items-center gap-1.5">
-                          <User className="w-3.5 h-3.5 text-[#154734]" />
+                        <div className="font-medium text-[#111827] flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-[#087A50]" />
                           <span>{t.assignedTo?.name || "Unassigned"}</span>
                         </div>
-                        <div className="text-[11px] text-[#68756D] capitalize">{t.assignedTo?.role}</div>
+                        <div className="text-[11px] text-[#64748B] capitalize">{t.assignedTo?.role}</div>
                       </td>
                       <td className="py-3.5 px-4">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold border ${getPriorityBadge(t.priority)}`}>
@@ -347,7 +347,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
                         </span>
                       </td>
                       <td className="py-3.5 px-4 font-mono">
-                        <div className="font-medium text-[#18231D]">
+                        <div className="font-medium text-[#111827]">
                           {t.dueDate ? new Date(t.dueDate).toISOString().split("T")[0] : "Open"}
                         </div>
                       </td>
@@ -387,7 +387,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
                           )}
                           <button
                             onClick={() => setSelectedTask(t)}
-                            className="p-1 rounded-lg hover:bg-gray-100 text-[#154734] cursor-pointer transition-colors"
+                            className="p-1 rounded-lg hover:bg-gray-100 text-[#087A50] cursor-pointer transition-colors"
                             title="Open Task Discussion"
                           >
                             <ChevronRight className="w-4 h-4" />
@@ -401,7 +401,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
             </div>
 
             {/* Mobile Responsive Cards */}
-            <div className="md:hidden divide-y divide-[#E2E9E3]">
+            <div className="md:hidden divide-y divide-[#E5EAF0]">
               {filteredTasks.map((t) => (
                 <div key={t._id} className="p-4 space-y-2.5">
                   <div className="flex items-start justify-between gap-2">
@@ -409,23 +409,23 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
                       <span className="uppercase font-mono font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 text-[10px]">
                         {t.module}
                       </span>
-                      <h4 className="font-semibold text-sm text-[#18231D] mt-1">{t.title}</h4>
-                      {t.description && <p className="text-xs text-[#68756D] line-clamp-2 mt-0.5">{t.description}</p>}
+                      <h4 className="font-semibold text-sm text-[#111827] mt-1">{t.title}</h4>
+                      {t.description && <p className="text-xs text-[#64748B] line-clamp-2 mt-0.5">{t.description}</p>}
                     </div>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold border shrink-0 ${getPriorityBadge(t.priority)}`}>
                       {t.priority}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs text-[#68756D] pt-1">
+                  <div className="flex items-center justify-between text-xs text-[#64748B] pt-1">
                     <span className="flex items-center gap-1">
-                      <User className="w-3.5 h-3.5 text-[#154734]" />
+                      <User className="w-3.5 h-3.5 text-[#087A50]" />
                       <span>{t.assignedTo?.name || "Unassigned"}</span>
                     </span>
                     <span className="font-mono text-[11px]">Due: {t.dueDate ? new Date(t.dueDate).toISOString().split("T")[0] : "Open"}</span>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-[#E2E9E3]/70">
+                  <div className="flex items-center justify-between pt-2 border-t border-[#E5EAF0]/70">
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
                         t.status === "completed"
@@ -458,7 +458,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
                       )}
                       <button
                         onClick={() => setSelectedTask(t)}
-                        className="px-3 py-1 rounded-lg bg-[#154734] text-white font-semibold text-xs cursor-pointer"
+                        className="px-3 py-1 rounded-lg bg-[#087A50] text-white font-semibold text-xs cursor-pointer"
                       >
                         Details
                       </button>
@@ -475,15 +475,15 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setIsAddModalOpen(false)} />
-          <div className="relative bg-white border border-[#E2E9E3] rounded-2xl p-6 sm:p-7 max-w-md w-full shadow-2xl z-10 animate-fade-in max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[#E2E9E3]">
+          <div className="relative bg-white border border-[#E5EAF0] rounded-2xl p-6 sm:p-7 max-w-md w-full shadow-2xl z-10 animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[#E5EAF0]">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
                   <CheckSquare className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-serif font-bold text-[#18231D]">Create New Task</h3>
-                  <p className="text-xs text-[#68756D]">Assign action items to clinic staff</p>
+                  <h3 className="text-base font-sans font-bold text-[#111827]">Create New Task</h3>
+                  <p className="text-xs text-[#64748B]">Assign action items to clinic staff</p>
                 </div>
               </div>
               <button
@@ -497,24 +497,24 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
 
             <form onSubmit={handleCreateTask} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-[#18231D] mb-1.5">Task Title *</label>
+                <label className="block font-semibold text-[#111827] mb-1.5">Task Title *</label>
                 <input
                   type="text"
                   required
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   placeholder="e.g. Follow up on Meta Ads PCOS lead callback"
-                  className="w-full px-3 py-2 border border-[#E2E9E3] rounded-xl focus:ring-1 focus:ring-[#154734] focus:outline-none text-[#18231D]"
+                  className="w-full px-3 py-2 border border-[#E5EAF0] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none text-[#111827]"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-[#18231D] mb-1.5">Department / Module</label>
+                  <label className="block font-semibold text-[#111827] mb-1.5">Department / Module</label>
                   <select
                     value={form.module}
                     onChange={(e) => setForm({ ...form, module: e.target.value as TaskItem["module"] })}
-                    className="w-full px-3 py-2 border border-[#E2E9E3] rounded-xl bg-white text-[#18231D] focus:outline-none"
+                    className="w-full px-3 py-2 border border-[#E5EAF0] rounded-xl bg-white text-[#111827] focus:outline-none"
                   >
                     <option value="crm">CRM &amp; Inquiries</option>
                     <option value="clinical">Clinical Practice</option>
@@ -524,11 +524,11 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold text-[#18231D] mb-1.5">Priority</label>
+                  <label className="block font-semibold text-[#111827] mb-1.5">Priority</label>
                   <select
                     value={form.priority}
                     onChange={(e) => setForm({ ...form, priority: e.target.value as TaskItem["priority"] })}
-                    className="w-full px-3 py-2 border border-[#E2E9E3] rounded-xl bg-white text-[#18231D] focus:outline-none"
+                    className="w-full px-3 py-2 border border-[#E5EAF0] rounded-xl bg-white text-[#111827] focus:outline-none"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -539,11 +539,11 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
               </div>
 
               <div>
-                <label className="block font-semibold text-[#18231D] mb-1.5">Assignee</label>
+                <label className="block font-semibold text-[#111827] mb-1.5">Assignee</label>
                 <select
                   value={form.assignedTo}
                   onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#E2E9E3] rounded-xl bg-white text-[#18231D] focus:outline-none"
+                  className="w-full px-3 py-2 border border-[#E5EAF0] rounded-xl bg-white text-[#111827] focus:outline-none"
                 >
                   <option value="">-- Assign to Myself / Unassigned --</option>
                   {users.map((u) => (
@@ -555,38 +555,38 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
               </div>
 
               <div>
-                <label className="block font-semibold text-[#18231D] mb-1.5">Due Date</label>
+                <label className="block font-semibold text-[#111827] mb-1.5">Due Date</label>
                 <input
                   type="date"
                   value={form.dueDate}
                   onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#E2E9E3] rounded-xl focus:ring-1 focus:ring-[#154734] focus:outline-none text-[#18231D]"
+                  className="w-full px-3 py-2 border border-[#E5EAF0] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none text-[#111827]"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-[#18231D] mb-1.5">Detailed Instructions</label>
+                <label className="block font-semibold text-[#111827] mb-1.5">Detailed Instructions</label>
                 <textarea
                   rows={3}
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="Steps required, expected deliverables, reference links..."
-                  className="w-full px-3 py-2 border border-[#E2E9E3] rounded-xl focus:ring-1 focus:ring-[#154734] focus:outline-none text-[#18231D]"
+                  className="w-full px-3 py-2 border border-[#E5EAF0] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none text-[#111827]"
                 />
               </div>
 
-              <div className="pt-3 flex justify-end gap-2 border-t border-[#E2E9E3]">
+              <div className="pt-3 flex justify-end gap-2 border-t border-[#E5EAF0]">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 border border-[#E2E9E3] rounded-xl text-[#68756D] hover:bg-gray-50 cursor-pointer font-medium"
+                  className="px-4 py-2 border border-[#E5EAF0] rounded-xl text-[#64748B] hover:bg-gray-50 cursor-pointer font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-[#154734] text-white rounded-xl font-semibold hover:bg-[#0E3828] cursor-pointer disabled:opacity-60 flex items-center gap-2 shadow-xs transition-colors"
+                  className="px-5 py-2 bg-[#087A50] text-white rounded-xl font-semibold hover:bg-[#075B3D] cursor-pointer disabled:opacity-60 flex items-center gap-2 shadow-xs transition-colors"
                 >
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                   <span>{isSubmitting ? "Assigning..." : "Assign Task"}</span>
@@ -601,13 +601,13 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
       {selectedTask && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setSelectedTask(null)} />
-          <div className="relative bg-white border border-[#E2E9E3] rounded-2xl p-6 sm:p-7 max-w-lg w-full shadow-2xl z-10 animate-fade-in max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[#E2E9E3]">
+          <div className="relative bg-white border border-[#E5EAF0] rounded-2xl p-6 sm:p-7 max-w-lg w-full shadow-2xl z-10 animate-fade-in max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[#E5EAF0]">
               <div>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold border ${getPriorityBadge(selectedTask.priority)}`}>
                   {selectedTask.priority}
                 </span>
-                <h3 className="text-base font-serif font-bold text-[#18231D] mt-1.5">{selectedTask.title}</h3>
+                <h3 className="text-base font-sans font-bold text-[#111827] mt-1.5">{selectedTask.title}</h3>
               </div>
               <button
                 type="button"
@@ -619,9 +619,9 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
             </div>
 
             <div className="space-y-4 text-xs">
-              <div className="p-3.5 bg-[#F7F9F7] border border-[#E2E9E3] rounded-xl space-y-1.5">
-                <p className="text-[#68756D] leading-relaxed">{selectedTask.description || "No description provided."}</p>
-                <div className="pt-2 flex items-center justify-between font-mono text-[11px] text-[#154734] font-semibold border-t border-[#E2E9E3]">
+              <div className="p-3.5 bg-[#F7F9F7] border border-[#E5EAF0] rounded-xl space-y-1.5">
+                <p className="text-[#64748B] leading-relaxed">{selectedTask.description || "No description provided."}</p>
+                <div className="pt-2 flex items-center justify-between font-mono text-[11px] text-[#087A50] font-semibold border-t border-[#E5EAF0]">
                   <span>Assigned: {selectedTask.assignedTo?.name || "Unassigned"}</span>
                   <span>Due: {selectedTask.dueDate ? new Date(selectedTask.dueDate).toISOString().split("T")[0] : "Open"}</span>
                 </div>
@@ -629,7 +629,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
 
               {/* Status Switcher */}
               <div>
-                <h4 className="font-semibold text-[#18231D] mb-1.5">Change Progress Status</h4>
+                <h4 className="font-semibold text-[#111827] mb-1.5">Change Progress Status</h4>
                 <div className="flex items-center gap-2">
                   {(["open", "in_progress", "completed"] as const).map((st) => (
                     <button
@@ -638,8 +638,8 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
                       onClick={() => handleStatusChange(selectedTask._id, st)}
                       className={`px-3 py-1.5 rounded-xl capitalize font-semibold text-[11px] border cursor-pointer transition-colors ${
                         selectedTask.status === st
-                          ? "bg-[#154734] text-white border-[#154734]"
-                          : "bg-gray-50 text-[#68756D] border-gray-200 hover:bg-gray-100"
+                          ? "bg-[#087A50] text-white border-[#087A50]"
+                          : "bg-gray-50 text-[#64748B] border-gray-200 hover:bg-gray-100"
                       }`}
                     >
                       {st.replace("_", " ")}
@@ -650,8 +650,8 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
 
               {/* Comments / Notes */}
               <div>
-                <h4 className="font-semibold text-[#18231D] mb-2 flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-[#154734]" />
+                <h4 className="font-semibold text-[#111827] mb-2 flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-[#087A50]" />
                   <span>Activity Comments &amp; Notes</span>
                 </h4>
 
@@ -659,11 +659,11 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
                   {selectedTask.comments && selectedTask.comments.length > 0 ? (
                     selectedTask.comments.map((c, i) => (
                       <div key={i} className="p-2.5 rounded-xl bg-gray-50 border border-gray-100">
-                        <div className="flex items-center justify-between text-[10px] text-[#68756D] mb-0.5">
-                          <strong className="text-[#18231D]">{c.author}</strong>
+                        <div className="flex items-center justify-between text-[10px] text-[#64748B] mb-0.5">
+                          <strong className="text-[#111827]">{c.author}</strong>
                           <span>{new Date(c.createdAt).toLocaleDateString()}</span>
                         </div>
-                        <p className="text-[#18231D]">{c.text}</p>
+                        <p className="text-[#111827]">{c.text}</p>
                       </div>
                     ))
                   ) : (
@@ -677,12 +677,12 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Add an update note..."
-                    className="flex-1 px-3 py-2 border border-[#E2E9E3] rounded-xl focus:ring-1 focus:ring-[#154734] focus:outline-none text-[#18231D]"
+                    className="flex-1 px-3 py-2 border border-[#E5EAF0] rounded-xl focus:ring-1 focus:ring-[#087A50] focus:outline-none text-[#111827]"
                   />
                   <button
                     type="button"
                     onClick={handleAddComment}
-                    className="px-3.5 py-2 bg-[#154734] text-white rounded-xl font-semibold hover:bg-[#0E3828] cursor-pointer shadow-xs transition-colors"
+                    className="px-3.5 py-2 bg-[#087A50] text-white rounded-xl font-semibold hover:bg-[#075B3D] cursor-pointer shadow-xs transition-colors"
                   >
                     Post
                   </button>
@@ -693,7 +693,7 @@ export function TasksTab({ showNotification }: { showNotification: (msg: string,
                 <button
                   type="button"
                   onClick={() => setSelectedTask(null)}
-                  className="px-4 py-2 border border-[#E2E9E3] rounded-xl text-[#68756D] hover:bg-gray-50 cursor-pointer font-medium"
+                  className="px-4 py-2 border border-[#E5EAF0] rounded-xl text-[#64748B] hover:bg-gray-50 cursor-pointer font-medium"
                 >
                   Done
                 </button>

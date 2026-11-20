@@ -11,6 +11,7 @@ const Organization = require("../organization/organization.model");
 const { sendSuccess } = require("../../shared/response");
 const { ValidationError, NotFoundError, ConflictError } = require("../../shared/errors");
 const { recordAudit } = require("../audit/audit.service");
+const { safeRegex } = require("../../shared/regex.utils");
 
 // Helper to get today's YYYY-MM-DD
 function getTodayString() {
@@ -31,14 +32,16 @@ async function listEmployees(req, res, next) {
       .populate("userId", "name email phone role status")
       .sort({ createdAt: -1 });
 
-    if (search) {
-      const regex = new RegExp(search.trim(), "i");
-      employees = employees.filter(
-        (emp) =>
-          emp.employeeCode.match(regex) ||
-          emp.designation.match(regex) ||
-          (emp.userId && emp.userId.name && emp.userId.name.match(regex))
-      );
+    if (search && search.trim()) {
+      const regex = safeRegex(search);
+      if (regex) {
+        employees = employees.filter(
+          (emp) =>
+            (emp.employeeCode && emp.employeeCode.match(regex)) ||
+            (emp.designation && emp.designation.match(regex)) ||
+            (emp.userId && emp.userId.name && emp.userId.name.match(regex))
+        );
+      }
     }
 
     return sendSuccess(res, { employees, count: employees.length }, "Employees retrieved");
@@ -329,7 +332,7 @@ async function listAttendanceCorrections(req, res, next) {
 
 async function reviewAttendanceCorrection(req, res, next) {
   try {
-    const { status, reviewNote } = req.body;
+    const { status, reviewNote, notes } = req.body;
     if (!["approved", "rejected"].includes(status)) {
       return next(new ValidationError("Status must be 'approved' or 'rejected'"));
     }
@@ -341,7 +344,7 @@ async function reviewAttendanceCorrection(req, res, next) {
 
     correction.status = status;
     correction.reviewedBy = req.user._id;
-    correction.reviewNote = reviewNote ? reviewNote.trim() : "";
+    correction.reviewNote = (reviewNote || notes || "").trim();
     correction.reviewedAt = new Date();
     await correction.save();
 
@@ -447,7 +450,7 @@ async function listLeaveRequests(req, res, next) {
 
 async function reviewLeaveRequest(req, res, next) {
   try {
-    const { status, reviewNote } = req.body;
+    const { status, reviewNote, notes } = req.body;
     if (!["approved", "rejected"].includes(status)) {
       return next(new ValidationError("Status must be either 'approved' or 'rejected'"));
     }
@@ -459,7 +462,7 @@ async function reviewLeaveRequest(req, res, next) {
 
     leave.status = status;
     leave.reviewedBy = req.user._id;
-    leave.reviewNote = reviewNote ? reviewNote.trim() : "";
+    leave.reviewNote = (reviewNote || notes || "").trim();
     await leave.save();
 
     // If approved, update leave balance in employee profile

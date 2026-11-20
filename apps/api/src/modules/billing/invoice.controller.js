@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const crypto = require("crypto");
+const env = require("../../config/env");
 const Invoice = require("./invoice.model");
 const Expense = require("./expense.model");
 const Payment = require("./payment.model");
@@ -18,8 +19,13 @@ const {
   generateReceiptNumber,
   calculateInvoiceTotals,
   createReceiptForPayment,
+  recordLedgerEntry,
 } = require("./billing.service");
 const { generateReceiptPdf } = require("./receipt-pdf.service");
+const { generateInvoicePdf } = require("./invoice-pdf.service");
+const razorpayService = require("./razorpay.service");
+const { safeRegex } = require("../../shared/regex.utils");
+const { dispatchNotificationEvent } = require("../notifications/notification.service");
 
 // Helper to generate unique collision-free expense number
 async function generateExpenseNumber() {
@@ -44,8 +50,8 @@ async function listInvoices(req, res, next) {
     const { status, search, patientId, limit = 50, page = 1 } = req.query;
     const filter = {};
 
-    if (["crm", "hrms"].includes(req.user.role)) {
-      return next(new ForbiddenError("Access denied: You are not authorized to view financial invoices"));
+    if (req.user.role === "hrms") {
+      return next(new ForbiddenError("Access denied: HRMS staff are not authorized to view financial invoices"));
     }
 
     if (status) filter.status = status;
@@ -66,8 +72,11 @@ async function listInvoices(req, res, next) {
       filter.doctorId = doctor._id;
     }
 
-    if (search) {
-      filter.invoiceNumber = new RegExp(search.trim(), "i");
+    if (search && search.trim()) {
+      const regex = safeRegex(search);
+      if (regex) {
+        filter.invoiceNumber = regex;
+      }
     }
 
     const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
@@ -114,6 +123,54 @@ async function getInvoiceById(req, res, next) {
     }
 
     return sendSuccess(res, { invoice }, "Invoice details retrieved successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * Stream or Download official A4 TriGyna Invoice PDF
+ */
+async function downloadInvoicePdf(req, res, next) {
+  try {
+    const id = req.params.id;
+    let invoice = null;
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      invoice = await Invoice.findById(id)
+        .populate("patientId", "patientCode fullName phone email address")
+        .populate({
+          path: "doctorId",
+          populate: { path: "userId", select: "name" },
+        })
+        .populate("appointmentId");
+    }
+
+    if (!invoice) {
+      invoice = await Invoice.findOne({ invoiceNumber: id })
+        .populate("patientId", "patientCode fullName phone email address")
+        .populate({
+          path: "doctorId",
+          populate: { path: "userId", select: "name" },
+        })
+        .populate("appointmentId");
+    }
+
+    if (!invoice) {
+      return next(new NotFoundError("Invoice not found"));
+    }
+
+    const allowed = await canAccessBillingDocument(req.user, invoice);
+    if (!allowed) {
+      return next(new ForbiddenError("Access denied: You are not authorized to download this invoice PDF"));
+    }
+
+    const org = await Organization.findOne({ status: "active" }).lean();
+    const filename = `TriGyna-Invoice-${invoice.invoiceNumber.replace(/[\/\\]/g, "-")}.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+
+    await generateInvoicePdf(invoice, res, org);
   } catch (err) {
     return next(err);
   }
@@ -183,17 +240,32 @@ async function createInvoice(req, res, next) {
     const paymentProvider = req.body.paymentProvider || (paymentMethod === "upi" ? "phonepe" : "manual_pos");
     const providerTransactionId = req.body.transactionRef ? req.body.transactionRef.trim() : undefined;
 
+    const invoiceType = req.body.invoiceType && ["consultation", "service", "package", "follow-up", "procedure", "other"].includes(req.body.invoiceType)
+      ? req.body.invoiceType
+      : "consultation";
+    const branchName = req.body.branchName ? req.body.branchName.trim() : "Main Clinic (Pune - Baner)";
+
+    // CGST/SGST/IGST breakdown
+    const taxBreakdown = {
+      cgst: roundToTwo(finalTaxAmount / 2),
+      sgst: roundToTwo(finalTaxAmount / 2),
+      igst: 0,
+    };
+
     const invoice = await Invoice.create({
       invoiceNumber,
       patientId,
       doctorId: doctorId || undefined,
       appointmentId: appointmentId || undefined,
+      invoiceType,
+      branchName,
       items: calc.items,
       subtotal: calc.subtotal,
       discountAmount: calc.discountAmount,
       taxableAmount: calc.taxableAmount,
       taxRate: Number(taxRate) || 0,
       taxAmount: finalTaxAmount,
+      taxBreakdown,
       totalAmount: finalTotal,
       paidAmount: initialPaidAmount,
       balanceAmount: initialBalance,
@@ -203,6 +275,18 @@ async function createInvoice(req, res, next) {
       paidAt: isInitiallyPaid ? new Date() : undefined,
       createdBy: req.user._id,
       notes: notes ? notes.trim() : "",
+    });
+
+    const { recordLedgerEntry } = require("./billing.service");
+    await recordLedgerEntry({
+      entryType: "invoice_issued",
+      classification: "debit",
+      amount: finalTotal,
+      invoiceId: invoice._id,
+      patientId,
+      description: `Invoice ${invoiceNumber} issued (${invoiceType})`,
+      balanceAfter: initialBalance,
+      recordedBy: req.user._id,
     });
 
     let paymentRecord = null;
@@ -403,6 +487,21 @@ async function recordPayment(req, res, next) {
       } else {
         await invoice.save();
       }
+
+      const { recordLedgerEntry } = require("./billing.service");
+      await recordLedgerEntry({
+        entryType: paymentMethod === "cash" ? "offline_payment" : "payment_received",
+        classification: "credit",
+        amount: paymentAmt,
+        invoiceId: invoice._id,
+        paymentId: payment._id,
+        receiptId: receipt._id,
+        patientId: invoice.patientId,
+        description: `Payment received (${paymentMethod.toUpperCase()}) for invoice ${invoice.invoiceNumber}`,
+        balanceAfter: invoice.balanceAmount,
+        recordedBy: req.user._id,
+        gatewayRef: providerTransactionId,
+      });
     } catch (err) {
       if (inTransaction && session) {
         await session.abortTransaction().catch(() => {});
@@ -454,47 +553,80 @@ async function recordPayment(req, res, next) {
 }
 
 /**
- * Payment Gateway: Create order for online payment (e.g. UPI / PhonePe / Razorpay)
+ * Payment Gateway: Create Razorpay Order for online payment
  */
 async function createPaymentOrder(req, res, next) {
   try {
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) return next(new NotFoundError("Invoice not found"));
 
+    const allowed = await canAccessBillingDocument(req.user, invoice);
+    if (!allowed) {
+      return next(new ForbiddenError("Access denied: You are not authorized to make a payment on this invoice"));
+    }
+
     if (invoice.status === "paid") {
       return next(new ValidationError("Invoice is already fully paid"));
     }
 
+    if (["cancelled", "refunded"].includes(invoice.status)) {
+      return next(new ValidationError(`Invoice cannot accept payments as its status is ${invoice.status}`));
+    }
+
     const currentBalance = roundToTwo(invoice.totalAmount - (invoice.paidAmount || 0));
+    if (currentBalance <= 0) {
+      return next(new ValidationError("Invoice has no outstanding payable balance"));
+    }
+
     const payableAmount = req.body.amount ? Math.min(currentBalance, roundToTwo(req.body.amount)) : currentBalance;
 
-    const orderId = `order_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+    // Create official Razorpay Order via service
+    const order = await razorpayService.createOrder({
+      amountRupees: payableAmount,
+      receipt: invoice.invoiceNumber,
+      notes: {
+        invoiceId: invoice._id.toString(),
+        patientId: invoice.patientId?.toString(),
+        appointmentId: invoice.appointmentId?.toString() || "",
+      },
+    });
 
     const paymentInitiation = await Payment.create({
       paymentNumber: `PAY-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
       invoiceId: invoice._id,
       patientId: invoice.patientId,
+      doctorId: invoice.doctorId,
+      appointmentId: invoice.appointmentId,
       amount: payableAmount,
       currency: invoice.currency || "INR",
       paymentMethod: req.body.paymentMethod || "upi",
-      paymentProvider: req.body.provider || "phonepe",
-      providerTransactionId: orderId,
+      paymentProvider: "razorpay",
+      providerOrderId: order.id,
+      providerTransactionId: order.id,
       status: "initiated",
-      notes: `Order created for invoice ${invoice.invoiceNumber}`,
+      notes: `Razorpay order created for invoice ${invoice.invoiceNumber}`,
+      metadata: {
+        orderId: order.id,
+        amountInPaise: order.amount,
+        mode: razorpayService.mode,
+      },
     });
 
     return sendSuccess(
       res,
       {
-        orderId,
+        orderId: order.id,
         paymentId: paymentInitiation._id,
         invoiceId: invoice._id,
         invoiceNumber: invoice.invoiceNumber,
         amount: payableAmount,
-        currency: invoice.currency || "INR",
-        provider: req.body.provider || "phonepe",
+        amountInPaise: order.amount,
+        currency: "INR",
+        provider: "razorpay",
+        keyId: order.keyId,
+        mode: razorpayService.mode,
       },
-      "Gateway payment order initialized"
+      "Razorpay payment order initialized"
     );
   } catch (err) {
     return next(err);
@@ -502,20 +634,56 @@ async function createPaymentOrder(req, res, next) {
 }
 
 /**
- * Payment Gateway: Verify client payment outcome and issue receipt
+ * Payment Gateway: Verify Razorpay payment signature and issue receipt
  */
 async function verifyPayment(req, res, next) {
   try {
-    const { paymentId, providerTransactionId, providerSignature, status = "success" } = req.body;
+    const {
+      paymentId,
+      orderId,
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      providerTransactionId,
+      providerSignature,
+      status = "success",
+    } = req.body;
 
-    const payment = await Payment.findById(paymentId);
+    const effectiveOrderId = razorpay_order_id || orderId;
+    const effectivePaymentId = razorpay_payment_id || providerTransactionId || `pay_${Date.now()}`;
+    const effectiveSignature = razorpay_signature || providerSignature;
+
+    let payment;
+    if (paymentId) {
+      payment = await Payment.findById(paymentId);
+    }
+    
+    if (!payment && (effectiveOrderId || effectivePaymentId)) {
+      const queryOr = [];
+      if (effectiveOrderId) {
+        queryOr.push({ providerOrderId: effectiveOrderId }, { providerTransactionId: effectiveOrderId });
+      }
+      if (effectivePaymentId) {
+        queryOr.push({ providerPaymentId: effectivePaymentId }, { providerTransactionId: effectivePaymentId });
+      }
+      payment = await Payment.findOne({ $or: queryOr });
+    }
+
     if (!payment) {
-      return next(new NotFoundError("Payment transaction not found"));
+      return next(new NotFoundError("Payment record not found for verification"));
+    }
+
+    const allowed = await canAccessBillingDocument(req.user, payment);
+    if (!allowed) {
+      return next(new ForbiddenError("Access denied: You are not authorized to verify this payment"));
     }
 
     if (payment.status === "success") {
-      const receipt = await Receipt.findOne({ paymentId: payment._id });
-      return sendSuccess(res, { payment, receipt }, "Payment already verified");
+      const [receipt, invoice] = await Promise.all([
+        Receipt.findOne({ paymentId: payment._id }),
+        Invoice.findById(payment.invoiceId),
+      ]);
+      return sendSuccess(res, { payment, receipt, invoice }, "Payment already verified");
     }
 
     if (status !== "success") {
@@ -524,17 +692,38 @@ async function verifyPayment(req, res, next) {
       return sendSuccess(res, { payment, status: "failed" }, "Payment marked failed");
     }
 
+    // Mandatory Cryptographic HMAC Signature Verification (Section 2 & 6 non-negotiable)
+    if (!effectiveSignature) {
+      return next(new ValidationError("Cryptographic payment signature is strictly required for online payment verification."));
+    }
+
+    const isValid = razorpayService.verifyPaymentSignature({
+      orderId: effectiveOrderId || payment.providerOrderId || payment.providerTransactionId,
+      paymentId: effectivePaymentId,
+      signature: effectiveSignature,
+    });
+
+    if (!isValid) {
+      return next(new ValidationError("Invalid Razorpay payment signature. Verification failed."));
+    }
+
     payment.status = "success";
     payment.paidAt = new Date();
-    payment.providerTransactionId = providerTransactionId || payment.providerTransactionId;
+    payment.providerTransactionId = effectivePaymentId;
+    payment.providerPaymentId = effectivePaymentId;
+    if (effectiveOrderId) {
+      payment.providerOrderId = effectiveOrderId;
+    }
     await payment.save();
 
     const invoice = await Invoice.findById(payment.invoiceId);
+    if (!invoice) return next(new NotFoundError("Associated invoice not found"));
+
     invoice.paidAmount = roundToTwo((invoice.paidAmount || 0) + payment.amount);
-    invoice.balanceAmount = roundToTwo(invoice.totalAmount - invoice.paidAmount);
+    invoice.balanceAmount = roundToTwo(Math.max(0, invoice.totalAmount - invoice.paidAmount));
     invoice.status = invoice.balanceAmount <= 0 ? "paid" : "partially_paid";
     invoice.paidAt = new Date();
-    invoice.paymentMethod = payment.paymentMethod;
+    invoice.paymentMethod = payment.paymentMethod || "upi";
 
     const receipt = await createReceiptForPayment({
       payment,
@@ -546,15 +735,42 @@ async function verifyPayment(req, res, next) {
     invoice.payments.push({
       amount: payment.amount,
       paymentMethod: payment.paymentMethod,
-      paymentProvider: payment.paymentProvider,
+      paymentProvider: "razorpay",
       transactionRef: payment.providerTransactionId,
       receiptId: receipt._id,
       receiptNumber: receipt.receiptNumber,
       recordedAt: new Date(),
-      notes: "Online gateway verification",
+      notes: "Online Razorpay verification",
     });
 
     await invoice.save();
+
+    // Trigger multi-channel event notification (In-app, Email, Push)
+    try {
+      const patientUser = await Patient.findById(invoice.patientId).populate("userId");
+      await dispatchNotificationEvent("payment.captured", {
+        invoice,
+        payment,
+        receipt,
+        patientUser: patientUser?.userId,
+      });
+    } catch (notifErr) {
+      console.warn("[Billing] Payment notification dispatch note:", notifErr.message);
+    }
+
+    await recordAudit({
+      actorId: req.user?._id,
+      actorRole: req.user?.role || "patient",
+      action: "PAYMENT_VERIFIED",
+      targetEntity: "Payment",
+      targetId: payment._id.toString(),
+      details: {
+        invoiceNumber: invoice.invoiceNumber,
+        amount: payment.amount,
+        receiptNumber: receipt.receiptNumber,
+      },
+      ipAddress: req.ip,
+    });
 
     return sendSuccess(res, { payment, receipt, invoice }, "Payment verified and receipt issued successfully");
   } catch (err) {
@@ -563,42 +779,293 @@ async function verifyPayment(req, res, next) {
 }
 
 /**
- * Payment Gateway Webhook handler (Idempotent processing)
+ * Razorpay Payment Gateway Webhook handler (Idempotent processing & Signature verification)
  */
 async function handlePaymentWebhook(req, res, next) {
   try {
-    const { event, payload } = req.body;
-    const providerTxnId = payload?.payment?.id || payload?.transactionId;
+    const signature = req.headers["x-razorpay-signature"];
 
-    if (!providerTxnId) {
+    // In production environments, x-razorpay-signature header is mandatory
+    if (env.NODE_ENV === "production" && !signature) {
+      console.warn("[Razorpay Webhook] Missing required x-razorpay-signature header in production");
+      return res.status(401).json({ error: "Missing required webhook signature header" });
+    }
+
+    // Verify webhook signature if provided
+    if (signature) {
+      const isValid = razorpayService.verifyWebhookSignature(req.rawBody || req.body, signature);
+      if (!isValid) {
+        console.warn("[Razorpay Webhook] Signature verification failed");
+        return res.status(400).json({ error: "Invalid webhook signature" });
+      }
+    }
+
+    const { event, payload } = req.body;
+    const providerTxnId = payload?.payment?.entity?.id || payload?.payment?.id || payload?.transactionId;
+    const orderId = payload?.payment?.entity?.order_id || payload?.order?.entity?.id;
+    const paymentLinkId = payload?.payment_link?.entity?.id || payload?.payment_link?.id;
+
+    if (!providerTxnId && !orderId && !paymentLinkId && !payload?.refund?.entity?.id) {
       return sendSuccess(res, { received: true }, "Webhook received without transaction identifier");
     }
 
-    // Check if already processed
-    const existing = await Payment.findOne({ providerTransactionId: providerTxnId, status: "success" });
-    if (existing) {
-      return sendSuccess(res, { received: true, idempotent: true }, "Webhook already processed");
+    // Idempotency check: already marked success?
+    if (providerTxnId) {
+      const existing = await Payment.findOne({
+        $or: [
+          { providerTransactionId: providerTxnId, status: "success" },
+          { "metadata.orderId": orderId, status: "success" },
+        ],
+      });
+
+      if (existing) {
+        return sendSuccess(res, { received: true, idempotent: true }, "Webhook event already processed");
+      }
+    }
+
+    // Handle Payment Link events
+    if (event === "payment_link.paid" || event === "payment_link.partially_paid") {
+      const PaymentLink = require("./payment-link.model");
+      const plink = await PaymentLink.findOne({
+        $or: [{ razorpayPaymentLinkId: paymentLinkId }, { paymentLinkId: paymentLinkId }],
+      });
+
+      if (plink) {
+        const paidPaise = payload?.payment?.entity?.amount || (plink.amount * 100);
+        const paidRupees = roundToTwo(paidPaise / 100);
+
+        let payment = await Payment.findOne({ providerTransactionId: providerTxnId });
+        if (!payment) {
+          payment = await Payment.create({
+            paymentNumber: `PAY-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
+            invoiceId: plink.invoiceId,
+            patientId: plink.patientId,
+            amount: paidRupees,
+            currency: plink.currency || "INR",
+            paymentMethod: payload?.payment?.entity?.method || "upi",
+            paymentProvider: "razorpay",
+            providerTransactionId: providerTxnId || `pay_link_${Date.now()}`,
+            providerOrderId: orderId || plink.razorpayPaymentLinkId,
+            status: "success",
+            paidAt: new Date(),
+            notes: `Paid via Payment Link ${plink.paymentLinkId}`,
+          });
+        } else {
+          payment.status = "success";
+          payment.paidAt = new Date();
+          await payment.save();
+        }
+
+        plink.paidAmount = roundToTwo((plink.paidAmount || 0) + paidRupees);
+        plink.balanceDue = roundToTwo(Math.max(0, plink.amount - plink.paidAmount));
+        plink.status = plink.balanceDue <= 0 ? "paid" : "partially_paid";
+        plink.paidAt = new Date();
+        plink.payments.push({
+          paymentId: payment._id,
+          razorpayPaymentId: providerTxnId,
+          amount: paidRupees,
+          paidAt: new Date(),
+        });
+        await plink.save();
+
+        if (plink.invoiceId) {
+          const invoice = await Invoice.findById(plink.invoiceId);
+          if (invoice) {
+            invoice.paidAmount = roundToTwo((invoice.paidAmount || 0) + paidRupees);
+            invoice.balanceAmount = roundToTwo(Math.max(0, invoice.totalAmount - invoice.paidAmount));
+            invoice.status = invoice.balanceAmount <= 0 ? "paid" : "partially_paid";
+            invoice.paidAt = new Date();
+            invoice.paymentMethod = payment.paymentMethod;
+
+            const receipt = await createReceiptForPayment({ payment, invoice });
+            invoice.payments.push({
+              amount: paidRupees,
+              paymentMethod: payment.paymentMethod,
+              paymentProvider: "razorpay",
+              transactionRef: providerTxnId,
+              receiptId: receipt._id,
+              receiptNumber: receipt.receiptNumber,
+              recordedAt: new Date(),
+              notes: `Razorpay Payment Link webhook (${event})`,
+            });
+            await invoice.save();
+
+            // Double-entry Financial Ledger recording (Credit AR -> Cash/Bank)
+            await recordLedgerEntry({
+              entryType: "payment_received",
+              classification: "credit",
+              amount: paidRupees,
+              invoiceId: invoice._id,
+              patientId: invoice.patientId || plink.patientId,
+              description: `Payment Link ${plink.paymentLinkId} settled via Razorpay`,
+              recordedBy: null,
+              gatewayRef: providerTxnId,
+            });
+
+            // Synchronize linked Order and activate package entitlement if applicable
+            const effectiveOrderId = plink.orderId || invoice.orderId || payment.orderId;
+            if (effectiveOrderId) {
+              try {
+                const Order = require("./order.model");
+                const ord = await Order.findById(effectiveOrderId);
+                if (ord) {
+                  ord.orderStatus = "paid";
+                  ord.paymentStatus = "success";
+                  ord.paidAmount = ord.totalAmount;
+                  ord.balanceDue = 0;
+                  ord.receiptId = receipt._id;
+                  await ord.save();
+
+                  if (ord.packageId && (ord.patientId || plink.patientId)) {
+                    const { grantPackageEntitlement } = require("../packages/session-ledger.service");
+                    const ent = await grantPackageEntitlement({
+                      patientId: ord.patientId || plink.patientId,
+                      packageId: ord.packageId,
+                      orderId: ord.orderNumber,
+                      paymentId: payment.paymentNumber,
+                      actor: null,
+                    });
+                    ord.entitlementId = ent._id;
+                    await ord.save();
+                  }
+
+                  if (ord.leadId) {
+                    try {
+                      const Lead = require("../crm/lead.model");
+                      await Lead.findByIdAndUpdate(ord.leadId, {
+                        stage: "won",
+                        status: "converted",
+                        convertedToPatientId: ord.patientId || plink.patientId,
+                        convertedAt: new Date(),
+                      });
+                    } catch (leadErr) {
+                      console.warn("[Razorpay Webhook] Lead conversion warning:", leadErr.message);
+                    }
+                  }
+                }
+              } catch (ordErr) {
+                console.warn("[Razorpay Webhook] Order sync warning:", ordErr.message);
+              }
+            }
+
+            try {
+              const patientUser = await Patient.findById(invoice.patientId || plink.patientId).populate("userId");
+              await dispatchNotificationEvent("payment.captured", {
+                invoice,
+                payment,
+                receipt,
+                patientUser: patientUser?.userId,
+              });
+            } catch (e) {
+              console.warn("[Razorpay Webhook] Event notification error:", e.message);
+            }
+          }
+        }
+
+        return sendSuccess(res, { received: true, status: "PROCESSED", linkId: plink.paymentLinkId }, "Payment link webhook processed");
+      }
     }
 
     if (event === "payment.captured" || event === "payment.success") {
-      const payment = await Payment.findOne({ providerTransactionId: providerTxnId });
-      if (payment) {
+      let payment = await Payment.findOne({
+        $or: [
+          { providerTransactionId: providerTxnId },
+          { providerTransactionId: orderId },
+          { "metadata.orderId": orderId },
+        ],
+      });
+
+      if (payment && payment.status !== "success") {
         payment.status = "success";
         payment.paidAt = new Date();
+        payment.providerTransactionId = providerTxnId || payment.providerTransactionId;
         await payment.save();
 
         const invoice = await Invoice.findById(payment.invoiceId);
         if (invoice) {
+          if (!invoice.patientId && (payment.orderId || invoice.orderId)) {
+            const Order = require("./order.model");
+            const ord = await Order.findById(payment.orderId || invoice.orderId);
+            if (ord?.patientId) {
+              invoice.patientId = ord.patientId;
+              payment.patientId = ord.patientId;
+              await payment.save();
+            }
+          }
           invoice.paidAmount = roundToTwo((invoice.paidAmount || 0) + payment.amount);
-          invoice.balanceAmount = roundToTwo(invoice.totalAmount - invoice.paidAmount);
+          invoice.balanceAmount = roundToTwo(Math.max(0, invoice.totalAmount - invoice.paidAmount));
           invoice.status = invoice.balanceAmount <= 0 ? "paid" : "partially_paid";
+          invoice.paidAt = new Date();
+          invoice.paymentMethod = "upi";
+
           const receipt = await createReceiptForPayment({ payment, invoice });
+          invoice.payments.push({
+            amount: payment.amount,
+            paymentMethod: "upi",
+            paymentProvider: "razorpay",
+            transactionRef: payment.providerTransactionId,
+            receiptId: receipt._id,
+            receiptNumber: receipt.receiptNumber,
+            recordedAt: new Date(),
+            notes: "Razorpay webhook payment.captured",
+          });
           await invoice.save();
+
+          // Sync linked Order and activate package entitlement if applicable
+          if (payment.orderId || invoice.orderId) {
+            try {
+              const Order = require("./order.model");
+              const ord = await Order.findById(payment.orderId || invoice.orderId);
+              if (ord) {
+                ord.orderStatus = "paid";
+                ord.paymentStatus = "success";
+                ord.paidAmount = ord.totalAmount;
+                ord.balanceDue = 0;
+                ord.receiptId = receipt._id;
+                await ord.save();
+
+                if (ord.packageId && ord.patientId) {
+                  const { grantPackageEntitlement } = require("../packages/session-ledger.service");
+                  const ent = await grantPackageEntitlement({
+                    patientId: ord.patientId,
+                    packageId: ord.packageId,
+                    orderId: ord.orderNumber,
+                    paymentId: payment.paymentNumber,
+                    actor: null,
+                  });
+                  ord.entitlementId = ent._id;
+                  await ord.save();
+                }
+              }
+            } catch (ordErr) {
+              console.warn("[Razorpay Webhook] Order sync warning:", ordErr.message);
+            }
+          }
+
+          try {
+            const patientUser = await Patient.findById(invoice.patientId).populate("userId");
+            await dispatchNotificationEvent("payment.captured", {
+              invoice,
+              payment,
+              receipt,
+              patientUser: patientUser?.userId,
+            });
+          } catch (e) {
+            console.warn("[Razorpay Webhook] Event notification error:", e.message);
+          }
         }
+      }
+    } else if (event === "payment.failed") {
+      const payment = await Payment.findOne({
+        $or: [{ providerTransactionId: providerTxnId }, { providerTransactionId: orderId }],
+      });
+      if (payment) {
+        payment.status = "failed";
+        await payment.save();
       }
     }
 
-    return sendSuccess(res, { received: true }, "Webhook processed successfully");
+    return sendSuccess(res, { received: true, status: "PROCESSED" }, "Razorpay webhook processed successfully");
   } catch (err) {
     return next(err);
   }
@@ -629,18 +1096,71 @@ async function processRefund(req, res, next) {
       return next(new ValidationError(`Refund amount (${refAmt}) cannot exceed paid amount (${invoice.paidAmount})`));
     }
 
+    // Call Razorpay refund service
+    const refundOutcome = await razorpayService.createRefund({
+      paymentId: invoice.payments?.[0]?.transactionRef || `pay_${Date.now()}`,
+      amountRupees: refAmt,
+      notes: { invoiceNumber: invoice.invoiceNumber, reason: refundReason },
+    });
+
     invoice.status = "refunded";
     invoice.refundDetails = {
       refundAmount: refAmt,
       refundReason: refundReason.trim(),
       refundedAt: new Date(),
       refundedBy: req.user._id,
+      providerRefundId: refundOutcome.id,
     };
 
     await invoice.save();
 
     // Mark corresponding receipts as refunded
     await Receipt.updateMany({ invoiceId: invoice._id }, { status: "refunded" });
+
+    // Generate Credit Note for the refund
+    let creditNote = null;
+    try {
+      const CreditNote = require("./credit-note.model");
+      const creditNoteNumber = `CN-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+      creditNote = await CreditNote.create({
+        creditNoteNumber,
+        invoiceId: invoice._id,
+        patientId: invoice.patientId,
+        amount: refAmt,
+        currency: invoice.currency || "INR",
+        reason: refundReason.trim(),
+        status: "issued",
+        issuedAt: new Date(),
+        issuedBy: req.user._id,
+        notes: `Refund provider ID: ${refundOutcome.id}`,
+      });
+    } catch (cnErr) {
+      console.warn("[Refund] Credit note notice:", cnErr.message);
+    }
+
+    // Record in immutable financial ledger
+    const { recordLedgerEntry } = require("./billing.service");
+    await recordLedgerEntry({
+      entryType: "refund_processed",
+      classification: "debit",
+      amount: refAmt,
+      invoiceId: invoice._id,
+      patientId: invoice.patientId,
+      description: `Refund processed for invoice ${invoice.invoiceNumber}: ${refundReason.trim()}`,
+      recordedBy: req.user._id,
+      gatewayRef: refundOutcome.id,
+    });
+
+    try {
+      const patientUser = await Patient.findById(invoice.patientId).populate("userId");
+      await dispatchNotificationEvent("refund.processed", {
+        invoice,
+        refundAmount: refAmt,
+        patientUser: patientUser?.userId,
+      });
+    } catch (e) {
+      console.warn("[Refund] Notification error:", e.message);
+    }
 
     await recordAudit({
       actorId: req.user._id,
@@ -652,11 +1172,12 @@ async function processRefund(req, res, next) {
         invoiceNumber: invoice.invoiceNumber,
         refundAmount: refAmt,
         refundReason,
+        providerRefundId: refundOutcome.id,
       },
       ipAddress: req.ip,
     });
 
-    return sendSuccess(res, { invoice }, "Refund processed and audited successfully");
+    return sendSuccess(res, { invoice, refundOutcome }, "Refund processed and audited successfully");
   } catch (err) {
     return next(err);
   }
@@ -709,9 +1230,11 @@ async function listExpenses(req, res, next) {
     const filter = {};
 
     if (category) filter.category = category;
-    if (search) {
-      const regex = new RegExp(search.trim(), "i");
-      filter.$or = [{ title: regex }, { vendor: regex }, { expenseNumber: regex }];
+    if (search && search.trim()) {
+      const regex = safeRegex(search);
+      if (regex) {
+        filter.$or = [{ title: regex }, { vendor: regex }, { expenseNumber: regex }];
+      }
     }
 
     const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
@@ -733,9 +1256,10 @@ async function listExpenses(req, res, next) {
 // ----------------- Financial Reconciliation -----------------
 async function getFinancialReconciliation(req, res, next) {
   try {
-    const [invoices, expenses] = await Promise.all([
+    const [invoices, expenses, payments] = await Promise.all([
       Invoice.find(),
       Expense.find(),
+      Payment.find(),
     ]);
 
     let totalBilled = 0;
@@ -761,6 +1285,61 @@ async function getFinancialReconciliation(req, res, next) {
 
     const netCashFlow = totalCollected - totalRefunds - totalExpenses;
 
+    // Scan for actionable reconciliation discrepancies
+    const discrepancies = [];
+    const receipts = await Receipt.find().select("paymentId invoiceId");
+    const receiptInvoiceIds = new Set(receipts.map((r) => r.invoiceId?.toString()));
+
+    invoices.forEach((inv) => {
+      // 1. Balance calculation mismatch
+      const expectedBalance = roundToTwo(Math.max(0, (inv.totalAmount || 0) - (inv.paidAmount || 0)));
+      if (Math.abs((inv.balanceAmount || 0) - expectedBalance) > 0.01) {
+        discrepancies.push({
+          type: "BALANCE_MISMATCH",
+          entityId: inv._id,
+          reference: inv.invoiceNumber,
+          details: `Recorded balance ₹${inv.balanceAmount} does not match expected ₹${expectedBalance}`,
+          severity: "warning",
+        });
+      }
+
+      // 2. Paid invoice missing receipt
+      if ((inv.status === "paid" || inv.paidAmount > 0) && !receiptInvoiceIds.has(inv._id.toString())) {
+        discrepancies.push({
+          type: "MISSING_RECEIPT",
+          entityId: inv._id,
+          reference: inv.invoiceNumber,
+          details: `Invoice has paid amount of ₹${inv.paidAmount} but no generated receipt exists`,
+          severity: "high",
+        });
+      }
+    });
+
+    // 3. Stale pending payments older than 30 mins
+    const staleThreshold = new Date(Date.now() - 30 * 60 * 1000);
+    payments.forEach((p) => {
+      if (p.status === "initiated" && p.createdAt < staleThreshold) {
+        discrepancies.push({
+          type: "STALE_PAYMENT_ATTEMPT",
+          entityId: p._id,
+          reference: p.paymentNumber,
+          details: `Payment attempt of ₹${p.amount} initiated at ${p.createdAt} remains pending`,
+          severity: "info",
+        });
+      }
+    });
+
+    const gatewayStats = {
+      razorpayCaptured: payments.filter((p) => p.paymentProvider === "razorpay" && p.status === "success").length,
+      razorpayPending: payments.filter((p) => p.paymentProvider === "razorpay" && p.status === "initiated").length,
+      razorpayFailed: payments.filter((p) => p.paymentProvider === "razorpay" && p.status === "failed").length,
+      offlineUpi: payments.filter((p) => p.paymentProvider !== "razorpay" && p.paymentMethod === "upi").length,
+      cashOrPos: payments.filter((p) => ["cash", "card"].includes(p.paymentMethod)).length,
+      reconciliationStatus: discrepancies.length === 0 ? "BALANCED" : "DISCREPANCIES_DETECTED",
+      discrepanciesCount: discrepancies.length,
+      discrepancies,
+    };
+
     return sendSuccess(
       res,
       {
@@ -773,6 +1352,8 @@ async function getFinancialReconciliation(req, res, next) {
           netCashFlow: roundToTwo(netCashFlow),
           totalInvoicesCount: invoices.length,
           totalExpensesCount: expenses.length,
+          totalPaymentsCount: payments.length,
+          gatewayBreakdown: gatewayStats,
         },
       },
       "Financial reconciliation report computed from database records"
@@ -782,9 +1363,96 @@ async function getFinancialReconciliation(req, res, next) {
   }
 }
 
+/**
+ * Execute automated safe financial reconciliation & repair
+ */
+async function reconcileDiscrepancies(req, res, next) {
+  try {
+    const repairs = [];
+
+    // 1. Recalculate balance for all invoices
+    const invoices = await Invoice.find();
+    for (const inv of invoices) {
+      if (inv.status === "paid" && (!inv.paidAmount || inv.paidAmount === 0)) {
+        inv.paidAmount = inv.totalAmount;
+        inv.balanceAmount = 0;
+        await inv.save();
+        repairs.push({ type: "PAID_AMOUNT_SETTLED", invoiceNumber: inv.invoiceNumber, paidAmount: inv.totalAmount });
+      }
+
+      const expectedBalance = roundToTwo(Math.max(0, (inv.totalAmount || 0) - (inv.paidAmount || 0)));
+      if (Math.abs((inv.balanceAmount || 0) - expectedBalance) > 0.01) {
+        inv.balanceAmount = expectedBalance;
+        if (inv.paidAmount >= inv.totalAmount && inv.status !== "refunded") {
+          inv.status = "paid";
+        }
+        await inv.save();
+        repairs.push({ type: "BALANCE_REPAIRED", invoiceNumber: inv.invoiceNumber, newBalance: expectedBalance });
+      }
+
+      // 2. Ensure missing receipts are idempotently created for settled invoices
+      if ((inv.status === "paid" || inv.paidAmount > 0) && inv.paidAmount > 0) {
+        if (!inv.patientId && inv.orderId) {
+          const Order = require("./order.model");
+          const ord = await Order.findById(inv.orderId);
+          if (ord?.patientId) {
+            inv.patientId = ord.patientId;
+            await inv.save();
+          }
+        }
+
+        if (!inv.patientId) {
+          continue;
+        }
+
+        const existingReceipt = await Receipt.findOne({ invoiceId: inv._id });
+        if (!existingReceipt) {
+          let payment = await Payment.findOne({ invoiceId: inv._id, status: "success" });
+          if (!payment) {
+            payment = await Payment.create({
+              paymentNumber: `PAY-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
+              invoiceId: inv._id,
+              patientId: inv.patientId,
+              amount: inv.paidAmount,
+              currency: inv.currency || "INR",
+              paymentMethod: inv.paymentMethod !== "none" ? inv.paymentMethod : "upi",
+              paymentProvider: "manual_pos",
+              status: "success",
+              paidAt: inv.paidAt || inv.createdAt || new Date(),
+              recordedBy: req.user._id,
+              notes: "Auto-generated during reconciliation",
+            });
+          }
+          const rec = await createReceiptForPayment({
+            payment,
+            invoice: inv,
+            appointmentId: inv.appointmentId,
+            doctorId: inv.doctorId,
+          });
+          repairs.push({ type: "RECEIPT_GENERATED", invoiceNumber: inv.invoiceNumber, receiptNumber: rec.receiptNumber });
+        }
+      }
+    }
+
+    await recordAudit({
+      actorId: req.user._id,
+      actorRole: req.user.role,
+      action: "FINANCIAL_RECONCILIATION_EXECUTED",
+      targetEntity: "Invoice",
+      details: { repairsCount: repairs.length, repairs },
+      ipAddress: req.ip,
+    });
+
+    return sendSuccess(res, { repairsCount: repairs.length, repairs }, "Financial reconciliation repair executed successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   listInvoices,
   getInvoiceById,
+  downloadInvoicePdf,
   createInvoice,
   recordPayment,
   createPaymentOrder,
@@ -794,4 +1462,5 @@ module.exports = {
   createExpense,
   listExpenses,
   getFinancialReconciliation,
+  reconcileDiscrepancies,
 };

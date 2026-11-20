@@ -16,6 +16,7 @@ const {
   convertLeadToPatient,
   exportLeadsCsv,
   deleteLeadPermanently,
+  getLeadBilling,
 } = require("./lead.controller");
 const { requireAuth } = require("../../middleware/auth");
 const { requireRole } = require("../../middleware/rbac");
@@ -23,7 +24,7 @@ const { requireRole } = require("../../middleware/rbac");
 const router = express.Router();
 
 router.use(requireAuth);
-router.use(requireRole("owner", "admin", "crm", "reception"));
+router.use(requireRole("owner", "admin", "crm", "sales", "reception"));
 
 // CSV export route
 router.get("/export", exportLeadsCsv);
@@ -39,6 +40,7 @@ router.post("/:id/mark-lost", markLeadLost);
 router.post("/:id/assign", assignLead);
 router.patch("/:id/assign", assignLead);
 router.get("/:id/timeline", getLeadTimeline);
+router.get("/:id/billing", getLeadBilling);
 router.get("/:id/activities", getLeadActivities);
 router.post("/:id/activities", addLeadActivity);
 router.post("/:id/notes", addLeadNote);

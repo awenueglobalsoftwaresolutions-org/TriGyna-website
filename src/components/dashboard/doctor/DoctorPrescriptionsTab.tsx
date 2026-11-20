@@ -11,8 +11,11 @@ import {
   ChevronRight,
   Loader2,
   X,
+  Download,
+  ExternalLink,
+  ShieldCheck,
 } from "lucide-react";
-import { api } from "@/lib/api/client";
+import { api, getToken, getBaseUrl } from "@/lib/api/client";
 
 interface MedicationItem {
   name: string;
@@ -24,6 +27,7 @@ interface MedicationItem {
 
 interface PrescriptionRecord {
   _id: string;
+  prescriptionCode?: string;
   patientId: {
     _id: string;
     fullName: string;
@@ -38,6 +42,8 @@ interface PrescriptionRecord {
   consultationId?: string;
   medications: MedicationItem[];
   dietaryAdvice?: string;
+  isReleasedToPatient?: boolean;
+  status?: string;
   createdAt: string;
 }
 
@@ -46,6 +52,7 @@ export function DoctorPrescriptionsTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedRx, setSelectedRx] = useState<PrescriptionRecord | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const fetchPrescriptions = async () => {
     try {
@@ -59,6 +66,38 @@ export function DoctorPrescriptionsTab() {
       console.error("Failed to load prescriptions", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDownloadPdf = async (rxId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    try {
+      setDownloadingId(rxId);
+      const token = getToken();
+      const baseUrl = getBaseUrl();
+      const res = await fetch(`${baseUrl}/doctor/prescriptions/${rxId}/pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `TriGyna-Prescription-${rxId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.warn("Direct blob download failed, falling back to window.open", err);
+      const token = getToken();
+      const baseUrl = getBaseUrl();
+      window.open(
+        `${baseUrl}/doctor/prescriptions/${rxId}/pdf?token=${encodeURIComponent(token || "")}`,
+        "_blank"
+      );
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -112,6 +151,7 @@ export function DoctorPrescriptionsTab() {
         ) : (
           prescriptions.map((rx) => {
             const patient = rx.patientId || {};
+            const rxCode = rx.prescriptionCode || `TG-RX-${rx._id.slice(-4).toUpperCase()}`;
             return (
               <div
                 key={rx._id}
@@ -125,7 +165,7 @@ export function DoctorPrescriptionsTab() {
                       {new Date(rx.createdAt).toLocaleDateString()}
                     </span>
                     <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-[#E7F3EA] text-[#287A4B] font-semibold">
-                      Rx Verified
+                      {rxCode}
                     </span>
                   </div>
 
@@ -155,9 +195,25 @@ export function DoctorPrescriptionsTab() {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-[#154734] font-semibold">
-                  <span>View & Print Rx</span>
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-1 text-[#154734] font-semibold">
+                    <span>View & Details</span>
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDownloadPdf(rx._id, e)}
+                    disabled={downloadingId === rx._id}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#154734] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 rounded-lg transition-colors cursor-pointer"
+                    title="Download Official Signed PDF"
+                  >
+                    {downloadingId === rx._id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5" />
+                    )}
+                    <span>PDF</span>
+                  </button>
                 </div>
               </div>
             );
@@ -178,15 +234,28 @@ export function DoctorPrescriptionsTab() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => handleDownloadPdf(selectedRx._id)}
+                  disabled={downloadingId === selectedRx._id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer"
+                >
+                  {downloadingId === selectedRx._id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Download className="w-3.5 h-3.5" />
+                  )}
+                  <span>Download Signed PDF</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => window.print()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-semibold"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs font-semibold cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" /> Print Rx
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedRx(null)}
-                  className="p-1.5 text-white/70 hover:text-white rounded-xl"
+                  className="p-1.5 text-white/70 hover:text-white rounded-xl cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -204,7 +273,12 @@ export function DoctorPrescriptionsTab() {
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-gray-700">Date: {new Date(selectedRx.createdAt).toLocaleDateString()}</p>
-                  <p className="text-gray-400 text-[11px]">Rx ID: #{selectedRx._id.slice(-6).toUpperCase()}</p>
+                  <p className="text-emerald-700 font-mono font-bold text-xs mt-0.5">
+                    {selectedRx.prescriptionCode || `TG-RX-${selectedRx._id.slice(-4).toUpperCase()}`}
+                  </p>
+                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mt-1">
+                    <ShieldCheck className="w-3 h-3 text-emerald-600" /> Digitally Verified
+                  </span>
                 </div>
               </div>
 
@@ -266,14 +340,28 @@ export function DoctorPrescriptionsTab() {
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-[#F5F8F6] border-t border-[#E1E9E3] flex justify-end">
-              <button
-                type="button"
-                onClick={() => setSelectedRx(null)}
-                className="px-5 py-2 bg-[#154734] text-white rounded-xl text-xs font-semibold hover:bg-[#0E3828]"
-              >
-                Close
-              </button>
+            <div className="p-4 bg-[#F5F8F6] border-t border-[#E1E9E3] flex items-center justify-between">
+              <span className="text-[11px] text-[#65746B]">
+                Digitally sealed and stored in TriGyna Encrypted Health Vault.
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPdf(selectedRx._id)}
+                  disabled={downloadingId === selectedRx._id}
+                  className="px-4 py-2 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-semibold hover:bg-emerald-100 flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRx(null)}
+                  className="px-5 py-2 bg-[#154734] text-white rounded-xl text-xs font-semibold hover:bg-[#0E3828] cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

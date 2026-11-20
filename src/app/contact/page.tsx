@@ -14,7 +14,7 @@ import { faqData } from "@/data/faqData";
 export const metadata: Metadata = {
   title: "Contact Us & Consultation Enquiry — TriGyna",
   description:
-    "Connect with TriGyna for online video consultations or Prayagraj in-clinic appointments. Phone: +91 917-277-2326, Email: trigyna.health@gmail.com.",
+    "Connect with TriGyna for 100% online video consultations via Google Meet or Zoom. Phone: +91 917-277-2326, Email: trigyna.health@gmail.com.",
 };
 
 export default function ContactPage() {
@@ -33,7 +33,7 @@ export default function ContactPage() {
               Contact &amp; Consultation Enquiry
             </h1>
             <p className="text-base sm:text-lg text-[#626B63] leading-relaxed">
-              We are here to listen, guide, and support your pathway to lasting wellness. Connect with our care coordination team for online video appointments or in-clinic visits in Prayagraj.
+              We are here to listen, guide, and support your pathway to lasting wellness. Connect with our care coordination team for 100% online video appointments via Google Meet or Zoom.
             </p>
           </div>
         </div>
@@ -127,13 +127,13 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <span className="text-xs text-[#7B817B] font-medium block">
-                      In-Clinic Location
+                      Registered Office
                     </span>
                     <span className="font-serif text-base font-semibold text-[#154734]">
                       {siteConfig.location}
                     </span>
                     <span className="text-[11px] text-[#626B63] block mt-0.5">
-                      Consultations by prior scheduled appointment
+                      100% online video consultations served nationwide &amp; globally
                     </span>
                   </div>
                 </div>

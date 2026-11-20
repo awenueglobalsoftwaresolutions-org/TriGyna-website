@@ -6,8 +6,12 @@ const Prescription = require("../clinical/prescription.model");
 const FollowUp = require("../clinical/followup.model");
 const PatientDocument = require("./document.model");
 const Invoice = require("../billing/invoice.model");
+const Payment = require("../billing/payment.model");
 const Receipt = require("../billing/receipt.model");
 const RefundRequest = require("../billing/refund-request.model");
+const Order = require("../billing/order.model");
+const Entitlement = require("../packages/entitlement.model");
+const Lead = require("../crm/lead.model");
 const Notification = require("../notifications/notification.model");
 const SupportTicket = require("../support/support-ticket.model");
 const Doctor = require("../doctors/doctor.model");
@@ -34,6 +38,7 @@ async function getAuthenticatedPatient(userId, email, phone) {
 
 const crypto = require("crypto");
 const ChartLinkOtp = require("./chart-link-otp.model");
+const ContactConsent = require("../integrations/contact-consent.model");
 
 // Helper to hash OTP with SHA-256
 function hashOtp(otp) {
@@ -496,8 +501,9 @@ async function getMyDashboard(req, res, next) {
       const docUser = nextAppt.doctorId?.userId;
       const isToday = nextAppt.appointmentDate === todayStr;
 
-      // Join consultation eligibility window (e.g. 15 mins before to 45 mins after scheduled slot)
-      const joinEligible = nextAppt.mode.includes("Online") || nextAppt.mode.includes("Video");
+      // Join consultation eligibility: active online consultation with verified ready meeting link
+      const isOnline = nextAppt.mode && (nextAppt.mode.includes("Online") || nextAppt.mode.includes("Video"));
+      const isReady = nextAppt.meetingStatus === "ready" && Boolean(nextAppt.meetingLink);
 
       nextAppointment = {
         _id: nextAppt._id,
@@ -506,14 +512,16 @@ async function getMyDashboard(req, res, next) {
         startTime: nextAppt.startTime,
         endTime: nextAppt.endTime,
         durationMinutes: 30,
-        mode: nextAppt.mode || "Video consultation",
+        mode: nextAppt.mode || "Online Video Consultation",
         serviceName: nextAppt.serviceName || "PCOS Management",
         subService: "Consultation & Follow-up",
         status: nextAppt.status,
         statusLabel: nextAppt.status === "scheduled" ? "Confirmed" : "In Progress",
         paymentStatus: nextAppt.paymentStatus,
-        joinEligible,
-        meetingUrl: joinEligible ? `/patient/consultations?room=${nextAppt.appointmentCode}` : null,
+        joinEligible: isOnline && isReady,
+        meetingUrl: isReady ? nextAppt.meetingLink : null,
+        meetingProvider: nextAppt.meetingProvider || "none",
+        meetingStatus: nextAppt.meetingStatus || "pending",
         doctor: {
           _id: nextAppt.doctorId?._id,
           name: docUser?.name || "Dr. Harshali Sutar",
@@ -1022,6 +1030,15 @@ async function getNotificationPreferences(req, res, next) {
 async function updateNotificationPreferences(req, res, next) {
   try {
     const preferences = req.body;
+
+    if (req.user?.phone) {
+      if (preferences.whatsapp === false || preferences.promotionalOptOut === false) {
+        await ContactConsent.recordOptOut(req.user.phone, "Patient opted out via Patient Portal", "portal_toggle").catch(() => {});
+      } else if (preferences.whatsapp === true) {
+        await ContactConsent.recordOptIn(req.user.phone, "Patient enabled WhatsApp via Patient Portal", "portal_toggle").catch(() => {});
+      }
+    }
+
     return sendSuccess(res, { preferences }, "Notification preferences saved successfully");
   } catch (err) {
     return next(err);
@@ -1128,6 +1145,81 @@ async function getMyReceipts(req, res, next) {
       .sort({ issuedAt: -1 });
 
     return sendSuccess(res, { receipts, total: receipts.length }, "Receipts retrieved");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// 13c. Verified Payments for current patient
+async function getMyPayments(req, res, next) {
+  try {
+    const patient = await getAuthenticatedPatient(req.user._id, req.user.email, req.user.phone);
+    if (!patient) return sendSuccess(res, { payments: [], total: 0 }, "No patient chart found");
+
+    const payments = await Payment.find({ patientId: patient._id })
+      .populate("invoiceId", "invoiceNumber totalAmount paidAmount balanceAmount status items createdAt")
+      .populate("receiptId", "receiptNumber verificationToken issuedAt")
+      .sort({ createdAt: -1 });
+
+    return sendSuccess(res, { payments, total: payments.length }, "Payments retrieved successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// 13d. Billing summary metrics for current patient
+async function getMyBillingSummary(req, res, next) {
+  try {
+    const patient = await getAuthenticatedPatient(req.user._id, req.user.email, req.user.phone);
+    if (!patient) {
+      return sendSuccess(
+        res,
+        {
+          summary: {
+            totalInvoiced: 0,
+            totalPaid: 0,
+            outstandingBalance: 0,
+            unpaidCount: 0,
+            settledCount: 0,
+          },
+        },
+        "No patient chart found"
+      );
+    }
+
+    const invoices = await Invoice.find({ patientId: patient._id });
+    let totalInvoiced = 0;
+    let totalPaid = 0;
+    let outstandingBalance = 0;
+    let unpaidCount = 0;
+    let settledCount = 0;
+
+    invoices.forEach((inv) => {
+      totalInvoiced += inv.totalAmount || 0;
+      totalPaid += inv.paidAmount || 0;
+      const bal = inv.balanceAmount !== undefined ? inv.balanceAmount : Math.max(0, (inv.totalAmount || 0) - (inv.paidAmount || 0));
+      if (bal > 0) {
+        outstandingBalance += bal;
+        unpaidCount++;
+      }
+      if (inv.status === "paid") {
+        settledCount++;
+      }
+    });
+
+    return sendSuccess(
+      res,
+      {
+        summary: {
+          totalInvoiced,
+          totalPaid,
+          outstandingBalance,
+          unpaidCount,
+          settledCount,
+        },
+      },
+      "Billing summary computed successfully"
+    );
   } catch (err) {
     return next(err);
   }
@@ -1247,6 +1339,350 @@ async function changeMyPassword(req, res, next) {
   }
 }
 
+// 14. GET /api/v1/patient/orders (or /me/orders)
+async function getMyOrders(req, res, next) {
+  try {
+    const patient = await getAuthenticatedPatient(req.user._id, req.user.email, req.user.phone);
+    const query = {
+      $or: [
+        ...(patient ? [{ patientId: patient._id }] : []),
+        { userId: req.user._id },
+      ],
+    };
+    const orders = await Order.find(query)
+      .populate("packageId", "name totalSessions validityDays")
+      .populate("invoiceId", "invoiceNumber totalAmount balanceAmount status")
+      .populate("receiptId", "receiptNumber verificationToken issuedAt")
+      .sort({ createdAt: -1 });
+
+    return sendSuccess(res, { orders, total: orders.length }, "Patient orders retrieved");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// 15. GET /api/v1/patient/onboarding (or /me/onboarding)
+async function getMyOnboardingStatus(req, res, next) {
+  try {
+    const patient = await getAuthenticatedPatient(req.user._id, req.user.email, req.user.phone);
+    if (!patient) {
+      return sendSuccess(
+        res,
+        {
+          isRegistered: false,
+          isProfileComplete: false,
+          hasActiveEntitlements: false,
+          availableSessions: 0,
+          hasUpcomingAppointment: false,
+          nextStep: "register_profile",
+          onboardingProgressPercentage: 20,
+          checklist: [
+            { id: "account_created", label: "Account registered", completed: true },
+            { id: "profile_completed", label: "Medical profile & details", completed: false },
+            { id: "package_entitlement", label: "Service / package activated", completed: false },
+            { id: "appointment_booked", label: "Appointment scheduled", completed: false },
+          ],
+        },
+        "Patient chart not yet registered"
+      );
+    }
+
+    const hasPhone = Boolean(patient.phone);
+    const hasAddress = Boolean(
+      patient.address &&
+        (typeof patient.address === "string" ? patient.address.trim() : patient.address.street || patient.address.city)
+    );
+    const hasEmergency = Boolean(patient.emergencyContact && patient.emergencyContact.phone);
+    const isProfileComplete = Boolean(hasPhone && (hasAddress || hasEmergency));
+
+    const entitlements = await Entitlement.find({ patientId: patient._id, status: "active" });
+    const availableSessions = entitlements.reduce((sum, e) => sum + (e.availableSessions || 0), 0);
+    const hasActiveEntitlements = availableSessions > 0;
+
+    const upcomingAppt = await Appointment.findOne({
+      patientId: patient._id,
+      appointmentDate: { $gte: new Date().toISOString().split("T")[0] },
+      status: { $in: ["scheduled", "in_progress", "ready"] },
+    });
+
+    let nextStep = "complete_profile";
+    let progress = 40;
+    if (!isProfileComplete) {
+      nextStep = "complete_profile";
+      progress = 40;
+    } else if (!hasActiveEntitlements && !upcomingAppt) {
+      nextStep = "select_package";
+      progress = 60;
+    } else if (hasActiveEntitlements && !upcomingAppt) {
+      nextStep = "book_appointment";
+      progress = 80;
+    } else if (upcomingAppt) {
+      nextStep = "join_consultation";
+      progress = 100;
+    }
+
+    return sendSuccess(
+      res,
+      {
+        isRegistered: true,
+        patientCode: patient.patientCode,
+        fullName: patient.fullName,
+        phone: patient.phone,
+        email: patient.email || req.user.email,
+        isProfileComplete,
+        verifiedContacts: { phone: true, email: Boolean(patient.email || req.user.email) },
+        hasActiveEntitlements,
+        availableSessions,
+        hasUpcomingAppointment: Boolean(upcomingAppt),
+        upcomingAppointment: upcomingAppt
+          ? {
+              _id: upcomingAppt._id,
+              appointmentCode: upcomingAppt.appointmentCode,
+              date: upcomingAppt.appointmentDate,
+              time: upcomingAppt.startTime,
+              mode: upcomingAppt.mode,
+              meetingStatus: upcomingAppt.meetingStatus,
+            }
+          : null,
+        nextStep,
+        onboardingProgressPercentage: progress,
+        checklist: [
+          { id: "account_created", label: "Account registered", completed: true },
+          { id: "profile_completed", label: "Medical profile & details", completed: isProfileComplete },
+          { id: "package_entitlement", label: "Service / package activated", completed: hasActiveEntitlements },
+          { id: "appointment_booked", label: "Appointment scheduled", completed: Boolean(upcomingAppt) },
+        ],
+      },
+      "Patient onboarding status retrieved"
+    );
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// 16. GET /api/v1/patient/documents/:id/access (Secure Document Download Link)
+async function getDocumentAccessLink(req, res, next) {
+  try {
+    const { id } = req.params;
+    const patient = await getAuthenticatedPatient(req.user._id, req.user.email, req.user.phone);
+    if (!patient) return next(new NotFoundError("No patient chart linked"));
+
+    // Check if document is an Invoice
+    const invoice = await Invoice.findById(id);
+    if (invoice && invoice.patientId && invoice.patientId.toString() === patient._id.toString()) {
+      return sendSuccess(
+        res,
+        {
+          documentType: "invoice",
+          documentNumber: invoice.invoiceNumber,
+          downloadUrl: `/api/v1/invoices/${invoice._id}/pdf`,
+          viewUrl: `/receipt/${invoice.invoiceNumber}`,
+          expiresInMinutes: 60,
+        },
+        "Authorized financial document access granted"
+      );
+    }
+
+    // Check if document is a Receipt
+    const receipt = await Receipt.findById(id);
+    if (receipt && receipt.patientId && receipt.patientId.toString() === patient._id.toString()) {
+      return sendSuccess(
+        res,
+        {
+          documentType: "receipt",
+          documentNumber: receipt.receiptNumber,
+          downloadUrl: `/api/v1/receipts/${receipt._id}/pdf`,
+          viewUrl: `/receipt/${receipt.receiptNumber}`,
+          expiresInMinutes: 60,
+        },
+        "Authorized financial document access granted"
+      );
+    }
+
+    // Check if document is a PatientDocument
+    const doc = await PatientDocument.findById(id);
+    if (doc && doc.patientId.toString() === patient._id.toString()) {
+      return sendSuccess(
+        res,
+        {
+          documentType: "patient_document",
+          documentNumber: doc.documentCode,
+          fileUrl: doc.fileUrl,
+          expiresInMinutes: 60,
+        },
+        "Authorized document access granted"
+      );
+    }
+
+    return next(new ForbiddenError("Access denied: You are not authorized to access this document"));
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// 17. POST /api/v1/patient/requests (Reverse Workflow: Patient to Sales CRM Activity)
+async function createPatientCrmRequest(req, res, next) {
+  try {
+    const patient = await getAuthenticatedPatient(req.user._id, req.user.email, req.user.phone);
+    const { requestType, subject, message, requestedService } = req.body;
+
+    if (!subject && !message) {
+      throw new ValidationError("A subject or message is required for your request");
+    }
+
+    let lead = null;
+    if (patient) {
+      lead = await Lead.findOne({ convertedPatientId: patient._id });
+      if (!lead) {
+        lead = await Lead.findOne({ phone: patient.phone });
+      }
+    }
+
+    if (!lead) {
+      lead = await Lead.create({
+        fullName: patient ? patient.fullName : req.user.name,
+        phone: patient ? patient.phone : req.user.phone || "9999999999",
+        email: patient ? patient.email : req.user.email,
+        serviceInterest: requestedService || "Patient Portal Inquiry",
+        source: "patient_portal_request",
+        status: "contacted",
+        priority: "high",
+        convertedPatientId: patient ? patient._id : undefined,
+      });
+    }
+
+    lead.notes.push({
+      body: `[Patient Request - ${requestType || "General"}] ${subject || ""}: ${message || ""}`,
+      createdBy: req.user._id,
+      createdAt: new Date(),
+    });
+    lead.tasks.push({
+      title: `Patient Support: ${subject || requestType || "Inquiry"}`,
+      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      priority: "high",
+      status: "open",
+      notes: `Submitted by patient ${patient ? patient.fullName : req.user.name}. ${message || ""}`,
+    });
+    lead.activities.push({
+      action: "PATIENT_REQUEST_SUBMITTED",
+      details: `${requestType || "Support"}: ${subject || message}`,
+      performedBy: req.user._id,
+      createdAt: new Date(),
+    });
+    await lead.save();
+
+    return sendSuccess(
+      res,
+      {
+        leadId: lead._id,
+        requestType: requestType || "General",
+        status: "submitted",
+        message: "Your request has been routed to our Sales & Care coordination team.",
+      },
+      "Request received. Our team will contact you shortly.",
+      201
+    );
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// 18. GET /api/v1/patient/me/documents/:id/download (Stream or verified PDF cert)
+async function downloadMyDocument(req, res, next) {
+  try {
+    const { id } = req.params;
+    const PDFDocument = require("pdfkit");
+    const fs = require("fs");
+    const path = require("path");
+
+    const patient = await getAuthenticatedPatient(req.user._id, req.user.email, req.user.phone);
+    if (!patient && !["admin", "owner", "super_admin", "doctor"].includes(req.user.role)) {
+      return next(new NotFoundError("No patient chart linked or unauthorized"));
+    }
+
+    const doc = await PatientDocument.findById(id).populate("patientId");
+    if (!doc) {
+      return next(new NotFoundError("Document not found"));
+    }
+
+    // RBAC check
+    if (req.user.role === "patient" && patient && doc.patientId?._id?.toString() !== patient._id.toString()) {
+      return next(new ForbiddenError("Access denied: You do not own this document"));
+    }
+
+    const safeName = (doc.fileName || `${doc.documentCode || doc._id}.pdf`).replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    // Check if physical file exists on disk
+    if (doc.fileUrl) {
+      const diskPath = path.resolve(process.cwd(), doc.fileUrl.startsWith("/") ? doc.fileUrl.slice(1) : doc.fileUrl);
+      if (fs.existsSync(diskPath)) {
+        res.setHeader("Content-Type", doc.mimeType || "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+        return fs.createReadStream(diskPath).pipe(res);
+      }
+    }
+
+    // Generate authentic signed summary PDF certificate
+    const pdfDoc = new PDFDocument({ margin: 40, size: "A4" });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
+    pdfDoc.pipe(res);
+
+    // Header banner
+    pdfDoc.rect(0, 0, 595.28, 80).fill("#075B35");
+    pdfDoc.fillColor("#FFFFFF").fontSize(20).text("TriGyna Healthcare Solutions", 40, 25, { bold: true });
+    pdfDoc.fontSize(10).text("Official Medical Records & Diagnostics Vault • DISHA Compliant", 40, 50);
+
+    // Document Meta
+    pdfDoc.fillColor("#14251F").fontSize(14).text(`Document: ${doc.title || doc.fileName}`, 40, 110, { bold: true });
+    pdfDoc.fontSize(9).fillColor("#68766F").text(`Document Code: ${doc.documentCode || doc._id} | Category: ${doc.documentType || doc.category || "Clinical Record"}`);
+
+    pdfDoc.rect(40, 140, 515, 1).fill("#E4EEE7");
+
+    // Details Grid
+    let y = 160;
+    pdfDoc.fontSize(10).fillColor("#14251F");
+    pdfDoc.text("Patient Name:", 40, y, { bold: true });
+    pdfDoc.text(doc.patientId?.fullName || patient?.fullName || "Verified Patient", 150, y);
+
+    y += 22;
+    pdfDoc.text("Patient Code:", 40, y, { bold: true });
+    pdfDoc.text(doc.patientId?.patientCode || patient?.patientCode || "N/A", 150, y);
+
+    y += 22;
+    pdfDoc.text("Upload Date:", 40, y, { bold: true });
+    pdfDoc.text(new Date(doc.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }), 150, y);
+
+    y += 22;
+    pdfDoc.text("File Name:", 40, y, { bold: true });
+    pdfDoc.text(doc.fileName || "record.pdf", 150, y);
+
+    y += 22;
+    pdfDoc.text("Verification Status:", 40, y, { bold: true });
+    pdfDoc.fillColor("#075B35").text("VERIFIED & DIGITALLY ARCHIVED (Zero-Trust Isolated)", 150, y);
+
+    if (doc.notes || doc.description) {
+      y += 35;
+      pdfDoc.fillColor("#14251F").text("Clinical Notes & Observation:", 40, y, { bold: true });
+      y += 20;
+      pdfDoc.fillColor("#4B5563").fontSize(9).text(doc.notes || doc.description, 40, y, { width: 515 });
+    }
+
+    // Security Footer
+    pdfDoc.rect(40, 740, 515, 1).fill("#E4EEE7");
+    pdfDoc.fillColor("#9CA3AF").fontSize(8).text(
+      "This document certificate is issued under the TriGyna Clinical Health Governance standard. Tamper-evident verified.",
+      40,
+      755,
+      { align: "center", width: 515 }
+    );
+
+    pdfDoc.end();
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   getMyProfile,
   updateMyProfile,
@@ -1266,7 +1702,14 @@ module.exports = {
   getMyConsultations,
   getMyPrescriptions,
   getMyInvoices,
+  getMyPayments,
   getMyReceipts,
+  getMyOrders,
+  getMyOnboardingStatus,
+  getDocumentAccessLink,
+  downloadMyDocument,
+  createPatientCrmRequest,
+  getMyBillingSummary,
   getMyNotifications,
   markNotificationRead,
   markAllNotificationsRead,

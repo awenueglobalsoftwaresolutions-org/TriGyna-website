@@ -10,7 +10,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import { api } from "@/lib/api/client";
+import { api, getToken, getBaseUrl } from "@/lib/api/client";
 
 interface PatientDoc {
   _id: string;
@@ -114,6 +114,33 @@ export default function DocumentsVaultPage() {
     }
   };
 
+  const handleDownloadDoc = async (docId: string, fileName: string) => {
+    try {
+      const token = getToken();
+      const baseUrl = getBaseUrl();
+      const res = await fetch(`${baseUrl}/patient/me/documents/${docId}/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName || "document.pdf";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch {
+      const token = getToken();
+      const baseUrl = getBaseUrl();
+      window.open(
+        `${baseUrl}/patient/me/documents/${docId}/download?token=${encodeURIComponent(token || "")}`,
+        "_blank"
+      );
+    }
+  };
+
   const formatFileSize = (bytes: number) => {
     if (!bytes) return "0 KB";
     if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
@@ -207,15 +234,14 @@ export default function DocumentsVaultPage() {
                   </span>
                 </div>
 
-                <a
-                  href={`/api/v1/patient/me/documents/${doc._id}/download`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-[#EDF8F1] hover:bg-[#DCECE1] text-[#075B35] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition"
+                <button
+                  type="button"
+                  onClick={() => handleDownloadDoc(doc._id, doc.fileName)}
+                  className="px-3 py-1.5 bg-[#EDF8F1] hover:bg-[#DCECE1] text-[#075B35] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Download</span>
-                </a>
+                </button>
               </div>
             </div>
           ))}

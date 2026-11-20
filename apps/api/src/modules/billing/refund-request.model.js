@@ -9,10 +9,19 @@ const refundRequestSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    orderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+      index: true,
+    },
     invoiceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Invoice",
-      required: true,
+      index: true,
+    },
+    paymentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Payment",
       index: true,
     },
     patientId: {
@@ -20,6 +29,10 @@ const refundRequestSchema = new mongoose.Schema(
       ref: "Patient",
       required: true,
       index: true,
+    },
+    providerRefundId: {
+      type: String,
+      trim: true,
     },
     requestedAmount: {
       type: Number,

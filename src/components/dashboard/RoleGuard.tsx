@@ -16,14 +16,14 @@ const emptySubscribe = () => () => {};
 
 export function getCanonicalDashboardForRole(role?: string): string {
   if (!role) return "/login";
-  if (role === "owner" || role === "admin" || role === "crm" || role === "hrms" || role === "hr") {
+  if (role === "owner" || role === "admin" || role === "hrms" || role === "hr") {
     return "/admin/dashboard";
   }
   if (role === "doctor") {
     return "/doctor/dashboard";
   }
-  if (role === "reception") {
-    return "/reception/dashboard";
+  if (role === "sales" || role === "crm" || role === "reception") {
+    return "/sales/dashboard";
   }
   if (role === "patient") {
     return "/patient/dashboard";
@@ -60,12 +60,13 @@ export function RoleGuard({ allowedRoles, children, pageTitle = "Dashboard" }: R
   }
 
   // Check authorization
-  // Admin and owner satisfy admin / owner / crm / hrms checks
+  // Admin and owner satisfy admin / owner / sales / crm / hrms checks
   const isOwner = user.role === "owner";
   const isAdmin = user.role === "admin" || isOwner;
   const isAuthorized =
     allowedRoles.includes(user.role) ||
-    (isAdmin && (allowedRoles.includes("admin") || allowedRoles.includes("owner") || allowedRoles.includes("crm") || allowedRoles.includes("hrms")));
+    (isAdmin && (allowedRoles.includes("admin") || allowedRoles.includes("owner") || allowedRoles.includes("sales") || allowedRoles.includes("crm") || allowedRoles.includes("hrms"))) ||
+    ((user.role === "sales" || user.role === "crm") && (allowedRoles.includes("sales") || allowedRoles.includes("crm")));
 
   if (!isAuthorized) {
     const userRoleDisplay = user.role.toUpperCase();

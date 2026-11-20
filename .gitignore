@@ -28,21 +28,54 @@ next-env.d.ts
 # Environment & Secrets (Never commit credentials)
 # ---------------------------------------------
 .env
+.env.*
 .env*.local
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+!.env.example
+!.env.production.example
+!.env.test.example
+apps/**/.env
+apps/**/.env.*
+!apps/**/.env.example
+!apps/**/.env.production.example
+!apps/**/.env.test.example
 *.pem
 *.key
+*.p12
+*.pfx
+*.crt
+*.cer
 *.cert
+credentials.json
+service-account.json
+secrets/
+private/
+backups/
+uploads/
 
 # ---------------------------------------------
-# Testing & Coverage
+# Database & Temporary Dumps
+# ---------------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+
+# ---------------------------------------------
+# Testing & Coverage Artifacts
 # ---------------------------------------------
 /coverage
 *.lcov
 .nyc_output
+playwright-report/
+test-results/
+.playwright-mcp/
+.playwright/
+cypress/videos/
+cypress/screenshots/
+*_verified.png
+*_verified_full.png
+doctor_followups_verified*.png
 
 # ---------------------------------------------
 # Logs & Debugging
@@ -81,6 +114,7 @@ Thumbs.db:encryptable
 *.njsproj
 *.sln
 *.sw?
+*.swp
 
 # ---------------------------------------------
 # AI Agents, Tools & Scratchpads
@@ -110,8 +144,6 @@ TriGyna-website-main/
 /tests/
 /scripts/
 /backups/
-
-
 
 # ---------------------------------------------
 # Deployment & Hosting

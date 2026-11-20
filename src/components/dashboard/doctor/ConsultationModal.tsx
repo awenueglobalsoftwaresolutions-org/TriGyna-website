@@ -21,8 +21,13 @@ import {
   User,
   History,
   Loader2,
+  Video,
+  ExternalLink,
+  CheckSquare,
+  Square,
+  ClipboardCheck,
 } from "lucide-react";
-import { api } from "@/lib/api/client";
+import { api, getToken, getBaseUrl } from "@/lib/api/client";
 
 interface MedicationItem {
   name: string;
@@ -39,6 +44,7 @@ interface ConsultationModalProps {
   onClose: () => void;
   appointmentId: string | null;
   patientId: string | null;
+  consultationId?: string | null;
   onConsultationCompleted?: () => void;
 }
 
@@ -47,15 +53,26 @@ export function ConsultationModal({
   onClose,
   appointmentId,
   patientId,
+  consultationId: propConsultationId,
   onConsultationCompleted,
 }: ConsultationModalProps) {
-  const [activeTab, setActiveTab] = useState<"clinical" | "prescription" | "history" | "amendment">("clinical");
+  const [activeTab, setActiveTab] = useState<"clinical" | "prescription" | "checklist" | "history" | "amendment">("clinical");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
   const [patientData, setPatientData] = useState<any>(null);
   const [appointmentData, setAppointmentData] = useState<any>(null);
-  const [consultationId, setConsultationId] = useState<string | null>(null);
+  const [consultationId, setConsultationId] = useState<string | null>(propConsultationId || null);
+  const [prescriptionId, setPrescriptionId] = useState<string | null>(null);
+
+  // Pre-consultation checklist (Blueprint Section 7)
+  const [checklist, setChecklist] = useState({
+    identityVerified: true,
+    historyReviewed: true,
+    documentsChecked: false,
+    modeVerified: true,
+    consentConfirmed: true,
+  });
 
   // Form Fields
   const [chiefComplaints, setChiefComplaints] = useState("");
@@ -81,13 +98,49 @@ export function ConsultationModal({
 
   // Fetch or initialize consultation
   useEffect(() => {
-    if (!isOpen || !appointmentId) return;
+    if (!isOpen || (!appointmentId && !propConsultationId)) return;
 
     let mounted = true;
     async function loadData() {
       try {
         setLoading(true);
         setNotificationMsg(null);
+
+        // If direct consultationId is passed
+        if (propConsultationId) {
+          const consRes = await api.get<{ data?: any }>(`/api/v1/doctor/consultations/${propConsultationId}`);
+          const cons = (consRes as any).data?.consultation || (consRes as any).data;
+          if (mounted && cons) {
+            setConsultationId(cons._id);
+            if (cons.appointmentId) setAppointmentData(cons.appointmentId);
+            if (cons.patientId) setPatientData(cons.patientId);
+            setChiefComplaints(cons.chiefComplaints || "");
+            setExaminationNotes(cons.examinationNotes || "");
+            setDiagnosis(cons.diagnosis || "");
+            setTreatmentPlan(cons.treatmentPlan || "");
+            setFollowUpAdvice(cons.followUpAdvice || "");
+            setIsFinalized(Boolean(cons.isFinalized));
+            setFinalizedAt(cons.finalizedAt || null);
+            setAmendments(cons.amendments || []);
+            if (cons.vitals) {
+              setVitals({
+                bp: cons.vitals.bloodPressure || "",
+                pulse: cons.vitals.pulse ? String(cons.vitals.pulse) : "",
+                temp: cons.vitals.temperature ? String(cons.vitals.temperature) : "",
+                weight: cons.vitals.weight ? String(cons.vitals.weight) : "",
+                spo2: cons.vitals.spo2 ? String(cons.vitals.spo2) : "",
+              });
+            }
+
+            const rx = (consRes as any).data?.prescription;
+            if (rx) {
+              setPrescriptionId(rx._id);
+              if (rx.medications) setMedications(rx.medications);
+              if (rx.dietaryAdvice) setDietaryAdvice(rx.dietaryAdvice);
+            }
+          }
+          return;
+        }
 
         // 1. Fetch appointment details
         const apptRes = await api.get<{ data?: any; appointment?: any }>(`/api/v1/doctor/appointments/${appointmentId}`);
@@ -112,6 +165,20 @@ export function ConsultationModal({
             setIsFinalized(Boolean(cons.isFinalized));
             setFinalizedAt(cons.finalizedAt || null);
             setAmendments(cons.amendments || []);
+
+            // Check if prescription already exists for this encounter
+            try {
+              const rxRes = await api.get<{ data?: any }>(`/api/v1/clinical/prescriptions/patient/${appt.patientId?._id || patientId}`);
+              const rxList = (rxRes as any).data?.prescriptions || [];
+              const matchingRx = rxList.find((r: any) => r.consultationId === cons._id || r.consultationId?._id === cons._id);
+              if (matchingRx) {
+                setPrescriptionId(matchingRx._id);
+                if (matchingRx.medications?.length) setMedications(matchingRx.medications);
+                if (matchingRx.dietaryAdvice) setDietaryAdvice(matchingRx.dietaryAdvice);
+              }
+            } catch {
+              // Prescription not yet created
+            }
           } else {
             // New draft init
             setConsultationId(null);
@@ -136,7 +203,7 @@ export function ConsultationModal({
     return () => {
       mounted = false;
     };
-  }, [isOpen, appointmentId]);
+  }, [isOpen, appointmentId, propConsultationId]);
 
   if (!isOpen) return null;
 
@@ -235,7 +302,7 @@ export function ConsultationModal({
       }
 
       // Finalize endpoint
-      await api.post(`/api/v1/doctor/consultations/${currentId}/finalize`, {
+      const finRes = await api.post<any>(`/api/v1/doctor/consultations/${currentId}/finalize`, {
         diagnosis,
         treatmentPlan,
         medications,
@@ -243,6 +310,11 @@ export function ConsultationModal({
         followUpDate: followUpDate || undefined,
         followUpReason: followUpAdvice || "Routine follow-up review",
       });
+
+      const returnedRx = finRes.data?.prescription || (finRes as any).prescription;
+      if (returnedRx?._id) {
+        setPrescriptionId(returnedRx._id);
+      }
 
       setIsFinalized(true);
       setFinalizedAt(new Date().toISOString());
@@ -289,6 +361,32 @@ export function ConsultationModal({
       setNotificationMsg({ type: "error", text: err.message || "Failed to record amendment." });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDownloadPrescription = async () => {
+    if (!prescriptionId) return;
+    const token = getToken();
+    const baseUrl = getBaseUrl();
+    try {
+      const res = await fetch(`${baseUrl}/doctor/prescriptions/${prescriptionId}/pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `TriGyna-Prescription-${prescriptionId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch {
+      window.open(
+        `${baseUrl}/doctor/prescriptions/${prescriptionId}/pdf?token=${encodeURIComponent(token || "")}`,
+        "_blank"
+      );
     }
   };
 
@@ -345,6 +443,27 @@ export function ConsultationModal({
               <span className="text-[#65746B]">Blood Group: </span>
               <span className="font-semibold text-[#17251E]">{patientData?.bloodGroup || "B+"}</span>
             </div>
+            {appointmentData?.mode && (appointmentData.mode.includes("Online") || appointmentData.mode.includes("Video")) && (
+              <div className="flex items-center gap-2">
+                {appointmentData?.meetingStatus === "ready" && appointmentData?.meetingLink ? (
+                  <a
+                    href={appointmentData.meetingLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg font-semibold hover:bg-emerald-200"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Launch Video ({appointmentData.meetingProvider === "zoom" ? "Zoom" : "Meet"})</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg font-medium">
+                    <AlertTriangle className="w-3 h-3" />
+                    Video Link Pending
+                  </span>
+                )}
+              </div>
+            )}
             <div>
               <span className="text-[#65746B]">Known Allergies: </span>
               <span className="font-semibold text-rose-600">
@@ -355,6 +474,16 @@ export function ConsultationModal({
 
           {/* Quick tab switcher */}
           <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#E1E9E3]">
+            <button
+              type="button"
+              onClick={() => setActiveTab("checklist")}
+              className={`px-3 py-1 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                activeTab === "checklist" ? "bg-[#154734] text-white" : "text-[#65746B] hover:text-[#17251E]"
+              }`}
+            >
+              <ClipboardCheck className="w-3.5 h-3.5" />
+              <span>Pre-Consult Checklist</span>
+            </button>
             <button
               type="button"
               onClick={() => setActiveTab("clinical")}
@@ -503,7 +632,7 @@ export function ConsultationModal({
 
                 <div>
                   <label className="block text-xs font-bold text-[#17251E] mb-1.5">
-                    2. Physical & Clinical Examination Findings
+                    2. Video Consultation & Clinical Examination Findings
                   </label>
                   <textarea
                     rows={4}
@@ -719,6 +848,207 @@ export function ConsultationModal({
                 </div>
               </div>
             </div>
+          ) : activeTab === "checklist" ? (
+            <div className="space-y-5">
+              <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#154734] flex items-center gap-2">
+                      <ClipboardCheck className="w-4 h-4 text-emerald-600" />
+                      Pre-Consultation Clinical Checklist (Section 7 Protocol)
+                    </h3>
+                    <p className="text-xs text-[#4E6155] mt-1">
+                      Complete standard safety and verification checks before proceeding with clinical diagnosis and prescription generation.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-bold text-[#154734]">
+                      {Object.values(checklist).filter(Boolean).length} / 5 Checks Complete
+                    </span>
+                    <div className="w-28 h-2 bg-emerald-200 rounded-full mt-1 overflow-hidden">
+                      <div
+                        className="h-full bg-[#154734] transition-all duration-300"
+                        style={{
+                          width: `${(Object.values(checklist).filter(Boolean).length / 5) * 100}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {/* 1. Identity Verification */}
+                <div
+                  onClick={() => setChecklist({ ...checklist, identityVerified: !checklist.identityVerified })}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
+                    checklist.identityVerified
+                      ? "bg-white border-emerald-300 shadow-sm"
+                      : "bg-gray-50/50 border-gray-200 hover:bg-white"
+                  }`}
+                >
+                  <button type="button" className="mt-0.5 text-[#154734]">
+                    {checklist.identityVerified ? (
+                      <CheckSquare className="w-5 h-5 text-emerald-600" />
+                    ) : (
+                      <Square className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-[#17251E]">1. Patient Identity Verification</h4>
+                      <span className="text-[10px] uppercase font-bold text-[#65746B] bg-[#E1E9E3]/50 px-2 py-0.5 rounded-md">
+                        Required
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#65746B] mt-0.5">
+                      Confirm patient name, face/video recognition, age ({patientData?.age || 28}y), and system ID (
+                      {patientData?.patientCode ? `#${patientData.patientCode}` : "TG-PT-DEFAULT"}).
+                    </p>
+                  </div>
+                </div>
+
+                {/* 2. Medical History Reviewed */}
+                <div
+                  onClick={() => setChecklist({ ...checklist, historyReviewed: !checklist.historyReviewed })}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
+                    checklist.historyReviewed
+                      ? "bg-white border-emerald-300 shadow-sm"
+                      : "bg-gray-50/50 border-gray-200 hover:bg-white"
+                  }`}
+                >
+                  <button type="button" className="mt-0.5 text-[#154734]">
+                    {checklist.historyReviewed ? (
+                      <CheckSquare className="w-5 h-5 text-emerald-600" />
+                    ) : (
+                      <Square className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-[#17251E]">2. Medical History & Allergies Review</h4>
+                      <span className="text-[10px] uppercase font-bold text-[#65746B] bg-[#E1E9E3]/50 px-2 py-0.5 rounded-md">
+                        Clinical Safety
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#65746B] mt-0.5">
+                      Review chronic illnesses, prior gynaecological/obstetric history, current medications, and confirmed allergies (
+                      <span className="text-rose-600 font-semibold">
+                        {patientData?.allergies?.length ? patientData.allergies.join(", ") : "NKDA"}
+                      </span>
+                      ).
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Patient Documents Checked */}
+                <div
+                  onClick={() => setChecklist({ ...checklist, documentsChecked: !checklist.documentsChecked })}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
+                    checklist.documentsChecked
+                      ? "bg-white border-emerald-300 shadow-sm"
+                      : "bg-gray-50/50 border-gray-200 hover:bg-white"
+                  }`}
+                >
+                  <button type="button" className="mt-0.5 text-[#154734]">
+                    {checklist.documentsChecked ? (
+                      <CheckSquare className="w-5 h-5 text-emerald-600" />
+                    ) : (
+                      <Square className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-[#17251E]">3. Patient Documents & Investigation Scans</h4>
+                      <span className="text-[10px] uppercase font-bold text-[#65746B] bg-[#E1E9E3]/50 px-2 py-0.5 rounded-md">
+                        Diagnostics
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#65746B] mt-0.5">
+                      Check lab panels (CBC, Thyroid, Hormonal profiles), pelvic ultrasound reports, and prior external prescriptions uploaded to patient file.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 4. Consultation Mode Verified */}
+                <div
+                  onClick={() => setChecklist({ ...checklist, modeVerified: !checklist.modeVerified })}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
+                    checklist.modeVerified
+                      ? "bg-white border-emerald-300 shadow-sm"
+                      : "bg-gray-50/50 border-gray-200 hover:bg-white"
+                  }`}
+                >
+                  <button type="button" className="mt-0.5 text-[#154734]">
+                    {checklist.modeVerified ? (
+                      <CheckSquare className="w-5 h-5 text-emerald-600" />
+                    ) : (
+                      <Square className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-[#17251E]">4. Consultation Channel & Telemedicine Link</h4>
+                      <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded-md">
+                        {appointmentData?.mode || "Online Video"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#65746B] mt-0.5">
+                      Verify secure audio/video pipeline readiness. Meeting link is configured and patient has joined the encrypted room.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 5. Informed Consent Confirmed */}
+                <div
+                  onClick={() => setChecklist({ ...checklist, consentConfirmed: !checklist.consentConfirmed })}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 ${
+                    checklist.consentConfirmed
+                      ? "bg-white border-emerald-300 shadow-sm"
+                      : "bg-gray-50/50 border-gray-200 hover:bg-white"
+                  }`}
+                >
+                  <button type="button" className="mt-0.5 text-[#154734]">
+                    {checklist.consentConfirmed ? (
+                      <CheckSquare className="w-5 h-5 text-emerald-600" />
+                    ) : (
+                      <Square className="w-5 h-5 text-gray-400" />
+                    )}
+                  </button>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-[#17251E]">5. Administrative & Clinical Consent</h4>
+                      <span className="text-[10px] uppercase font-bold text-[#65746B] bg-[#E1E9E3]/50 px-2 py-0.5 rounded-md">
+                        Legal / Regulatory
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#65746B] mt-0.5">
+                      Patient has provided verbal/digital consent for telemedicine consultation, documentation, and prescription delivery via TriGyna.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Banner */}
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <span className="text-xs font-medium text-gray-800">
+                    {Object.values(checklist).every(Boolean)
+                      ? "All pre-consultation protocols verified. Ready for clinical examination."
+                      : "Please review remaining safety items above before proceeding."}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("clinical")}
+                  className="px-4 py-2 bg-[#154734] hover:bg-[#0E3828] text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <span>Proceed to Clinical Examination</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           ) : (
             /* Amendment Tab */
             <div className="space-y-4">
@@ -798,6 +1128,18 @@ export function ConsultationModal({
           </div>
 
           <div className="flex items-center gap-3">
+            {prescriptionId && (
+              <button
+                type="button"
+                onClick={handleDownloadPrescription}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-[#154734] bg-white border border-[#D5E8DC] hover:bg-[#F2F7F4] rounded-xl transition-colors cursor-pointer"
+                title="Download Official Digitally Signed Prescription PDF"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Download PDF</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onClose}

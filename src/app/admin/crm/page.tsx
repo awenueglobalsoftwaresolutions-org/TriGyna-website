@@ -1,17 +1,21 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React, { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import RoleGuard from "@/components/dashboard/RoleGuard";
-import DashboardShell from "@/components/dashboard/DashboardShell";
+import { AdminDashboardShell } from "@/components/dashboard/admin/AdminDashboardShell";
 import { CrmExactTab, CrmViewType } from "@/components/dashboard/admin/CrmExactTab";
 
 function AdminCrmContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const rawView = searchParams.get("view");
-  const initialView = (rawView as CrmViewType) || "pipeline";
+  const initialView = (rawView as CrmViewType) || "overview";
 
-  const [notification, setNotification] = React.useState<{ message: string; isError?: boolean } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState("month");
+  const [notification, setNotification] = useState<{ message: string; isError?: boolean } | null>(null);
 
   const showNotification = (msg: string, isErr?: boolean) => {
     setNotification({ message: msg, isError: isErr });
@@ -19,18 +23,24 @@ function AdminCrmContent() {
   };
 
   return (
-    <RoleGuard allowedRoles={["owner", "admin", "crm", "reception"]}>
-      <DashboardShell
-        role="admin"
+    <RoleGuard allowedRoles={["owner", "admin", "sales", "crm"]}>
+      <AdminDashboardShell
         activeTab="crm"
-        title="CRM &amp; Patient Pipeline"
+        onTabChange={(tab) => {
+          if (tab === "crm") return;
+          router.push(`/admin/dashboard?tab=${tab}`);
+        }}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        dateRange={dateRange}
+        setDateRange={setDateRange}
       >
         {notification && (
           <div
             className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-2xl shadow-lg border text-xs font-semibold flex items-center gap-2 ${
               notification.isError
                 ? "bg-red-50 text-red-800 border-red-200"
-                : "bg-emerald-50 text-[#154734] border-emerald-200"
+                : "bg-emerald-50 text-[#16A34A] border-emerald-200"
             }`}
           >
             <span>{notification.message}</span>
@@ -40,14 +50,14 @@ function AdminCrmContent() {
           initialView={initialView}
           showNotification={showNotification}
         />
-      </DashboardShell>
+      </AdminDashboardShell>
     </RoleGuard>
   );
 }
 
 export default function AdminCrmPage() {
   return (
-    <Suspense fallback={<div className="p-12 text-center text-xs text-[#68746D]">Loading CRM Pipeline Workspace...</div>}>
+    <Suspense fallback={<div className="p-12 text-center text-xs text-[#64748B]">Loading CRM Pipeline Workspace...</div>}>
       <AdminCrmContent />
     </Suspense>
   );
