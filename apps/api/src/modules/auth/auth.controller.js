@@ -117,6 +117,7 @@ async function login(req, res, next) {
           authVersion: user.authVersion || 1,
           permissions: getEffectivePermissions(user),
           lastLogin: user.lastLogin,
+          mustChangePassword: user.mustChangePassword || false,
         },
       },
       "Authentication successful"
@@ -160,6 +161,7 @@ async function getMe(req, res, next) {
           authVersion: req.user.authVersion || 1,
           permissions: getEffectivePermissions(req.user),
           lastLogin: req.user.lastLogin,
+          mustChangePassword: req.user.mustChangePassword || false,
           preferences: req.user.preferences || {},
         },
       },
@@ -195,6 +197,7 @@ async function updateProfile(req, res, next) {
         return next(new ValidationError("Current password does not match"));
       }
       user.passwordHash = await bcrypt.hash(newPassword, 10);
+      user.mustChangePassword = false;
     }
 
     await user.save();

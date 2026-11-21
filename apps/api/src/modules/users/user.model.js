@@ -13,7 +13,9 @@ const userSchema = new mongoose.Schema(
       type: String,
       lowercase: true,
       trim: true,
+      unique: true,
       sparse: true,
+      index: true,
       match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Invalid email format"],
     },
     phone: {
@@ -29,9 +31,14 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["owner", "super_admin", "admin", "doctor", "reception", "patient", "crm", "sales", "hrms"],
+      enum: ["owner", "super_admin", "SUPER_ADMIN", "admin", "doctor", "reception", "patient", "crm", "sales", "hrms"],
+      set: (v) => (typeof v === "string" ? v.toLowerCase() : v),
       default: "patient",
       index: true,
+    },
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
     },
     status: {
       type: String,

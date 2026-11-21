@@ -31,8 +31,8 @@ export default function LoginPage() {
       const res = await login(identifier.trim(), password);
       const role = res.user.role;
 
-      // Canonical redirection to 4 role dashboards
-      if (role === "owner" || role === "admin" || role === "hrms" || role === "hr") {
+      // Canonical redirection to role dashboards
+      if (role === "owner" || role === "super_admin" || role === "admin" || role === "hrms" || role === "hr") {
         router.push("/admin/dashboard");
       } else if (role === "doctor") {
         router.push("/doctor/dashboard");
@@ -230,77 +230,79 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Quick Development Test Accounts */}
-          <div className="mt-6 pt-5 border-t border-[#E8E2D6]/80">
-            <div className="flex items-center justify-between mb-2.5">
-              <p className="text-[11px] font-semibold text-[#626B63] uppercase tracking-wider">
-                All Roles Quick Sign-In
-              </p>
-              <span className="text-[10px] text-[#8C928D] font-mono">1-Click</span>
-            </div>
+          {/* Quick Development Test Accounts (Strictly disabled in production) */}
+          {process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_ENABLE_TEST_LOGIN === "true" && (
+            <div className="mt-6 pt-5 border-t border-[#E8E2D6]/80">
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-[11px] font-semibold text-[#626B63] uppercase tracking-wider">
+                  All Roles Quick Sign-In
+                </p>
+                <span className="text-[10px] text-[#8C928D] font-mono">1-Click</span>
+              </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {[
-                { role: "1. Admin (Owner)", name: "Sushil Kumar", id: "admin@trigyna.test", pass: "TriGyna@123", color: "hover:border-emerald-600 hover:bg-emerald-50/50 border-emerald-300 bg-emerald-50/20" },
-                { role: "2. Doctor", name: "Dr. Ananya Sharma", id: "ananya.sharma@trigyna.test", pass: "TriGyna@123", color: "hover:border-blue-600 hover:bg-blue-50/50 border-blue-200 bg-blue-50/20" },
-                { role: "3. Sales Team (CRM)", name: "Priya Verma", id: "sales@trigyna.test", pass: "TriGyna@123", color: "hover:border-amber-600 hover:bg-amber-50/50 border-amber-300 bg-amber-50/20" },
-                { role: "4. Patient Portal", name: "Ananya Mishra", id: "patient@trigyna.test", pass: "TriGyna@123", color: "hover:border-rose-500 hover:bg-rose-50/50 border-rose-200 bg-rose-50/20" },
-              ].map((acc) => (
-                <div
-                  key={acc.id}
-                  className={`p-2.5 bg-[#F9F7F1] border border-[#E8E2D6] rounded-xl text-left transition-all flex flex-col justify-between ${acc.color}`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-[#154734] text-[11px]">{acc.role}</span>
-                      <button
-                        type="button"
-                        onClick={() => fillQuickCredentials(acc.id, acc.pass)}
-                        className="text-[9px] text-[#556960] hover:text-[#154734] bg-white px-1.5 py-0.5 rounded border border-[#E8E2D6] cursor-pointer"
-                        title="Fill inputs only"
-                      >
-                        Fill
-                      </button>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  { role: "1. Admin (Owner)", name: "Sushil Kumar", id: "admin@trigyna.test", pass: "TriGyna@123", color: "hover:border-emerald-600 hover:bg-emerald-50/50 border-emerald-300 bg-emerald-50/20" },
+                  { role: "2. Doctor", name: "Dr. Ananya Sharma", id: "ananya.sharma@trigyna.test", pass: "TriGyna@123", color: "hover:border-blue-600 hover:bg-blue-50/50 border-blue-200 bg-blue-50/20" },
+                  { role: "3. Sales Team (CRM)", name: "Priya Verma", id: "sales@trigyna.test", pass: "TriGyna@123", color: "hover:border-amber-600 hover:bg-amber-50/50 border-amber-300 bg-amber-50/20" },
+                  { role: "4. Patient Portal", name: "Ananya Mishra", id: "patient@trigyna.test", pass: "TriGyna@123", color: "hover:border-rose-500 hover:bg-rose-50/50 border-rose-200 bg-rose-50/20" },
+                ].map((acc) => (
+                  <div
+                    key={acc.id}
+                    className={`p-2.5 bg-[#F9F7F1] border border-[#E8E2D6] rounded-xl text-left transition-all flex flex-col justify-between ${acc.color}`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-[#154734] text-[11px]">{acc.role}</span>
+                        <button
+                          type="button"
+                          onClick={() => fillQuickCredentials(acc.id, acc.pass)}
+                          className="text-[9px] text-[#556960] hover:text-[#154734] bg-white px-1.5 py-0.5 rounded border border-[#E8E2D6] cursor-pointer"
+                          title="Fill inputs only"
+                        >
+                          Fill
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-[#17221D] font-medium truncate mt-0.5">{acc.name}</p>
+                      <p className="text-[9px] text-[#626B63] truncate font-mono">{acc.id}</p>
                     </div>
-                    <p className="text-[11px] text-[#17221D] font-medium truncate mt-0.5">{acc.name}</p>
-                    <p className="text-[9px] text-[#626B63] truncate font-mono">{acc.id}</p>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickLogin(acc.id, acc.pass)}
+                      disabled={isLoading}
+                      className="mt-2 w-full py-1 px-2 bg-white hover:bg-[#154734] text-[#154734] hover:text-white border border-[#154734]/30 rounded-lg text-[10px] font-bold transition-all text-center cursor-pointer shadow-2xs"
+                    >
+                      Login as {acc.role}
+                    </button>
                   </div>
+                ))}
+              </div>
+
+              <div className="mt-2.5 p-2.5 bg-emerald-50/50 border border-emerald-200/60 rounded-xl flex items-center justify-between text-xs">
+                <div>
+                  <p className="font-semibold text-emerald-900 text-[11px]">Owner / SuperAdmin</p>
+                  <p className="text-[10px] text-emerald-700 font-mono">+91 9172772326</p>
+                </div>
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => handleQuickLogin(acc.id, acc.pass)}
-                    disabled={isLoading}
-                    className="mt-2 w-full py-1 px-2 bg-white hover:bg-[#154734] text-[#154734] hover:text-white border border-[#154734]/30 rounded-lg text-[10px] font-bold transition-all text-center cursor-pointer shadow-2xs"
+                    onClick={() => fillQuickCredentials("+919172772326", "TriGyna@2326")}
+                    className="px-2 py-1 bg-white border border-emerald-300 text-emerald-800 rounded-lg text-[10px] font-semibold hover:bg-emerald-100/50 cursor-pointer transition-colors"
                   >
-                    Login as {acc.role}
+                    Fill
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin("+919172772326", "TriGyna@2326")}
+                    disabled={isLoading}
+                    className="px-2.5 py-1 bg-emerald-800 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-900 cursor-pointer transition-colors shadow-2xs"
+                  >
+                    Instant Login
                   </button>
                 </div>
-              ))}
-            </div>
-
-            <div className="mt-2.5 p-2.5 bg-emerald-50/50 border border-emerald-200/60 rounded-xl flex items-center justify-between text-xs">
-              <div>
-                <p className="font-semibold text-emerald-900 text-[11px]">Owner / SuperAdmin</p>
-                <p className="text-[10px] text-emerald-700 font-mono">+91 9172772326</p>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => fillQuickCredentials("+919172772326", "TriGyna@2326")}
-                  className="px-2 py-1 bg-white border border-emerald-300 text-emerald-800 rounded-lg text-[10px] font-semibold hover:bg-emerald-100/50 cursor-pointer transition-colors"
-                >
-                  Fill
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLogin("+919172772326", "TriGyna@2326")}
-                  disabled={isLoading}
-                  className="px-2.5 py-1 bg-emerald-800 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-900 cursor-pointer transition-colors shadow-2xs"
-                >
-                  Instant Login
-                </button>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="mt-6 pt-4 border-t border-[#E8E2D6]/60 flex items-center justify-between text-xs">
             <Link

@@ -101,67 +101,20 @@ function VerifyDocumentContent() {
       if (res.success && res.data) {
         setResult(res.data);
       } else {
-        // Fallback for seed mock token if offline / seed mode
-        if (trimmed.includes("000458")) {
-          setResult({
-            verified: true,
-            outcome: "fully_paid",
-            outcomeLabel: "Verified Document — Fully Paid",
-            documentType: "receipt",
-            documentNumber: "RCP/2026/000458",
-            invoiceNumber: "TRI/2026/000458",
-            issueDate: "2026-10-27T11:22:00.000Z",
-            organizationName: "TriGyna Women Health & Wellness",
-            serviceCategory: "PCOS Management Consultation",
-            totalAmount: 1000,
-            amountPaid: 1000,
-            balanceAmount: 0,
-            currency: "INR",
-            paymentStatus: "paid",
-            documentStatus: "issued",
-            maskedPatient: "A****a S****a",
-            consultantName: "Dr. Harshali Sutar",
-            verificationTimestamp: new Date().toISOString(),
-          });
-        } else {
-          setResult({
-            verified: false,
-            outcome: "not_found",
-            outcomeLabel: "Document Not Found",
-            message:
-              typeof res.error === "string"
-                ? res.error
-                : res.error?.message ||
-                  "No matching official TriGyna invoice or receipt was found for this verification reference.",
-            verificationTimestamp: new Date().toISOString(),
-          });
-        }
-      }
-    } catch {
-      if (trimmed.includes("000458")) {
         setResult({
-          verified: true,
-          outcome: "fully_paid",
-          outcomeLabel: "Verified Document — Fully Paid",
-          documentType: "receipt",
-          documentNumber: "RCP/2026/000458",
-          invoiceNumber: "TRI/2026/000458",
-          issueDate: "2026-10-27T11:22:00.000Z",
-          organizationName: "TriGyna Women Health & Wellness",
-          serviceCategory: "PCOS Management Consultation",
-          totalAmount: 1000,
-          amountPaid: 1000,
-          balanceAmount: 0,
-          currency: "INR",
-          paymentStatus: "paid",
-          documentStatus: "issued",
-          maskedPatient: "A****a S****a",
-          consultantName: "Dr. Harshali Sutar",
+          verified: false,
+          outcome: "not_found",
+          outcomeLabel: "Document Not Found",
+          message:
+            typeof res.error === "string"
+              ? res.error
+              : res.error?.message ||
+                "No matching official TriGyna invoice or receipt was found for this verification reference.",
           verificationTimestamp: new Date().toISOString(),
         });
-      } else {
-        setErrorMsg("Unable to contact verification service. Please check your internet connection.");
       }
+    } catch {
+      setErrorMsg("Unable to contact verification service. Please check your internet connection.");
     } finally {
       setLoading(false);
     }

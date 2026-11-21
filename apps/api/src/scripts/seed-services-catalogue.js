@@ -613,10 +613,10 @@ const PACKAGES = [
   },
 ];
 
+const { connectDB, disconnectDB } = require("../config/database");
+
 async function seedServicesCatalogue() {
-  const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/trigyna";
-  console.log(`Connecting to MongoDB at: ${uri}`);
-  await mongoose.connect(uri);
+  await connectDB();
 
   console.log("Seeding Categories...");
   for (const cat of CATEGORIES) {
@@ -696,7 +696,7 @@ async function seedServicesCatalogue() {
   console.log("=========================================");
   console.log("SERVICES & PACKAGES CATALOGUE SEED COMPLETE");
   console.log("=========================================");
-  await mongoose.disconnect();
+  await disconnectDB();
 }
 
 if (require.main === module) {

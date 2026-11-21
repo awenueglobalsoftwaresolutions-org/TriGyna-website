@@ -72,15 +72,17 @@ function parseDateRange(dateRange, customStart, customEnd) {
     };
   }
 
-  // Default: Month (October 2026 in TriGyna reference environment)
-  const start = new Date(2026, 9, 1);
-  const end = new Date(2026, 9, 31, 23, 59, 59, 999);
-  const prevStart = new Date(2026, 8, 1);
-  const prevEnd = new Date(2026, 8, 30, 23, 59, 59, 999);
+  // Default: Current Calendar Month
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const prevStart = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+  const prevEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  const startStr = start.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const endStr = end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   return {
     current: { $gte: start, $lte: end },
     previous: { $gte: prevStart, $lte: prevEnd },
-    label: "Oct 1, 2026 - Oct 31, 2026",
+    label: `${startStr} - ${endStr}`,
   };
 }
 
@@ -384,86 +386,73 @@ async function computeDashboardMetrics(user, query = {}) {
     });
   });
 
-  if (recentActivities.length < 5) {
-    const baselineActivities = [
-      { _id: "act_1", title: "Priya Sharma submitted enquiry form", timeAgo: "2 min ago", type: "enquiry" },
-      { _id: "act_2", title: "You called Neha Gupta", timeAgo: "15 min ago", type: "call" },
-      { _id: "act_3", title: "Amit Patel appointment booked", timeAgo: "1 hour ago", type: "appointment" },
-      { _id: "act_4", title: "Ritu Verma converted to patient", timeAgo: "2 hours ago", type: "conversion" },
-      { _id: "act_5", title: "Follow-up reminder set for Vikas Singh", timeAgo: "3 hours ago", type: "followup" },
-    ];
-    baselineActivities.forEach((act) => {
-      if (recentActivities.length < 5) recentActivities.push(act);
-    });
-  }
+  // Top 5 KPI Cards calculations from real database documents
+  const totalLeadsVal = totalLeadsCount || 0;
+  const convertedCountVal = stageCounts.converted || 0;
+  const pendingCountVal = pendingFollowupsCount || 0;
+  const appointmentsCountVal = appointments.length || 0;
+  const currentRevenueVal = paidInvoices.length > 0 ? paidInvoices[0].total : 0;
+  const prevRevenueVal = prevPaidInvoices.length > 0 ? prevPaidInvoices[0].total : 0;
 
-  // Top 5 KPI Cards calculations
-  const totalLeadsVal = totalLeadsCount || 128;
-  const convertedCountVal = stageCounts.converted || 32;
-  const pendingCountVal = pendingFollowupsCount || 24;
-  const appointmentsCountVal = appointments.length || 18;
-  const currentRevenueVal = paidInvoices.length > 0 ? paidInvoices[0].total : 128000;
-  const prevRevenueVal = prevPaidInvoices.length > 0 ? prevPaidInvoices[0].total : 100000;
-
-  const leadsDelta = calculateDelta(totalLeadsVal, prevLeadsCount || Math.round(totalLeadsVal * 0.88));
-  const convDelta = calculateDelta(convertedCountVal, Math.round(convertedCountVal * 0.82));
-  const pendingDelta = calculateDelta(pendingCountVal, Math.round(pendingCountVal * 0.95));
-  const apptDelta = calculateDelta(appointmentsCountVal, prevAppointmentsCount || Math.round(appointmentsCountVal * 0.8));
+  const leadsDelta = calculateDelta(totalLeadsVal, prevLeadsCount || 0);
+  const convDelta = calculateDelta(convertedCountVal, 0);
+  const pendingDelta = calculateDelta(pendingCountVal, 0);
+  const apptDelta = calculateDelta(appointmentsCountVal, prevAppointmentsCount || 0);
   const revDelta = calculateDelta(currentRevenueVal, prevRevenueVal);
 
   const kpis = {
     totalLeads: {
       value: totalLeadsVal,
-      delta: "+12%",
-      deltaPeriod: "vs last month",
-      isPositive: true,
-      changeText: "+12% vs last month",
-      trend: "up",
+      delta: leadsDelta.delta,
+      deltaPeriod: "vs previous period",
+      isPositive: leadsDelta.isPositive,
+      changeText: `${leadsDelta.delta} vs previous period`,
+      trend: leadsDelta.isPositive ? "up" : "down",
     },
     convertedPatients: {
       value: convertedCountVal,
-      delta: "+18%",
-      deltaPeriod: "vs last month",
-      isPositive: true,
-      changeText: "+18% vs last month",
-      trend: "up",
+      delta: convDelta.delta,
+      deltaPeriod: "vs previous period",
+      isPositive: convDelta.isPositive,
+      changeText: `${convDelta.delta} vs previous period`,
+      trend: convDelta.isPositive ? "up" : "down",
     },
     convertedLeads: {
       value: convertedCountVal,
-      changeText: "+18% vs last month",
-      trend: "up",
+      changeText: `${convDelta.delta} vs previous period`,
+      trend: convDelta.isPositive ? "up" : "down",
     },
     activeReps: {
-      value: 8,
-      changeText: "+1 from last month",
+      value: 1,
+      changeText: "Active",
       trend: "up",
     },
     teamConversionRate: {
-      value: `${totalLeadsVal > 0 ? Math.round((convertedCountVal / totalLeadsVal) * 100) : 25}%`,
-      rawPercentage: totalLeadsVal > 0 ? Math.round((convertedCountVal / totalLeadsVal) * 100) : 25,
-      changeText: "+3% vs last month",
+      value: `${totalLeadsVal > 0 ? Math.round((convertedCountVal / totalLeadsVal) * 100) : 0}%`,
+      rawPercentage: totalLeadsVal > 0 ? Math.round((convertedCountVal / totalLeadsVal) * 100) : 0,
+      changeText: "Real-time rate",
       trend: "up",
     },
     pendingFollowUps: {
       value: pendingCountVal,
-      delta: "+5%",
-      deltaPeriod: "vs last month",
-      isPositive: false,
-      changeText: "+5% vs last month",
-      trend: "down",
+      delta: pendingDelta.delta,
+      deltaPeriod: "vs previous period",
+      isPositive: !pendingDelta.isPositive,
+      changeText: `${pendingDelta.delta} vs previous period`,
+      trend: pendingDelta.isPositive ? "up" : "down",
     },
     appointmentsBooked: {
       value: appointmentsCountVal,
-      delta: "+20%",
-      deltaPeriod: "vs last month",
-      isPositive: true,
+      delta: apptDelta.delta,
+      deltaPeriod: "vs previous period",
+      isPositive: apptDelta.isPositive,
     },
     revenueGenerated: {
       value: currentRevenueVal,
       formatted: `₹${currentRevenueVal.toLocaleString("en-IN")}`,
-      delta: "+28%",
-      deltaPeriod: "vs last month",
-      isPositive: true,
+      delta: revDelta.delta,
+      deltaPeriod: "vs previous period",
+      isPositive: revDelta.isPositive,
     },
   };
 
@@ -480,19 +469,30 @@ async function computeDashboardMetrics(user, query = {}) {
       time,
       status: isConfirmed ? "confirmed" : "pending",
       dotColor: isConfirmed ? "#16A34A" : "#F59E0B",
-      meetingLink: appt.meetingLink || "https://meet.google.com/tg-care-meet",
+      meetingLink: appt.meetingLink || "",
     };
   });
 
-  // Leads Source Distribution
-  const leadsSourceItems = [
-    { label: "Website Enquiry", count: 42, percentage: 33, color: "#16A34A" },
-    { label: "WhatsApp", count: 36, percentage: 28, color: "#9333EA" },
-    { label: "Instagram", count: 20, percentage: 16, color: "#F97316" },
-    { label: "Google / SEO", count: 18, percentage: 14, color: "#3B82F6" },
-    { label: "Referral", count: 8, percentage: 6, color: "#06B6D4" },
-    { label: "Walk-in", count: 4, percentage: 3, color: "#64748B" },
-  ];
+  // Leads Source Distribution dynamically calculated from MongoDB
+  const sourceColors = {
+    website_enquiry: "#16A34A",
+    whatsapp: "#9333EA",
+    instagram: "#F97316",
+    google: "#3B82F6",
+    referral: "#06B6D4",
+    walk_in: "#64748B",
+  };
+  const leadsSourceItems = sourceAgg.map((s) => {
+    const count = s.count || 0;
+    const percentage = totalLeadsVal > 0 ? Math.round((count / totalLeadsVal) * 100) : 0;
+    const label = s._id ? s._id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Direct";
+    return {
+      label,
+      count,
+      percentage,
+      color: sourceColors[s._id] || "#154734",
+    };
+  });
 
   const leadsSource = {
     total: totalLeadsVal,
@@ -501,10 +501,10 @@ async function computeDashboardMetrics(user, query = {}) {
 
   const conversionFunnel = [
     { stage: "Leads", count: totalLeadsVal, color: "#3B82F6" },
-    { stage: "Contacted", count: 86, color: "#22C55E" },
-    { stage: "Interested", count: 46, color: "#EAB308" },
-    { stage: "Appointments", count: 18, color: "#F43F5E" },
-    { stage: "Converted", count: 32, color: "#10B981" },
+    { stage: "Contacted", count: stageCounts.contacted || 0, color: "#22C55E" },
+    { stage: "Interested", count: stageCounts.interested || 0, color: "#EAB308" },
+    { stage: "Appointments", count: stageCounts.appointment || 0, color: "#F43F5E" },
+    { stage: "Converted", count: stageCounts.converted || 0, color: "#10B981" },
   ];
 
   // Sales Performance Weekly Chart Data
@@ -525,13 +525,14 @@ async function computeDashboardMetrics(user, query = {}) {
   };
 
   // Target Progress
-  const targetRevenue = salesTargetDoc?.targetValue || 160000;
+  const currentMonthLabel = new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  const targetRevenue = salesTargetDoc?.targetValue || 0;
   const achievedRevenue = currentRevenueVal;
   const remainingRevenue = Math.max(0, targetRevenue - achievedRevenue);
-  const achievedPercent = Math.min(100, Math.round((achievedRevenue / targetRevenue) * 100));
+  const achievedPercent = targetRevenue > 0 ? Math.min(100, Math.round((achievedRevenue / targetRevenue) * 100)) : 0;
 
   const targetProgress = {
-    targetPeriod: "Oct 2026",
+    targetPeriod: currentMonthLabel,
     targetRevenue,
     formattedTarget: `₹${targetRevenue.toLocaleString("en-IN")}`,
     achievedRevenue,

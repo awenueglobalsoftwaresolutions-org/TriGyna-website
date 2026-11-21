@@ -1,6 +1,6 @@
 const app = require("./app");
 const env = require("./config/env");
-const { connectDB, disconnectDB } = require("./config/database");
+const { connectDB, disconnectDB, maskUri } = require("./config/database");
 
 let server;
 
@@ -9,7 +9,7 @@ async function startServer() {
     console.log("==================================================");
     console.log("TriGyna Healthcare Management Platform — API Server");
     console.log(`Environment: ${env.NODE_ENV}`);
-    console.log(`Configured MongoDB URI: ${env.MONGODB_URI}`);
+    console.log(`Configured MongoDB Target: ${maskUri(env.MONGODB_URI)} [DB: ${env.DB_NAME}]`);
     console.log("==================================================");
 
     await connectDB();

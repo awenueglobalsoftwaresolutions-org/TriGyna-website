@@ -357,7 +357,7 @@ async function getDoctorDashboard(req, res, next) {
       _id: f._id,
       recommendedDate: f.dueDate
         ? new Date(f.dueDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-        : "28 Oct 2026",
+        : "-",
       patientId: f.patientId,
       reason: f.notes || f.serviceName || "Antenatal follow-up",
       type: f.mode === "Phone Follow-up" ? "call" : "appointment",

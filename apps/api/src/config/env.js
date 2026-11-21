@@ -33,21 +33,31 @@ const allowedOrigins = Array.from(
   ])
 );
 
+const dbName = process.env.DB_NAME || process.env.MONGODB_DB_NAME || "trigyna";
+
 const env = {
   NODE_ENV: nodeEnv,
   PORT: parseInt(process.env.PORT, 10) || 5000,
   MONGODB_URI: isTest
     ? (process.env.TEST_MONGODB_URI || process.env.MONGODB_URI_TEST || "mongodb://127.0.0.1:27017/trigyna_test")
     : (process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/trigyna"),
+  DB_NAME: dbName,
+  MONGODB_DB_NAME: dbName,
   APP_URL: process.env.APP_URL || frontendOrigin,
   FRONTEND_URL: frontendOrigin,
   FRONTEND_ORIGIN: frontendOrigin,
+  BACKEND_URL: process.env.BACKEND_URL || `http://127.0.0.1:${parseInt(process.env.PORT, 10) || 5000}`,
   CANONICAL_SITE_URL,
   CANONICAL_HOSTNAME,
   ALLOWED_ORIGINS: allowedOrigins,
   SESSION_SECRET: process.env.SESSION_SECRET || "dev_session_secret_trigyna_fallback_928341",
   JWT_SECRET: process.env.JWT_SECRET || "dev_jwt_secret_trigyna_fallback_928341",
+  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || "dev_jwt_refresh_trigyna_fallback_928341",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
+  ADMIN_NAME: process.env.ADMIN_NAME || "Sushil Kumar Kushwaha",
+  ADMIN_EMAIL: process.env.ADMIN_EMAIL || "Codewithsushil7236@gmail.com",
+  ADMIN_PHONE: process.env.ADMIN_PHONE || "723689648",
+  ADMIN_INITIAL_PASSWORD: process.env.ADMIN_INITIAL_PASSWORD || "",
   RAZORPAY_MODE: process.env.RAZORPAY_MODE || "test",
   RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || "rzp_test_trigyna_key_2026",
   RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || "trigyna_rzp_secret_key_2026",
@@ -67,7 +77,10 @@ if (env.NODE_ENV === "production") {
   if (!process.env.SESSION_SECRET || process.env.SESSION_SECRET.includes("fallback") || process.env.SESSION_SECRET.length < 32) {
     throw new Error("FATAL: SESSION_SECRET must be securely set in production with at least 32 characters!");
   }
-  if (!process.env.MONGODB_URI || process.env.MONGODB_URI.includes("127.0.0.1") || process.env.MONGODB_URI.includes("localhost")) {
+  if (!process.env.MONGODB_URI) {
+    throw new Error("FATAL: MONGODB_URI is required in production environment!");
+  }
+  if (process.env.MONGODB_URI.includes("127.0.0.1") || process.env.MONGODB_URI.includes("localhost")) {
     console.warn("[Security] WARNING: Production MONGODB_URI appears to target a local non-replicated database instance.");
   }
 }

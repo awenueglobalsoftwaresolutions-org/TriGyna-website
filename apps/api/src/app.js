@@ -90,13 +90,15 @@ app.use(
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
 // Root health checks
-app.get(["/health", "/api/v1/health"], (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+app.get(["/health", "/api/v1/health"], async (req, res) => {
+  const { checkDBHealth } = require("./config/database");
+  const dbHealth = await checkDBHealth();
   return sendSuccess(
     res,
     {
       status: "UP",
-      database: dbStatus,
+      database: dbHealth.status,
+      dbHealthy: dbHealth.healthy,
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
     },
@@ -112,6 +114,23 @@ app.get(["/ready", "/api/v1/ready"], (req, res) => {
     success: false,
     message: "Service unavailable: Database connection is not ready",
   });
+});
+
+// Protect API requests against database unavailability
+app.use("/api/v1", (req, res, next) => {
+  if (req.path === "/health" || req.path === "/ready") {
+    return next();
+  }
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({
+      success: false,
+      error: {
+        code: "DATABASE_UNAVAILABLE",
+        message: "Service temporarily unavailable: database connection is reconnecting. Please retry shortly.",
+      },
+    });
+  }
+  return next();
 });
 
 // Apply rate limiting to /api/v1

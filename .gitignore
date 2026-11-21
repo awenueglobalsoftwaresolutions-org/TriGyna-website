@@ -29,6 +29,9 @@ next-env.d.ts
 # ---------------------------------------------
 .env
 .env.*
+.env.local
+.env.production
+.env.development.local
 .env*.local
 !.env.example
 !.env.production.example
@@ -45,6 +48,8 @@ apps/**/.env.*
 *.crt
 *.cer
 *.cert
+*.bak
+*.dump
 credentials.json
 service-account.json
 secrets/
@@ -62,8 +67,22 @@ uploads/
 *.sql.gz
 
 # ---------------------------------------------
-# Testing & Coverage Artifacts
+# Internal Test Suites & Private Testing Artifacts
 # ---------------------------------------------
+trigyna-private-tests/
+apps/api/private-tests/
+apps/api/src/tests/
+apps/**/src/tests/
+**/tests/
+**/*.test.js
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.js
+**/*.spec.ts
+**/*.spec.tsx
+**/__tests__/
+**/test-results/
+coverage/
 /coverage
 *.lcov
 .nyc_output
@@ -76,6 +95,19 @@ cypress/screenshots/
 *_verified.png
 *_verified_full.png
 doctor_followups_verified*.png
+
+# ---------------------------------------------
+# Development & Mock Seed Files (Never commit or expose on GitHub)
+# ---------------------------------------------
+apps/api/src/scripts/seed-dev.js
+apps/api/src/scripts/seed-doctor-ananya.js
+apps/api/src/scripts/seed-patient-portal.js
+apps/api/src/scripts/seed-sales-dashboard.js
+apps/api/src/scripts/seed-appointments-reference.js
+apps/api/src/scripts/seed-doctor-followups-reference.js
+apps/api/src/scripts/seed-reference-doctor-dashboard.js
+apps/api/src/scripts/seed-whatsapp-reference-data.js
+apps/api/src/scripts/bootstrapOwner.js
 
 # ---------------------------------------------
 # Logs & Debugging

@@ -150,8 +150,8 @@ async function getAdminOverview(req, res, next) {
       const appt = patientAppointments.find(
         (a) => a.patientId && a.patientId.toString() === patient._id.toString()
       );
-      const service = appt?.serviceName || (index % 3 === 0 ? "PCOD/PCOS Care" : index % 3 === 1 ? "Skin & Hair" : "General Consultation");
-      const lastVisit = index === 0 || index === 1 ? "Today" : index === 2 || index === 3 ? "Yesterday" : "2 days ago";
+      const service = appt?.serviceName || "Clinical Consultation";
+      const lastVisit = appt ? (appt.appointmentDate === today ? "Today" : appt.appointmentDate) : "New Patient";
 
       return {
         _id: patient._id,

@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter } from "next/navigation";
 import { api, setToken, removeToken, getToken } from "@/lib/api/client";
 
-export type UserRole = "owner" | "admin" | "doctor" | "reception" | "patient" | "crm" | "sales" | "hrms" | "hr";
+export type UserRole = "owner" | "super_admin" | "admin" | "doctor" | "reception" | "patient" | "crm" | "sales" | "hrms" | "hr";
 
 export interface AuthUser {
   _id: string;
@@ -154,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
-  const isOwner = user?.role === "owner";
+  const isOwner = user?.role === "owner" || user?.role === "super_admin";
   const isAdmin = user?.role === "admin" || isOwner || user?.role === "hrms";
   const isDoctor = user?.role === "doctor";
   const isSales = user?.role === "sales" || user?.role === "crm" || isAdmin;

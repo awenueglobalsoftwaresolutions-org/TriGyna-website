@@ -16,7 +16,7 @@ const emptySubscribe = () => () => {};
 
 export function getCanonicalDashboardForRole(role?: string): string {
   if (!role) return "/login";
-  if (role === "owner" || role === "admin" || role === "hrms" || role === "hr") {
+  if (role === "owner" || role === "super_admin" || role === "admin" || role === "hrms" || role === "hr") {
     return "/admin/dashboard";
   }
   if (role === "doctor") {
@@ -61,7 +61,7 @@ export function RoleGuard({ allowedRoles, children, pageTitle = "Dashboard" }: R
 
   // Check authorization
   // Admin and owner satisfy admin / owner / sales / crm / hrms checks
-  const isOwner = user.role === "owner";
+  const isOwner = user.role === "owner" || user.role === "super_admin";
   const isAdmin = user.role === "admin" || isOwner;
   const isAuthorized =
     allowedRoles.includes(user.role) ||

@@ -416,19 +416,19 @@ export function SalesDashboardOverview({
   }
 
   const kpis = data?.kpis || {
-    totalLeads: { value: 128, delta: "+12%", deltaPeriod: "vs last month", isPositive: true },
-    convertedPatients: { value: 32, delta: "+18%", deltaPeriod: "vs last month", isPositive: true },
-    pendingFollowUps: { value: 24, delta: "+5%", deltaPeriod: "vs last month", isPositive: false },
-    appointmentsBooked: { value: 18, delta: "+20%", deltaPeriod: "vs last month", isPositive: true },
-    revenueGenerated: { value: 128000, formatted: "₹1,28,000", delta: "+28%", deltaPeriod: "vs last month", isPositive: true },
+    totalLeads: { value: 0, delta: "0%", deltaPeriod: "", isPositive: true },
+    convertedPatients: { value: 0, delta: "0%", deltaPeriod: "", isPositive: true },
+    pendingFollowUps: { value: 0, delta: "0%", deltaPeriod: "", isPositive: false },
+    appointmentsBooked: { value: 0, delta: "0%", deltaPeriod: "", isPositive: true },
+    revenueGenerated: { value: 0, formatted: "₹0", delta: "0%", deltaPeriod: "", isPositive: true },
   };
 
   const stageCounts = data?.stageCounts || {
-    new: 36,
-    contacted: 28,
-    interested: 18,
-    appointment: 12,
-    converted: 34,
+    new: 0,
+    contacted: 0,
+    interested: 0,
+    appointment: 0,
+    converted: 0,
   };
 
   return (
@@ -970,7 +970,7 @@ export function SalesDashboardOverview({
               onClick={() => onNavigateTab?.("leads")}
               className="font-bold text-xs text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 cursor-pointer self-end sm:self-auto"
             >
-              <span>Explore All {data?.kpis?.totalLeads?.value || 128} Leads</span>
+              <span>Explore All {data?.kpis?.totalLeads?.value || 0} Leads</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>

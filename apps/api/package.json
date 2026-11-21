@@ -6,12 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "bootstrap:owner": "node src/scripts/bootstrapOwner.js",
-    "seed:dev": "node src/scripts/seed-dev.js",
-    "test:seed": "node src/tests/testSeedAccountsAndRBAC.js",
-    "test:integration": "node src/tests/testFrontendIntegration.js",
-    "test": "node src/tests/runTests.js"
+    "dev": "node --watch src/server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
