@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
+import Link from "next/link";
 import {
   Building2,
   Plus,
@@ -13,6 +14,7 @@ import {
   X,
   UserCheck2,
   Lock,
+  Sliders,
 } from "lucide-react";
 import RoleGuard from "@/components/dashboard/RoleGuard";
 import { AdminDashboardShell } from "@/components/dashboard/admin/AdminDashboardShell";
@@ -386,7 +388,7 @@ export default function AdminDashboardPage() {
     let isMounted = true;
     (async () => {
       if (!isMounted) return;
-      if (activeTab === "users") await loadUsers();
+      if (activeTab === "users" || activeTab === "staff") await loadUsers();
       else if (activeTab === "approvals") await loadApprovals();
       else if (activeTab === "billing") await loadInvoices();
       else if (activeTab === "audit") await loadAuditLogs();
@@ -519,7 +521,7 @@ export default function AdminDashboardPage() {
           else if (action === "billing") handleTabChange("billing");
         }}
         onRefreshData={() => {
-          if (activeTab === "users") loadUsers();
+          if (activeTab === "users" || activeTab === "staff") loadUsers();
           else if (activeTab === "approvals") loadApprovals();
           else if (activeTab === "billing") loadInvoices();
           else if (activeTab === "audit") loadAuditLogs();
@@ -556,7 +558,7 @@ export default function AdminDashboardPage() {
           )}
 
           {/* TAB 2: USER DIRECTORY & RBAC */}
-          {activeTab === "users" && (
+          {(activeTab === "users" || activeTab === "staff") && (
             <div className="bg-white rounded-2xl border border-[#E5EAF0] p-5 sm:p-6 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2 flex-1">
@@ -583,10 +585,17 @@ export default function AdminDashboardPage() {
                     <option value="patient">Patient</option>
                   </select>
                 </div>
-                <div className="flex items-center gap-3 self-end sm:self-center">
-                  <span className="text-xs text-[#64748B] font-medium">
+                <div className="flex items-center gap-2.5 self-end sm:self-center">
+                  <span className="text-xs text-[#64748B] font-medium hidden sm:inline">
                     {users.length} accounts found
                   </span>
+                  <Link
+                    href="/admin/settings/roles-permissions"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#087A50]/30 bg-[#E9F8F0] hover:bg-[#D1F2E0] text-[#087A50] text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <Sliders className="w-3.5 h-3.5" />
+                    <span>Roles &amp; Permissions</span>
+                  </Link>
                   <button
                     type="button"
                     onClick={() => setIsProvisionModalOpen(true)}

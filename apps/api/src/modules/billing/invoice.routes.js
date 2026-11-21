@@ -39,6 +39,7 @@ router.get("/", requireRole("owner", "admin", "reception", "doctor", "sales", "c
 router.post("/", requireRole("owner", "admin", "reception", "sales", "crm"), createInvoice);
 router.get("/:id", requireRole("owner", "admin", "reception", "doctor", "sales", "crm", "patient"), getInvoiceById);
 router.get("/:id/pdf", requireRole("owner", "admin", "reception", "doctor", "sales", "crm", "patient"), downloadInvoicePdf);
+router.get("/:id/download", requireRole("owner", "admin", "reception", "doctor", "sales", "crm", "patient"), downloadInvoicePdf);
 router.get("/:invoiceId/receipt", requireRole("owner", "admin", "reception", "doctor", "sales", "crm", "patient"), getReceiptByInvoiceId);
 router.get("/:invoiceId/receipt/pdf", requireRole("owner", "admin", "reception", "doctor", "sales", "crm", "patient"), downloadReceiptPdf);
 

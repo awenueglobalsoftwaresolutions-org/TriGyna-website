@@ -1,4 +1,5 @@
 const { ForbiddenError } = require("../shared/errors");
+const { hasPermission } = require("../config/permissions");
 
 function requireRole(...allowedRoles) {
   return (req, res, next) => {
@@ -40,6 +41,30 @@ function requireRole(...allowedRoles) {
   };
 }
 
+function requirePermission(...requiredPermissions) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return next(new ForbiddenError("Authentication is required prior to permission verification"));
+    }
+
+    if (req.user.role === "owner" || req.user.role === "super_admin") {
+      return next();
+    }
+
+    const hasAny = requiredPermissions.some((perm) => hasPermission(req.user, perm));
+    if (!hasAny) {
+      return next(
+        new ForbiddenError(
+          `Access denied. Missing required permission: [${requiredPermissions.join(", ")}]`
+        )
+      );
+    }
+
+    return next();
+  };
+}
+
 module.exports = {
   requireRole,
+  requirePermission,
 };

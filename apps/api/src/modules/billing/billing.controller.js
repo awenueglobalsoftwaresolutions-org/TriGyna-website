@@ -50,16 +50,43 @@ async function getFinancialOverview(req, res, next) {
     const startOfPrevMonth = new Date(targetYear, targetMonth - 1, 1);
     const endOfPrevMonth = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
 
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
     // Fetch all relevant active financial records
-    const [allInvoices, monthInvoices, prevMonthInvoices, allPayments, monthPayments, prevMonthPayments] =
-      await Promise.all([
-        Invoice.find({ status: { $nin: ["void"] }, ...queryFilter }),
-        Invoice.find({ createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $nin: ["void"] }, ...queryFilter }),
-        Invoice.find({ createdAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth }, status: { $nin: ["void"] }, ...queryFilter }),
-        Payment.find({ status: "success" }),
-        Payment.find({ paidAt: { $gte: startOfMonth, $lte: endOfMonth }, status: "success" }),
-        Payment.find({ paidAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth }, status: "success" }),
-      ]);
+    const [
+      allInvoices,
+      monthInvoices,
+      prevMonthInvoices,
+      allPayments,
+      todayPayments,
+      monthPayments,
+      prevMonthPayments,
+      allPaymentDocs,
+    ] = await Promise.all([
+      Invoice.find({ status: { $nin: ["void"] }, ...queryFilter }),
+      Invoice.find({ createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $nin: ["void"] }, ...queryFilter }),
+      Invoice.find({ createdAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth }, status: { $nin: ["void"] }, ...queryFilter }),
+      Payment.find({ $or: [{ status: "success" }, { paymentStatus: "PAID" }] }),
+      Payment.find({
+        $or: [
+          { paidAt: { $gte: startOfToday, $lte: endOfToday } },
+          { createdAt: { $gte: startOfToday, $lte: endOfToday } },
+        ],
+        $or: [{ status: "success" }, { paymentStatus: "PAID" }],
+      }),
+      Payment.find({
+        paidAt: { $gte: startOfMonth, $lte: endOfMonth },
+        $or: [{ status: "success" }, { paymentStatus: "PAID" }],
+      }),
+      Payment.find({
+        paidAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth },
+        $or: [{ status: "success" }, { paymentStatus: "PAID" }],
+      }),
+      Payment.find({}),
+    ]);
 
     // Current month totals
     let currentInvoiced = 0;
@@ -152,10 +179,37 @@ async function getFinancialOverview(req, res, next) {
 
     const monthName = startOfMonth.toLocaleString("default", { month: "short", year: "numeric" });
 
+    // Global and daily payment metrics
+    let totalRevenue = 0;
+    allPayments.forEach((p) => { totalRevenue += p.amount || 0; });
+    let todayRevenue = 0;
+    todayPayments.forEach((p) => { todayRevenue += p.amount || 0; });
+
+    let successfulPaymentsCount = allPayments.length;
+    let pendingPaymentsCount = 0;
+    let failedPaymentsCount = 0;
+    let refundAmount = 0;
+
+    allPaymentDocs.forEach((p) => {
+      const st = (p.paymentStatus || p.status || "").toLowerCase();
+      if (st === "pending" || st === "initiated" || st === "draft") pendingPaymentsCount++;
+      else if (st === "failed") failedPaymentsCount++;
+      else if (st === "refunded" || st === "partially_refunded") refundAmount += p.amount || 0;
+    });
+
     return sendSuccess(
       res,
       {
         kpis: {
+          totalRevenue: roundToTwo(totalRevenue),
+          todayRevenue: roundToTwo(todayRevenue),
+          monthlyRevenue: roundToTwo(currentCollected),
+          totalPayments: allPaymentDocs.length,
+          successfulPayments: successfulPaymentsCount,
+          pendingPayments: pendingPaymentsCount,
+          failedPayments: failedPaymentsCount,
+          outstandingAmount: roundToTwo(currentOutstanding),
+          refundAmount: roundToTwo(refundAmount),
           totalInvoiced: roundToTwo(currentInvoiced),
           invoicedCount: totalInvoiceCount,
           invoicedGrowth,
@@ -308,6 +362,14 @@ async function createPaymentLink(req, res, next) {
       sendViaEmail = false,
     } = req.body;
 
+    if (amount !== undefined && (isNaN(amount) || Number(amount) <= 0)) {
+      return next(new ValidationError("Payment link amount must be a positive number greater than zero"));
+    }
+
+    if (quantity !== undefined && (isNaN(quantity) || Number(quantity) <= 0)) {
+      return next(new ValidationError("Quantity must be a positive integer"));
+    }
+
     let invoice = null;
     let patient = null;
 
@@ -414,6 +476,12 @@ async function createPaymentLink(req, res, next) {
       } else if (discount.type === "fixed" || discount.type === "amount") {
         effectiveDiscount = roundToTwo(Number(discount.value));
       }
+    } else if (typeof discount === "number" && discount > 0) {
+      if (discount <= 100) {
+        effectiveDiscount = roundToTwo(subtotal * (discount / 100));
+      } else {
+        effectiveDiscount = roundToTwo(discount);
+      }
     } else if (discountAmount > 0) {
       effectiveDiscount = roundToTwo(Number(discountAmount));
     } else if (discountPercent > 0) {
@@ -424,8 +492,8 @@ async function createPaymentLink(req, res, next) {
       if (!discountReason || !discountReason.trim()) {
         return next(new ValidationError("A discount reason is required when applying a price reduction"));
       }
-      if (effectiveDiscount > (0.20 * subtotal) && !["owner", "admin"].includes(req.user.role)) {
-        return next(new ForbiddenError("Discounts exceeding 20% require Admin authorization"));
+      if (effectiveDiscount > (0.15 * subtotal) && !["owner", "admin"].includes(req.user.role)) {
+        return next(new ForbiddenError("Discounts exceeding 15% require Admin authorization"));
       }
       if (effectiveDiscount >= subtotal) {
         return next(new ValidationError("Discount amount cannot meet or exceed the subtotal"));
@@ -681,6 +749,7 @@ async function createPaymentLink(req, res, next) {
       {
         paymentLink,
         order: createdOrder,
+        invoice,
         patient,
         shortUrl,
         checkoutUrl: customCheckoutUrl,

@@ -147,7 +147,7 @@ async function getSalesOverview(query = {}) {
       ? Math.round(((convertedLeads - prev.converted) / prev.converted) * 100)
       : 31;
 
-  return {
+  const overviewPayload = {
     activeReps: {
       value: activeRepsCount || 8,
       changeText: "+ 1 from last month",
@@ -169,6 +169,11 @@ async function getSalesOverview(query = {}) {
       changeText: `+ ${convertedDeltaPercent}% vs last month`,
       trend: "up",
     },
+  };
+
+  return {
+    ...overviewPayload,
+    kpis: overviewPayload,
   };
 }
 

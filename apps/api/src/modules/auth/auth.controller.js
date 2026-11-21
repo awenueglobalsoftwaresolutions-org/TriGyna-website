@@ -3,8 +3,9 @@ const bcrypt = require("bcryptjs");
 const User = require("../users/user.model");
 const env = require("../../config/env");
 const { sendSuccess } = require("../../shared/response");
-const { UnauthorizedError, ValidationError } = require("../../shared/errors");
+const { UnauthorizedError, ValidationError, ForbiddenError } = require("../../shared/errors");
 const { recordAudit } = require("../audit/audit.service");
+const { getEffectivePermissions } = require("../../config/permissions");
 
 function generateToken(user) {
   return jwt.sign(
@@ -12,6 +13,7 @@ function generateToken(user) {
       id: user._id,
       role: user.role,
       name: user.name,
+      authVersion: user.authVersion || 1,
     },
     env.JWT_SECRET,
     { expiresIn: env.JWT_EXPIRES_IN }
@@ -58,8 +60,19 @@ async function login(req, res, next) {
       return next(new UnauthorizedError(`Account is ${user.status}. Please contact an administrator.`));
     }
 
+    if (user.lockUntil && user.lockUntil > new Date()) {
+      const waitMinutes = Math.ceil((user.lockUntil.getTime() - Date.now()) / 60000);
+      return next(new ForbiddenError(`Account temporarily locked due to excessive failed attempts. Try again in ${waitMinutes} minute(s).`));
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+      if (user.failedLoginAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+      }
+      await user.save();
+
       await recordAudit({
         actorId: user._id,
         actorRole: user.role,
@@ -73,7 +86,9 @@ async function login(req, res, next) {
       return next(new UnauthorizedError("Invalid credentials"));
     }
 
-    // Update lastLogin
+    // Reset failed attempts & update lastLogin
+    user.failedLoginAttempts = 0;
+    user.lockUntil = undefined;
     user.lastLogin = new Date();
     await user.save();
 
@@ -99,6 +114,8 @@ async function login(req, res, next) {
           phone: user.phone,
           role: user.role,
           status: user.status,
+          authVersion: user.authVersion || 1,
+          permissions: getEffectivePermissions(user),
           lastLogin: user.lastLogin,
         },
       },
@@ -140,6 +157,8 @@ async function getMe(req, res, next) {
           phone: req.user.phone,
           role: req.user.role,
           status: req.user.status,
+          authVersion: req.user.authVersion || 1,
+          permissions: getEffectivePermissions(req.user),
           lastLogin: req.user.lastLogin,
           preferences: req.user.preferences || {},
         },

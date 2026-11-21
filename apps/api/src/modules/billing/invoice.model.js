@@ -156,10 +156,16 @@ const invoiceSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    discount: {
+      type: Number,
+      default: function () {
+        return this.discountAmount || 0;
+      },
+    },
     taxableAmount: {
       type: Number,
       default: function () {
-        return (this.subtotal || this.totalAmount || 0) - (this.discountAmount || 0);
+        return (this.subtotal || this.totalAmount || 0) - (this.discountAmount || this.discount || 0);
       },
     },
     taxRate: {
@@ -183,6 +189,12 @@ const invoiceSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    amountPaid: {
+      type: Number,
+      default: function () {
+        return this.paidAmount || 0;
+      },
+    },
     refundedAmount: {
       type: Number,
       default: 0,
@@ -190,12 +202,25 @@ const invoiceSchema = new mongoose.Schema(
     balanceAmount: {
       type: Number,
       default: function () {
-        return Math.max(0, this.totalAmount - (this.paidAmount || 0));
+        return Math.max(0, this.totalAmount - (this.paidAmount || this.amountPaid || 0));
+      },
+    },
+    balanceDue: {
+      type: Number,
+      default: function () {
+        return this.balanceAmount != null
+          ? this.balanceAmount
+          : Math.max(0, this.totalAmount - (this.paidAmount || 0));
       },
     },
     status: {
       type: String,
       enum: ["draft", "issued", "pending", "partially_paid", "paid", "overdue", "cancelled", "refunded", "partially_refunded", "void"],
+      default: "pending",
+      index: true,
+    },
+    invoiceStatus: {
+      type: String,
       default: "pending",
       index: true,
     },
@@ -258,6 +283,31 @@ const invoiceSchema = new mongoose.Schema(
 );
 
 invoiceSchema.pre("save", function (next) {
+  // Sync financial fields
+  if (this.discount != null && this.discountAmount == null) {
+    this.discountAmount = this.discount;
+  } else if (this.discountAmount != null) {
+    this.discount = this.discountAmount;
+  }
+
+  if (this.amountPaid != null && this.paidAmount == null) {
+    this.paidAmount = this.amountPaid;
+  } else if (this.paidAmount != null) {
+    this.amountPaid = this.paidAmount;
+  }
+
+  if (this.balanceDue != null && this.balanceAmount == null) {
+    this.balanceAmount = this.balanceDue;
+  } else if (this.balanceAmount != null) {
+    this.balanceDue = this.balanceAmount;
+  }
+
+  if (this.invoiceStatus && !this.status) {
+    this.status = this.invoiceStatus.toLowerCase();
+  } else if (this.status) {
+    this.invoiceStatus = this.status;
+  }
+
   if (this.verificationToken && (!this.verificationTokenHash || this.isModified("verificationToken"))) {
     this.verificationTokenHash = crypto
       .createHash("sha256")

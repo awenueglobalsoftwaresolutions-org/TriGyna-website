@@ -335,7 +335,19 @@ async function createOrder(req, res, next) {
     });
 
     order.invoiceId = invoice._id;
+    try {
     await order.save();
+  } catch (orderSaveErr) {
+    if (orderSaveErr.name === "VersionError") {
+      console.warn("[Order] Concurrent order update detected; reloading fresh order state");
+      const fresh = await Order.findById(order._id);
+      if (fresh) {
+        Object.assign(order, fresh.toObject());
+      }
+    } else {
+      throw orderSaveErr;
+    }
+  }
 
     // 7. Update CRM Lead Pipeline if linked
     if (resolvedLead) {
@@ -398,7 +410,19 @@ async function createOrder(req, res, next) {
         if (rzpLink.short_url) {
           order.razorpayPaymentLinkUrl = rzpLink.short_url;
         }
-        await order.save();
+        try {
+    await order.save();
+  } catch (orderSaveErr) {
+    if (orderSaveErr.name === "VersionError") {
+      console.warn("[Order] Concurrent order update detected; reloading fresh order state");
+      const fresh = await Order.findById(order._id);
+      if (fresh) {
+        Object.assign(order, fresh.toObject());
+      }
+    } else {
+      throw orderSaveErr;
+    }
+  }
       }
     } catch (rzpLinkErr) {
       console.warn("[Order] Razorpay Payment Link generation notice:", rzpLinkErr.message);
@@ -532,7 +556,19 @@ async function getPublicCheckoutOrder(req, res, next) {
     const isExpired = order.checkoutExpiresAt && new Date(order.checkoutExpiresAt) < new Date();
     if (isExpired && order.orderStatus === "pending_payment") {
       order.orderStatus = "expired";
-      await order.save();
+      try {
+    await order.save();
+  } catch (orderSaveErr) {
+    if (orderSaveErr.name === "VersionError") {
+      console.warn("[Order] Concurrent order update detected; reloading fresh order state");
+      const fresh = await Order.findById(order._id);
+      if (fresh) {
+        Object.assign(order, fresh.toObject());
+      }
+    } else {
+      throw orderSaveErr;
+    }
+  }
     }
 
     return sendSuccess(
@@ -594,7 +630,19 @@ async function processPaymentAttempt(order) {
     attemptedAt: new Date(),
   });
   order.paymentStatus = "initiated";
-  await order.save();
+  try {
+    await order.save();
+  } catch (orderSaveErr) {
+    if (orderSaveErr.name === "VersionError") {
+      console.warn("[Order] Concurrent order update detected; reloading fresh order state");
+      const fresh = await Order.findById(order._id);
+      if (fresh) {
+        Object.assign(order, fresh.toObject());
+      }
+    } else {
+      throw orderSaveErr;
+    }
+  }
 
   // Create or locate Payment document
   let payment = await Payment.findOne({ providerOrderId: rzpOrder.id });
@@ -657,10 +705,11 @@ async function processVerifyPayment(order, body, actor, clientIp) {
   }
 
   // 2. Idempotency Check: if order is already marked paid, return existing state
-  if (order.orderStatus === "paid" && order.receiptId) {
-    const existingReceipt = await Receipt.findById(order.receiptId);
+  const currentOrder = (await Order.findById(order._id)) || order;
+  if (currentOrder.orderStatus === "paid" && currentOrder.receiptId) {
+    const existingReceipt = await Receipt.findById(currentOrder.receiptId);
     return {
-      order,
+      order: currentOrder,
       receipt: existingReceipt,
       receiptNumber: existingReceipt?.receiptNumber || "RCP/CONFIRMED",
       receiptVerificationToken: existingReceipt?.verificationToken,
@@ -686,16 +735,22 @@ async function processVerifyPayment(order, body, actor, clientIp) {
       invoiceId: order.invoiceId,
       patientId: order.patientId || undefined,
       amount: order.balanceDue,
+      amountPaid: order.balanceDue,
+      amountDue: 0,
       currency: order.currency || "INR",
       paymentMethod,
       paymentProvider: "razorpay",
       providerOrderId: razorpay_order_id || `order_mock_${Date.now()}`,
       providerTransactionId: razorpay_payment_id || `pay_mock_${Date.now()}`,
       status: "success",
+      paymentStatus: "PAID",
       paidAt: new Date(),
     });
   } else {
     payment.status = "success";
+    payment.paymentStatus = "PAID";
+    payment.amountPaid = payment.amount;
+    payment.amountDue = 0;
     payment.paidAt = new Date();
     payment.paymentMethod = paymentMethod;
     payment.providerTransactionId = razorpay_payment_id || payment.providerTransactionId;
@@ -704,7 +759,7 @@ async function processVerifyPayment(order, body, actor, clientIp) {
 
   // 4. Update Invoice State
   const invoice = await Invoice.findById(order.invoiceId);
-  if (invoice) {
+  if (invoice && invoice.status !== "paid") {
     invoice.paidAmount = invoice.totalAmount;
     invoice.balanceAmount = 0;
     invoice.status = "paid";
@@ -718,7 +773,15 @@ async function processVerifyPayment(order, body, actor, clientIp) {
       recordedAt: new Date(),
       notes: `Verified payment for Order ${order.orderNumber}`,
     });
-    await invoice.save();
+    try {
+      await invoice.save();
+    } catch (invSaveErr) {
+      if (invSaveErr.name === "VersionError") {
+        console.warn("[Order] Concurrent invoice update detected; proceeding safely");
+      } else {
+        throw invSaveErr;
+      }
+    }
   }
 
   // 5. Identity Resolution & Conversion Handover (Anti-Blind-Merge Guard)
@@ -832,7 +895,8 @@ async function processVerifyPayment(order, body, actor, clientIp) {
       entitlement = await grantPackageEntitlement({
         patientId: assignedPatientId,
         packageId: order.packageId,
-        orderId: order.orderNumber,
+        orderId: order._id,
+        orderNumber: order.orderNumber,
         paymentId: payment.paymentNumber,
         actor,
       });
@@ -855,7 +919,19 @@ async function processVerifyPayment(order, body, actor, clientIp) {
     timestamp: new Date(),
     notes: `Captured ₹${order.totalAmount} via ${paymentMethod} (${payment.providerTransactionId})`,
   });
-  await order.save();
+  try {
+    await order.save();
+  } catch (orderSaveErr) {
+    if (orderSaveErr.name === "VersionError") {
+      console.warn("[Order] Concurrent order update detected; reloading fresh order state");
+      const fresh = await Order.findById(order._id);
+      if (fresh) {
+        Object.assign(order, fresh.toObject());
+      }
+    } else {
+      throw orderSaveErr;
+    }
+  }
 
   // 9. Dispatch event notifications
   try {
@@ -1048,7 +1124,19 @@ async function createOrderRefundRequest(req, res, next) {
       timestamp: new Date(),
       notes: `Refund requested for ₹${finalAmount}. Reason: ${reason}`,
     });
+    try {
     await order.save();
+  } catch (orderSaveErr) {
+    if (orderSaveErr.name === "VersionError") {
+      console.warn("[Order] Concurrent order update detected; reloading fresh order state");
+      const fresh = await Order.findById(order._id);
+      if (fresh) {
+        Object.assign(order, fresh.toObject());
+      }
+    } else {
+      throw orderSaveErr;
+    }
+  }
 
     await recordAudit({
       actorId: req.user._id,
@@ -1140,7 +1228,19 @@ async function approveRefundRequest(req, res, next) {
           timestamp: new Date(),
           notes: `Refund of ₹${refund.requestedAmount} approved by Admin (${req.user.name || req.user.email})`,
         });
-        await order.save();
+        try {
+    await order.save();
+  } catch (orderSaveErr) {
+    if (orderSaveErr.name === "VersionError") {
+      console.warn("[Order] Concurrent order update detected; reloading fresh order state");
+      const fresh = await Order.findById(order._id);
+      if (fresh) {
+        Object.assign(order, fresh.toObject());
+      }
+    } else {
+      throw orderSaveErr;
+    }
+  }
       }
     }
 

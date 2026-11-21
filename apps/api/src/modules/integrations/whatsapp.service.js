@@ -452,6 +452,77 @@ TriGyna Health & Wellness`;
   }
 
   /**
+   * Send WhatsApp notification when a payment link is issued
+   */
+  async sendPaymentLinkAlert({
+    phone,
+    customerName,
+    serviceName,
+    amount,
+    checkoutUrl,
+    patientId = null,
+  }) {
+    const text = `Hello ${customerName || "Valued Patient"},
+
+Your TriGyna healthcare payment link for ${serviceName || "Clinical Service"} (₹${amount}) is ready.
+
+Secure Payment Link:
+${checkoutUrl}
+
+This link is valid for 7 days. For assistance, contact support at billing@trigyna.in.
+
+Regards,
+TriGyna Healthcare`;
+
+    try {
+      return await this.sendTextMessage({
+        to: phone,
+        text,
+        patientId,
+        initiator: { type: "system" },
+      });
+    } catch (err) {
+      console.warn("[WhatsApp] sendPaymentLinkAlert notice:", err.message);
+      return { success: false, error: err.message, status: "failed" };
+    }
+  }
+
+  /**
+   * Send WhatsApp payment success receipt confirmation
+   */
+  async sendPaymentSuccessReceipt({
+    phone,
+    customerName,
+    serviceName,
+    amount,
+    receiptNumber,
+    patientId = null,
+  }) {
+    const text = `Hello ${customerName || "Valued Patient"},
+
+Thank you! We have confirmed your payment of ₹${amount} for ${serviceName || "TriGyna Healthcare"}.
+
+Receipt Number: ${receiptNumber}
+
+Your consultation/package is active. You can access your official receipt anytime on the TriGyna Patient Portal.
+
+Regards,
+TriGyna Healthcare`;
+
+    try {
+      return await this.sendTextMessage({
+        to: phone,
+        text,
+        patientId,
+        initiator: { type: "system" },
+      });
+    } catch (err) {
+      console.warn("[WhatsApp] sendPaymentSuccessReceipt notice:", err.message);
+      return { success: false, error: err.message, status: "failed" };
+    }
+  }
+
+  /**
    * Reconcile delivery status from incoming Meta Status Webhook
    * ('sent', 'delivered', 'read', 'failed')
    */

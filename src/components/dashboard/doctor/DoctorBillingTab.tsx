@@ -18,9 +18,11 @@ import {
   Stethoscope,
   RefreshCw,
   Printer,
+  Plus,
 } from "lucide-react";
 import { api, getBaseUrl, getToken } from "@/lib/api/client";
 import { A4InvoiceDocument } from "@/components/billing/A4InvoiceDocument";
+import PaymentLinkGeneratorModal from "@/components/billing/PaymentLinkGeneratorModal";
 
 interface DoctorInvoice {
   _id: string;
@@ -67,6 +69,7 @@ export function DoctorBillingTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewingInvoice, setViewingInvoice] = useState<DoctorInvoice | null>(null);
   const [autoPrintInvoice, setAutoPrintInvoice] = useState(false);
+  const [showPaymentLinkModal, setShowPaymentLinkModal] = useState(false);
   const [notification, setNotification] = useState<{ msg: string; isError?: boolean } | null>(null);
 
   const showNotification = useCallback((msg: string, isError = false) => {
@@ -163,15 +166,25 @@ export function DoctorBillingTab() {
             Monitor verified consultation fee billings, patient settlement statuses, and official GST tax receipts.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={fetchDoctorBilling}
-          disabled={isLoading}
-          className="px-4 py-2 bg-[#EDF8F1] text-[#154734] hover:bg-[#D5EFE0] rounded-xl text-xs font-bold transition-all flex items-center gap-2 self-start sm:self-auto cursor-pointer"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
-          <span>Refresh Ledger</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => setShowPaymentLinkModal(true)}
+            className="px-4 py-2 bg-[#154734] text-white hover:bg-[#0f3426] rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Generate Payment Link</span>
+          </button>
+          <button
+            type="button"
+            onClick={fetchDoctorBilling}
+            disabled={isLoading}
+            className="px-4 py-2 bg-[#EDF8F1] text-[#154734] hover:bg-[#D5EFE0] rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+            <span>Refresh Ledger</span>
+          </button>
+        </div>
       </div>
 
       {/* Financial KPI Summary Cards */}
@@ -394,6 +407,19 @@ export function DoctorBillingTab() {
           </div>
         )}
       </div>
+
+      {/* Payment Link Generator Modal */}
+      {showPaymentLinkModal && (
+        <PaymentLinkGeneratorModal
+          isOpen={showPaymentLinkModal}
+          onClose={() => setShowPaymentLinkModal(false)}
+          onSuccess={() => {
+            fetchDoctorBilling();
+            showNotification("Payment link generated and dispatched successfully!");
+          }}
+          userRole="doctor"
+        />
+      )}
 
       {/* A4 Tax Invoice / Billing Slip Modal View */}
       {viewingInvoice && (

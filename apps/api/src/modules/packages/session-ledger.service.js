@@ -10,7 +10,7 @@ const { ValidationError, NotFoundError } = require("../../shared/errors");
 /**
  * Grant package entitlement upon verified payment or manual activation
  */
-async function grantPackageEntitlement({ patientId, packageId, orderId, paymentId, actor }) {
+async function grantPackageEntitlement({ patientId, packageId, orderId, orderNumber, paymentId, actor }) {
   const pkg = await Package.findById(packageId);
   if (!pkg) {
     throw new NotFoundError("Healthcare package not found");
@@ -24,6 +24,14 @@ async function grantPackageEntitlement({ patientId, packageId, orderId, paymentI
   const validityDays = pkg.validityDays || 90;
   const expiresAt = new Date(Date.now() + validityDays * 24 * 60 * 60 * 1000);
 
+  const rawIdentifiers = [
+    orderId,
+    orderId ? orderId.toString() : null,
+    orderNumber,
+  ].filter(Boolean);
+  const uniqueIdentifiers = Array.from(new Set(rawIdentifiers));
+  const finalOrderId = uniqueIdentifiers.length > 1 ? uniqueIdentifiers : (uniqueIdentifiers[0] || orderId);
+
   const entitlement = await Entitlement.create({
     patientId,
     packageId: pkg._id,
@@ -32,9 +40,11 @@ async function grantPackageEntitlement({ patientId, packageId, orderId, paymentI
     availableSessions: pkg.totalSessions,
     reservedSessions: 0,
     consumedSessions: 0,
+    sessionsRemaining: pkg.totalSessions,
     status: "active",
     expiresAt,
-    orderId,
+    orderId: finalOrderId,
+    orderNumber: orderNumber || (typeof orderId === "string" && orderId.startsWith("ORD-") ? orderId : undefined),
     paymentId,
   });
 

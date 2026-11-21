@@ -35,6 +35,15 @@ async function requireAuth(req, res, next) {
       return next(new ForbiddenError(`Your account is ${user.status}. Please contact an administrator.`));
     }
 
+    // Immediate session invalidation via authVersion
+    if (
+      decoded.authVersion !== undefined &&
+      user.authVersion !== undefined &&
+      decoded.authVersion !== user.authVersion
+    ) {
+      return next(new UnauthorizedError("Session has been invalidated due to a security update or session revocation. Please log in again."));
+    }
+
     req.user = user;
     return next();
   } catch (err) {
@@ -56,7 +65,13 @@ async function optionalAuth(req, res, next) {
         const decoded = jwt.verify(token, env.JWT_SECRET);
         const user = await User.findById(decoded.id);
         if (user && user.status === "active") {
-          req.user = user;
+          if (
+            decoded.authVersion === undefined ||
+            user.authVersion === undefined ||
+            decoded.authVersion === user.authVersion
+          ) {
+            req.user = user;
+          }
         }
       } catch {
         // Silently ignore invalid optional tokens

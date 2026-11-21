@@ -17,6 +17,8 @@ const { generateAtomicPatientCode, generateAtomicOrderNumber, generateAtomicInvo
 const { safeRegex } = require("../../shared/regex.utils");
 const { createOrder } = require("../billing/order.controller");
 const env = require("../../config/env");
+const { canAccessLead } = require("../auth/authorization.service");
+const { hasPermission, PERMISSIONS } = require("../../config/permissions");
 
 /**
  * ----------------------------------------------------------------------
@@ -44,7 +46,20 @@ async function listLeads(req, res, next) {
     const query = {};
 
     // Role-based data isolation
-    if (assignedTo && mongoose.isValidObjectId(assignedTo)) {
+    if (req.user && (req.user.role === "sales" || req.user.role === "crm")) {
+      const canViewAll = hasPermission(req.user, PERMISSIONS.LEADS_VIEW_ALL);
+      if (!canViewAll) {
+        if (!assignedTo) {
+          query.$or = [{ assignedTo: req.user._id }, { assignedTo: null }];
+        } else if (assignedTo.toString() !== req.user._id.toString()) {
+          return sendSuccess(res, { leads: [], total: 0, page: parseInt(page, 10) }, "Leads retrieved");
+        } else {
+          query.assignedTo = req.user._id;
+        }
+      } else if (assignedTo && mongoose.isValidObjectId(assignedTo)) {
+        query.assignedTo = new mongoose.Types.ObjectId(assignedTo);
+      }
+    } else if (assignedTo && mongoose.isValidObjectId(assignedTo)) {
       query.assignedTo = new mongoose.Types.ObjectId(assignedTo);
     } else if (req.user.role === "sales" && scope === "me") {
       query.assignedTo = req.user._id;
@@ -235,6 +250,10 @@ async function getLeadById(req, res, next) {
       return next(new NotFoundError("Lead record not found"));
     }
 
+    if (!canAccessLead(req.user, lead)) {
+      return next(new ForbiddenError("Access denied: You are not authorized to view this lead"));
+    }
+
     return sendSuccess(res, { lead }, "Lead details retrieved successfully");
   } catch (err) {
     return next(err);
@@ -250,6 +269,10 @@ async function updateLead(req, res, next) {
     const lead = await Lead.findById(leadId);
     if (!lead) {
       return next(new NotFoundError("Lead record not found"));
+    }
+
+    if (!canAccessLead(req.user, lead)) {
+      return next(new ForbiddenError("Access denied: You are not authorized to modify this lead"));
     }
 
     const allowedFields = [
@@ -297,6 +320,10 @@ async function updateLeadStage(req, res, next) {
     const lead = await Lead.findById(leadId);
     if (!lead) {
       return next(new NotFoundError("Lead record not found"));
+    }
+
+    if (!canAccessLead(req.user, lead)) {
+      return next(new ForbiddenError("Access denied: You are not authorized to modify this lead"));
     }
 
     const prevStage = lead.status;

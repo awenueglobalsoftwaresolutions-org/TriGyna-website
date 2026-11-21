@@ -103,7 +103,25 @@ async function resolveOrder(ref) {
     }
   }
 
-  // 5. Try MongoDB ObjectId if valid format
+  // 5. Try providerOrderId in paymentAttempts or Payment document
+  order = await Order.findOne({ "paymentAttempts.providerOrderId": cleanRef })
+    .populate("packageId")
+    .populate("invoiceId")
+    .populate("receiptId");
+  if (order) return order;
+
+  const paymentDoc = await Payment.findOne({
+    $or: [{ providerOrderId: cleanRef }, { providerTransactionId: cleanRef }],
+  });
+  if (paymentDoc?.orderId) {
+    order = await Order.findById(paymentDoc.orderId)
+      .populate("packageId")
+      .populate("invoiceId")
+      .populate("receiptId");
+    if (order) return order;
+  }
+
+  // 6. Try MongoDB ObjectId if valid format
   if (mongoose.Types.ObjectId.isValid(cleanRef)) {
     order = await Order.findById(cleanRef)
       .populate("packageId")
@@ -510,6 +528,7 @@ async function createCheckoutOrder(req, res, next) {
         razorpay: {
           keyId: paymentAttempt.keyId,
           orderId: paymentAttempt.providerOrderId,
+          amount: paymentAttempt.amountPaise,
           amountPaise: paymentAttempt.amountPaise,
           amountRupees: order.balanceDue,
           currency: paymentAttempt.currency,
@@ -608,7 +627,26 @@ async function createCheckoutPayment(req, res, next) {
     }
 
     const result = await processPaymentAttempt(order);
-    return sendSuccess(res, result, "Razorpay payment attempt created");
+    const razorpayOptions = {
+      keyId: result.keyId,
+      orderId: result.providerOrderId,
+      amount: result.amountPaise,
+      amountPaise: result.amountPaise,
+      amountRupees: order.balanceDue,
+      currency: result.currency,
+      customerName: order.customerName,
+      customerPhone: order.customerPhone,
+      customerEmail: order.customerEmail || "",
+    };
+
+    return sendSuccess(
+      res,
+      {
+        ...result,
+        razorpay: razorpayOptions,
+      },
+      "Razorpay payment attempt created"
+    );
   } catch (err) {
     return next(err);
   }
@@ -620,7 +658,13 @@ async function createCheckoutPayment(req, res, next) {
  */
 async function verifyCheckoutPaymentHandler(req, res, next) {
   try {
-    const reference = req.params.reference || req.body.reference || req.body.orderId || req.body.token;
+    const reference =
+      req.params.reference ||
+      req.body.reference ||
+      req.body.orderId ||
+      req.body.token ||
+      req.body.razorpay_order_id ||
+      req.body.razorpayOrderId;
     const order = await resolveOrder(reference);
 
     if (!order) {
@@ -633,9 +677,14 @@ async function verifyCheckoutPaymentHandler(req, res, next) {
       res,
       {
         verified: true,
+        order: result.order || order,
         orderNumber: order.orderNumber,
         orderStatus: order.orderStatus,
         paymentStatus: order.paymentStatus,
+        receipt: result.receipt || {
+          receiptNumber: result.receiptNumber,
+          verificationToken: result.receiptVerificationToken,
+        },
         receiptNumber: result.receiptNumber,
         receiptVerificationToken: result.receiptVerificationToken,
         entitlementId: result.entitlementId,
@@ -644,6 +693,42 @@ async function verifyCheckoutPaymentHandler(req, res, next) {
       "Payment verified successfully. Receipt and package entitlements generated."
     );
   } catch (err) {
+    if (err.name === "VersionError") {
+      try {
+        const reference =
+          req.params.reference ||
+          req.body.reference ||
+          req.body.orderId ||
+          req.body.token ||
+          req.body.razorpay_order_id ||
+          req.body.razorpayOrderId;
+        const freshOrder = await resolveOrder(reference);
+        if (freshOrder && (freshOrder.orderStatus === "paid" || freshOrder.receiptId)) {
+          const receipt = freshOrder.receiptId ? await Receipt.findById(freshOrder.receiptId) : null;
+          return sendSuccess(
+            res,
+            {
+              verified: true,
+              order: freshOrder,
+              orderNumber: freshOrder.orderNumber,
+              orderStatus: freshOrder.orderStatus,
+              paymentStatus: freshOrder.paymentStatus,
+              receipt: receipt || {
+                receiptNumber: receipt ? receipt.receiptNumber : "RCP/CONFIRMED",
+                verificationToken: receipt ? receipt.verificationToken : null,
+              },
+              receiptNumber: receipt ? receipt.receiptNumber : "RCP/CONFIRMED",
+              receiptVerificationToken: receipt ? receipt.verificationToken : null,
+              entitlementId: freshOrder.entitlementId || null,
+              idempotent: true,
+            },
+            "Payment verified idempotently under concurrent execution"
+          );
+        }
+      } catch (innerErr) {
+        // Fall through to next(err)
+      }
+    }
     return next(err);
   }
 }

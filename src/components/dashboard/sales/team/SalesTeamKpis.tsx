@@ -1,11 +1,11 @@
 "use client";
 
 import React from "react";
-import { Users, Target, BarChart3, UserCheck, ArrowUp, ArrowDown } from "lucide-react";
+import { Users, Target, BarChart3, UserCheck, ArrowUp, ArrowDown, Minus } from "lucide-react";
 import { SalesOverviewKpis } from "./salesTeamTypes";
 
 interface SalesTeamKpisProps {
-  kpis: SalesOverviewKpis | null;
+  kpis: SalesOverviewKpis | null | undefined;
   loading?: boolean;
 }
 
@@ -33,9 +33,9 @@ export const SalesTeamKpis: React.FC<SalesTeamKpisProps> = ({ kpis, loading = fa
   const cards = [
     {
       title: "Active Sales Reps",
-      value: kpis.activeReps.value,
-      changeText: kpis.activeReps.changeText,
-      trend: kpis.activeReps.trend,
+      value: kpis?.activeReps?.value ?? 0,
+      changeText: kpis?.activeReps?.changeText ?? "Active reps",
+      trend: kpis?.activeReps?.trend ?? "neutral",
       icon: Users,
       iconBg: "bg-[#E9F8F0]",
       iconColor: "text-[#087A50]",
@@ -43,9 +43,9 @@ export const SalesTeamKpis: React.FC<SalesTeamKpisProps> = ({ kpis, loading = fa
     },
     {
       title: "Team Conversion Rate",
-      value: kpis.teamConversionRate.value,
-      changeText: kpis.teamConversionRate.changeText,
-      trend: kpis.teamConversionRate.trend,
+      value: kpis?.teamConversionRate?.value ?? "0%",
+      changeText: kpis?.teamConversionRate?.changeText ?? "vs last month",
+      trend: kpis?.teamConversionRate?.trend ?? "neutral",
       icon: Target,
       iconBg: "bg-[#FAF5FF]",
       iconColor: "text-[#9333EA]",
@@ -53,9 +53,9 @@ export const SalesTeamKpis: React.FC<SalesTeamKpisProps> = ({ kpis, loading = fa
     },
     {
       title: "Total Leads (Team)",
-      value: kpis.totalLeads.value,
-      changeText: kpis.totalLeads.changeText,
-      trend: kpis.totalLeads.trend,
+      value: kpis?.totalLeads?.value ?? 0,
+      changeText: kpis?.totalLeads?.changeText ?? "vs last month",
+      trend: kpis?.totalLeads?.trend ?? "neutral",
       icon: BarChart3,
       iconBg: "bg-[#EFF6FF]",
       iconColor: "text-[#2563EB]",
@@ -63,9 +63,9 @@ export const SalesTeamKpis: React.FC<SalesTeamKpisProps> = ({ kpis, loading = fa
     },
     {
       title: "Converted Leads",
-      value: kpis.convertedLeads.value,
-      changeText: kpis.convertedLeads.changeText,
-      trend: kpis.convertedLeads.trend,
+      value: kpis?.convertedLeads?.value ?? 0,
+      changeText: kpis?.convertedLeads?.changeText ?? "vs last month",
+      trend: kpis?.convertedLeads?.trend ?? "neutral",
       icon: UserCheck,
       iconBg: "bg-[#E9F8F0]",
       iconColor: "text-[#087A50]",
@@ -78,6 +78,7 @@ export const SalesTeamKpis: React.FC<SalesTeamKpisProps> = ({ kpis, loading = fa
       {cards.map((card, idx) => {
         const Icon = card.icon;
         const isUp = card.trend === "up";
+        const isDown = card.trend === "down";
 
         return (
           <div
@@ -100,10 +101,20 @@ export const SalesTeamKpis: React.FC<SalesTeamKpisProps> = ({ kpis, loading = fa
               <div className="flex items-center gap-1 mt-1">
                 {isUp ? (
                   <ArrowUp className="w-3.5 h-3.5 text-[#16A36A] stroke-[2.5]" />
-                ) : (
+                ) : isDown ? (
                   <ArrowDown className="w-3.5 h-3.5 text-[#DC2626] stroke-[2.5]" />
+                ) : (
+                  <Minus className="w-3.5 h-3.5 text-[#64748B] stroke-[2.5]" />
                 )}
-                <span className="text-[11px] font-semibold text-[#16A36A]">
+                <span
+                  className={`text-[11px] font-semibold ${
+                    isUp
+                      ? "text-[#16A36A]"
+                      : isDown
+                      ? "text-[#DC2626]"
+                      : "text-[#64748B]"
+                  }`}
+                >
                   {card.changeText}
                 </span>
               </div>

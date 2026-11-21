@@ -37,7 +37,10 @@ const { listReceipts, getReceiptById, downloadReceiptPdf } = require("./receipt.
 const router = express.Router();
 
 // Webhook endpoints (called by payment gateway without user bearer token)
-router.post(["/webhook", "/payments/webhook"], handlePaymentWebhook);
+router.post(
+  ["/webhook", "/payments/webhook", "/webhooks/razorpay", "/webhook/razorpay", "/webhooks"],
+  handlePaymentWebhook
+);
 
 router.use(requireAuth);
 
@@ -54,10 +57,10 @@ router.post("/invoices/:id/issue", requireRole("owner", "admin", "reception"), i
 router.post("/invoices/:id/cancel", requireRole("owner", "admin"), cancelInvoice);
 
 // Payment Links
-router.get("/payment-links", requireRole("owner", "admin", "reception", "sales", "crm"), listPaymentLinks);
-router.post("/payment-links", requireRole("owner", "admin", "reception", "sales", "crm"), createPaymentLink);
-router.get("/payment-links/:id", requireRole("owner", "admin", "reception", "sales", "crm", "patient"), getPaymentLinkById);
-router.post("/payment-links/:id/send", requireRole("owner", "admin", "reception", "sales", "crm"), sendPaymentLink);
+router.get("/payment-links", requireRole("owner", "admin", "reception", "sales", "crm", "doctor"), listPaymentLinks);
+router.post("/payment-links", requireRole("owner", "admin", "reception", "sales", "crm", "doctor"), createPaymentLink);
+router.get("/payment-links/:id", requireRole("owner", "admin", "reception", "sales", "crm", "patient", "doctor"), getPaymentLinkById);
+router.post("/payment-links/:id/send", requireRole("owner", "admin", "reception", "sales", "crm", "doctor"), sendPaymentLink);
 router.post("/payment-links/:id/cancel", requireRole("owner", "admin", "reception"), cancelPaymentLink);
 router.patch("/payment-links/:id/cancel", requireRole("owner", "admin", "reception"), cancelPaymentLink);
 

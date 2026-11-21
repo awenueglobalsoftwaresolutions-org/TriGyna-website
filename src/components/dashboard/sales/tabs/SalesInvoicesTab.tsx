@@ -28,6 +28,7 @@ import {
   ArrowRight,
   ChevronRight,
   AlertTriangle,
+  Plus,
 } from "lucide-react";
 import { api, getBaseUrl, getToken } from "@/lib/api/client";
 import {
@@ -35,6 +36,7 @@ import {
   BillingReceiptModal,
   PaymentReceiptData,
 } from "@/components/billing/BillingReceipt";
+import PaymentLinkGeneratorModal from "@/components/billing/PaymentLinkGeneratorModal";
 
 export interface InvoiceItem {
   _id: string;
@@ -175,6 +177,7 @@ export function SalesInvoicesTab({ showNotification }: SalesInvoicesTabProps) {
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<SalesOrderItem | null>(null);
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
+  const [showLinkModal, setShowLinkModal] = useState(false);
 
   // Fetch Invoices
   const fetchInvoices = useCallback(
@@ -507,6 +510,15 @@ export function SalesInvoicesTab({ showNotification }: SalesInvoicesTabProps) {
               <span>Assisted Orders ({orders.length})</span>
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowLinkModal(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#064A2D] hover:bg-[#053d25] text-white text-xs font-bold transition cursor-pointer shadow-xs"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Generate Payment Link</span>
+          </button>
 
           <button
             type="button"
@@ -1275,6 +1287,19 @@ export function SalesInvoicesTab({ showNotification }: SalesInvoicesTabProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Payment Link Generator Modal */}
+      {showLinkModal && (
+        <PaymentLinkGeneratorModal
+          isOpen={showLinkModal}
+          onClose={() => setShowLinkModal(false)}
+          onSuccess={() => {
+            fetchInvoices();
+            fetchOrders();
+          }}
+          userRole="sales"
+        />
       )}
     </div>
   );

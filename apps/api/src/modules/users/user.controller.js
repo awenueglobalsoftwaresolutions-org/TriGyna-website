@@ -4,6 +4,7 @@ const { sendSuccess } = require("../../shared/response");
 const { ValidationError, NotFoundError, ForbiddenError } = require("../../shared/errors");
 const { recordAudit } = require("../audit/audit.service");
 const { safeRegex } = require("../../shared/regex.utils");
+const { PERMISSIONS, ROLE_PERMISSIONS, getEffectivePermissions } = require("../../config/permissions");
 
 async function listUsers(req, res, next) {
   try {
@@ -19,7 +20,13 @@ async function listUsers(req, res, next) {
       }
     }
 
-    const users = await User.find(query).sort({ createdAt: -1 }).select("-passwordHash");
+    const rawUsers = await User.find(query).sort({ createdAt: -1 }).select("-passwordHash");
+    const users = rawUsers.map((u) => {
+      const plain = u.toObject();
+      plain.effectivePermissions = getEffectivePermissions(u);
+      return plain;
+    });
+
     return sendSuccess(res, { users, count: users.length }, "Users retrieved successfully");
   } catch (err) {
     return next(err);
@@ -95,7 +102,9 @@ async function getUserById(req, res, next) {
     if (!user) {
       return next(new NotFoundError("User not found"));
     }
-    return sendSuccess(res, { user }, "User retrieved");
+    const plain = user.toObject();
+    plain.effectivePermissions = getEffectivePermissions(user);
+    return sendSuccess(res, { user: plain }, "User retrieved");
   } catch (err) {
     return next(err);
   }
@@ -138,6 +147,23 @@ async function updateUser(req, res, next) {
       }
     }
 
+    const roleOrStatusChanged = (role && role !== targetUser.role) || (status && status !== targetUser.status);
+    if (roleOrStatusChanged) {
+      targetUser.authVersion = (targetUser.authVersion || 1) + 1;
+      if (!targetUser.securityHistory) targetUser.securityHistory = [];
+      targetUser.securityHistory.push({
+        action: "ROLE_OR_STATUS_CHANGED",
+        performedBy: req.user._id,
+        details: {
+          previousRole: targetUser.role,
+          newRole: role,
+          previousStatus: targetUser.status,
+          newStatus: status,
+        },
+        timestamp: new Date(),
+      });
+    }
+
     if (name) targetUser.name = name.trim();
     if (role) targetUser.role = role;
     if (status) targetUser.status = status;
@@ -152,7 +178,7 @@ async function updateUser(req, res, next) {
       action: "USER_UPDATED",
       targetEntity: "User",
       targetId: targetUser._id.toString(),
-      details: { role: targetUser.role, status: targetUser.status },
+      details: { role: targetUser.role, status: targetUser.status, authVersion: targetUser.authVersion },
       ipAddress: req.ip,
     });
 
@@ -166,6 +192,7 @@ async function updateUser(req, res, next) {
           phone: targetUser.phone,
           role: targetUser.role,
           status: targetUser.status,
+          authVersion: targetUser.authVersion,
         },
       },
       "User updated successfully"
@@ -194,6 +221,15 @@ async function resetUserPassword(req, res, next) {
 
     const passwordHash = await User.hashPassword(newPassword);
     targetUser.passwordHash = passwordHash;
+    targetUser.authVersion = (targetUser.authVersion || 1) + 1;
+
+    if (!targetUser.securityHistory) targetUser.securityHistory = [];
+    targetUser.securityHistory.push({
+      action: "PASSWORD_RESET",
+      performedBy: req.user._id,
+      timestamp: new Date(),
+    });
+
     await targetUser.save();
 
     await recordAudit({
@@ -202,11 +238,238 @@ async function resetUserPassword(req, res, next) {
       action: "USER_PASSWORD_RESET",
       targetEntity: "User",
       targetId: targetUser._id.toString(),
-      details: { role: targetUser.role },
+      details: { role: targetUser.role, authVersion: targetUser.authVersion },
       ipAddress: req.ip,
     });
 
-    return sendSuccess(res, {}, "User password reset successfully");
+    return sendSuccess(res, {}, "User password reset successfully and active sessions invalidated");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * PATCH /api/v1/users/:id/status
+ * Administrative status update (active, suspended, inactive) with instant token invalidation
+ */
+async function updateUserStatus(req, res, next) {
+  try {
+    const { status, reason } = req.body;
+    const validStatuses = ["active", "inactive", "suspended", "invited"];
+    if (!status || !validStatuses.includes(status)) {
+      return next(new ValidationError(`Status must be one of: ${validStatuses.join(", ")}`));
+    }
+
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) {
+      return next(new NotFoundError("User not found"));
+    }
+
+    if (targetUser.role === "owner" && status !== "active" && req.user.role !== "owner") {
+      return next(new ForbiddenError("Only an Owner can modify an Owner's status"));
+    }
+
+    const prevStatus = targetUser.status;
+    targetUser.status = status;
+    targetUser.authVersion = (targetUser.authVersion || 1) + 1; // Instant revocation of all bearer tokens
+
+    if (!targetUser.securityHistory) targetUser.securityHistory = [];
+    targetUser.securityHistory.push({
+      action: status === "suspended" ? "ACCOUNT_SUSPENDED" : "STATUS_UPDATED",
+      performedBy: req.user._id,
+      details: { previousStatus: prevStatus, newStatus: status, reason: reason || "Administrative update" },
+      timestamp: new Date(),
+    });
+
+    await targetUser.save();
+
+    await recordAudit({
+      actorId: req.user._id,
+      actorRole: req.user.role,
+      action: status === "suspended" ? "USER_SUSPENDED" : "USER_STATUS_UPDATED",
+      targetEntity: "User",
+      targetId: targetUser._id.toString(),
+      details: { previousStatus: prevStatus, newStatus: status, authVersion: targetUser.authVersion },
+      ipAddress: req.ip,
+    });
+
+    return sendSuccess(
+      res,
+      {
+        user: {
+          id: targetUser._id,
+          name: targetUser.name,
+          status: targetUser.status,
+          authVersion: targetUser.authVersion,
+        },
+      },
+      `User account status updated to '${status}'. All existing sessions invalidated.`
+    );
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * POST /api/v1/users/:id/revoke-sessions
+ * Manually revokes all active session tokens for a user
+ */
+async function revokeUserSessions(req, res, next) {
+  try {
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) {
+      return next(new NotFoundError("User not found"));
+    }
+
+    targetUser.authVersion = (targetUser.authVersion || 1) + 1;
+
+    if (!targetUser.securityHistory) targetUser.securityHistory = [];
+    targetUser.securityHistory.push({
+      action: "SESSIONS_REVOKED",
+      performedBy: req.user._id,
+      details: { newAuthVersion: targetUser.authVersion },
+      timestamp: new Date(),
+    });
+
+    await targetUser.save();
+
+    await recordAudit({
+      actorId: req.user._id,
+      actorRole: req.user.role,
+      action: "USER_SESSIONS_REVOKED",
+      targetEntity: "User",
+      targetId: targetUser._id.toString(),
+      details: { newAuthVersion: targetUser.authVersion },
+      ipAddress: req.ip,
+    });
+
+    return sendSuccess(
+      res,
+      { authVersion: targetUser.authVersion },
+      "All active sessions for this user have been successfully revoked."
+    );
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * PATCH /api/v1/users/:id/permissions
+ * Administrative assignment of custom and denied permissions
+ */
+async function updateUserPermissions(req, res, next) {
+  try {
+    const { customPermissions = [], deniedPermissions = [] } = req.body;
+
+    if (!Array.isArray(customPermissions) || !Array.isArray(deniedPermissions)) {
+      return next(new ValidationError("customPermissions and deniedPermissions must be arrays of strings"));
+    }
+
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) {
+      return next(new NotFoundError("User not found"));
+    }
+
+    if (targetUser.role === "owner" && req.user.role !== "owner") {
+      return next(new ForbiddenError("Only an Owner can modify permissions on an Owner account"));
+    }
+
+    targetUser.customPermissions = customPermissions.map((p) => String(p).trim());
+    targetUser.deniedPermissions = deniedPermissions.map((p) => String(p).trim());
+    targetUser.authVersion = (targetUser.authVersion || 1) + 1; // Instant re-evaluation for next requests
+
+    if (!targetUser.securityHistory) targetUser.securityHistory = [];
+    targetUser.securityHistory.push({
+      action: "PERMISSIONS_UPDATED",
+      performedBy: req.user._id,
+      details: {
+        customPermissions: targetUser.customPermissions,
+        deniedPermissions: targetUser.deniedPermissions,
+      },
+      timestamp: new Date(),
+    });
+
+    await targetUser.save();
+
+    await recordAudit({
+      actorId: req.user._id,
+      actorRole: req.user.role,
+      action: "USER_PERMISSIONS_UPDATED",
+      targetEntity: "User",
+      targetId: targetUser._id.toString(),
+      details: {
+        customPermissions: targetUser.customPermissions,
+        deniedPermissions: targetUser.deniedPermissions,
+        authVersion: targetUser.authVersion,
+      },
+      ipAddress: req.ip,
+    });
+
+    return sendSuccess(
+      res,
+      {
+        user: {
+          id: targetUser._id,
+          name: targetUser.name,
+          role: targetUser.role,
+          customPermissions: targetUser.customPermissions,
+          deniedPermissions: targetUser.deniedPermissions,
+          effectivePermissions: getEffectivePermissions(targetUser),
+          authVersion: targetUser.authVersion,
+        },
+      },
+      "User granular permissions successfully updated."
+    );
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * GET /api/v1/users/permissions/catalog
+ * Returns the complete permission catalogue and role defaults
+ */
+async function getPermissionsCatalog(req, res) {
+  return sendSuccess(
+    res,
+    {
+      permissions: PERMISSIONS,
+      rolePermissions: ROLE_PERMISSIONS,
+    },
+    "Permissions catalogue retrieved"
+  );
+}
+
+/**
+ * GET /api/v1/users/:id/security-history
+ * Returns user security history events and associated audit records
+ */
+async function getUserSecurityHistory(req, res, next) {
+  try {
+    const targetUser = await User.findById(req.params.id).select("name email role status securityHistory");
+    if (!targetUser) {
+      return next(new NotFoundError("User not found"));
+    }
+
+    const auditLogs = await AuditLog.find({ targetId: targetUser._id.toString() })
+      .sort({ timestamp: -1 })
+      .limit(50)
+      .populate("actorId", "name email role");
+
+    return sendSuccess(
+      res,
+      {
+        user: {
+          id: targetUser._id,
+          name: targetUser.name,
+          role: targetUser.role,
+          status: targetUser.status,
+        },
+        securityHistory: targetUser.securityHistory || [],
+        auditLogs,
+      },
+      "User security history retrieved"
+    );
   } catch (err) {
     return next(err);
   }
@@ -251,5 +514,10 @@ module.exports = {
   getUserById,
   updateUser,
   resetUserPassword,
+  updateUserStatus,
+  revokeUserSessions,
+  updateUserPermissions,
+  getPermissionsCatalog,
+  getUserSecurityHistory,
   getAuditLogs,
 };

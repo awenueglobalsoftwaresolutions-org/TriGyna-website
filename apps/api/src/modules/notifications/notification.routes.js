@@ -1,7 +1,11 @@
 const express = require("express");
 const { requireAuth } = require("../../middleware/auth");
+const { requireRole } = require("../../middleware/rbac");
 const {
   listNotifications,
+  listNotificationLogs,
+  dispatchPaymentLinkNotification,
+  dispatchPaymentSuccessNotification,
   markAsRead,
   markAllAsRead,
   subscribePushToken,
@@ -14,6 +18,9 @@ const router = express.Router();
 router.use(requireAuth);
 
 router.get("/", listNotifications);
+router.get("/logs", requireRole("owner", "admin", "reception", "sales", "crm"), listNotificationLogs);
+router.post("/payment-link", requireRole("owner", "admin", "reception", "sales", "crm"), dispatchPaymentLinkNotification);
+router.post("/payment-success", requireRole("owner", "admin", "reception", "sales", "crm"), dispatchPaymentSuccessNotification);
 router.patch("/read-all", markAllAsRead);
 router.post("/read-all", markAllAsRead);
 router.patch("/:id/read", markAsRead);

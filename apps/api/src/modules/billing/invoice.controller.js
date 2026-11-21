@@ -806,7 +806,51 @@ async function handlePaymentWebhook(req, res, next) {
     const paymentLinkId = payload?.payment_link?.entity?.id || payload?.payment_link?.id;
 
     if (!providerTxnId && !orderId && !paymentLinkId && !payload?.refund?.entity?.id) {
-      return sendSuccess(res, { received: true }, "Webhook received without transaction identifier");
+      return res.status(200).json({ status: "ok", received: true, success: true, data: { received: true } });
+    }
+
+    const PaymentWebhookEvent = require("./payment-webhook-event.model");
+    const PaymentTransaction = require("./payment-transaction.model");
+
+    const eventId =
+      req.headers["x-razorpay-event-id"] ||
+      req.body.id ||
+      `evt_${providerTxnId || paymentLinkId || orderId || Date.now()}`;
+
+    // Event-level idempotency
+    const existingWebhookEvent = await PaymentWebhookEvent.findOne({ eventId });
+    if (existingWebhookEvent && existingWebhookEvent.processingStatus === "processed") {
+      return res.status(200).json({
+        status: "ok",
+        received: true,
+        idempotent: true,
+        success: true,
+        data: { received: true, idempotent: true },
+      });
+    }
+
+    if (!existingWebhookEvent) {
+      try {
+        await PaymentWebhookEvent.create({
+          eventId,
+          eventType: event || "unknown",
+          razorpayEntityId: providerTxnId || paymentLinkId || orderId,
+          signatureVerified: Boolean(signature),
+          processingStatus: "pending",
+          payload: req.body,
+        });
+      } catch (evtErr) {
+        const raceEvent = await PaymentWebhookEvent.findOne({ eventId });
+        if (raceEvent && raceEvent.processingStatus === "processed") {
+          return res.status(200).json({
+            status: "ok",
+            received: true,
+            idempotent: true,
+            success: true,
+            data: { received: true, idempotent: true },
+          });
+        }
+      }
     }
 
     // Idempotency check: already marked success?
@@ -814,12 +858,23 @@ async function handlePaymentWebhook(req, res, next) {
       const existing = await Payment.findOne({
         $or: [
           { providerTransactionId: providerTxnId, status: "success" },
+          { razorpayPaymentId: providerTxnId, paymentStatus: "PAID" },
           { "metadata.orderId": orderId, status: "success" },
         ],
       });
 
       if (existing) {
-        return sendSuccess(res, { received: true, idempotent: true }, "Webhook event already processed");
+        await PaymentWebhookEvent.updateOne(
+          { eventId },
+          { processingStatus: "duplicate", processedAt: new Date() }
+        );
+        return res.status(200).json({
+          status: "ok",
+          received: true,
+          idempotent: true,
+          success: true,
+          data: { received: true, idempotent: true },
+        });
       }
     }
 
@@ -962,7 +1017,38 @@ async function handlePaymentWebhook(req, res, next) {
           }
         }
 
-        return sendSuccess(res, { received: true, status: "PROCESSED", linkId: plink.paymentLinkId }, "Payment link webhook processed");
+        // Record PaymentTransaction
+        try {
+          await PaymentTransaction.create({
+            paymentId: payment._id,
+            invoiceId: plink.invoiceId,
+            patientId: plink.patientId,
+            razorpayPaymentId: providerTxnId,
+            razorpayOrderId: orderId || plink.razorpayPaymentLinkId,
+            razorpayPaymentLinkId: paymentLinkId,
+            amount: paidRupees,
+            currency: "INR",
+            status: "SUCCESS",
+            paymentMethod: payment.paymentMethod,
+            verifiedAt: new Date(),
+          });
+        } catch (txnErr) {
+          console.warn("[Razorpay Webhook] PaymentTransaction log notice:", txnErr.message);
+        }
+
+        await PaymentWebhookEvent.updateOne(
+          { eventId },
+          { processingStatus: "processed", processedAt: new Date() }
+        );
+
+        return res.status(200).json({
+          status: "ok",
+          received: true,
+          success: true,
+          statusText: "PROCESSED",
+          linkId: plink.paymentLinkId,
+          data: { received: true, status: "PROCESSED", linkId: plink.paymentLinkId },
+        });
       }
     }
 
@@ -1057,15 +1143,44 @@ async function handlePaymentWebhook(req, res, next) {
       }
     } else if (event === "payment.failed") {
       const payment = await Payment.findOne({
-        $or: [{ providerTransactionId: providerTxnId }, { providerTransactionId: orderId }],
+        $or: [{ providerTransactionId: providerTxnId }, { providerTransactionId: orderId }, { razorpayPaymentId: providerTxnId }],
       });
       if (payment) {
         payment.status = "failed";
+        payment.paymentStatus = "FAILED";
         await payment.save();
+      }
+
+      try {
+        await PaymentTransaction.create({
+          paymentId: payment?._id,
+          invoiceId: payment?.invoiceId,
+          patientId: payment?.patientId,
+          razorpayPaymentId: providerTxnId,
+          razorpayOrderId: orderId,
+          amount: payload?.payment?.entity?.amount ? roundToTwo(payload.payment.entity.amount / 100) : 0,
+          currency: "INR",
+          status: "FAILED",
+          paymentMethod: payload?.payment?.entity?.method || "upi",
+          failureReason: payload?.payment?.entity?.error_description || "Transaction failed at issuing bank",
+        });
+      } catch (txnErr) {
+        console.warn("[Razorpay Webhook] PaymentTransaction failure log notice:", txnErr.message);
       }
     }
 
-    return sendSuccess(res, { received: true, status: "PROCESSED" }, "Razorpay webhook processed successfully");
+    await PaymentWebhookEvent.updateOne(
+      { eventId },
+      { processingStatus: "processed", processedAt: new Date() }
+    );
+
+    return res.status(200).json({
+      status: "ok",
+      received: true,
+      success: true,
+      statusText: "PROCESSED",
+      data: { received: true, status: "PROCESSED" },
+    });
   } catch (err) {
     return next(err);
   }

@@ -48,6 +48,15 @@ const env = {
   SESSION_SECRET: process.env.SESSION_SECRET || "dev_session_secret_trigyna_fallback_928341",
   JWT_SECRET: process.env.JWT_SECRET || "dev_jwt_secret_trigyna_fallback_928341",
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
+  RAZORPAY_MODE: process.env.RAZORPAY_MODE || "test",
+  RAZORPAY_KEY_ID: process.env.RAZORPAY_KEY_ID || "rzp_test_trigyna_key_2026",
+  RAZORPAY_KEY_SECRET: process.env.RAZORPAY_KEY_SECRET || "trigyna_rzp_secret_key_2026",
+  RAZORPAY_WEBHOOK_SECRET: process.env.RAZORPAY_WEBHOOK_SECRET || "trigyna_rzp_webhook_secret_2026",
+  META_GRAPH_API_VERSION: process.env.META_GRAPH_API_VERSION || "v21.0",
+  META_ACCESS_TOKEN: process.env.META_ACCESS_TOKEN || "",
+  META_WHATSAPP_PHONE_NUMBER_ID: process.env.META_WHATSAPP_PHONE_NUMBER_ID || "",
+  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || "smtp",
+  EMAIL_FROM_ADDRESS: process.env.EMAIL_FROM_ADDRESS || "billing@trigyna.in",
 };
 
 // Strict security validation for production environments

@@ -9,6 +9,12 @@ const paymentSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    paymentReference: {
+      type: String,
+      trim: true,
+      index: true,
+      sparse: true,
+    },
     invoiceId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Invoice",
@@ -24,9 +30,24 @@ const paymentSchema = new mongoose.Schema(
       ref: "Patient",
       index: true,
     },
+    serviceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Service",
+      index: true,
+    },
     amount: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    amountPaid: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    amountDue: {
+      type: Number,
+      default: 0,
       min: 0,
     },
     currency: {
@@ -36,12 +57,12 @@ const paymentSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["upi", "card", "cash", "bank_transfer", "netbanking", "wallet"],
+      enum: ["upi", "card", "cash", "bank_transfer", "netbanking", "wallet", "razorpay", "other"],
       required: true,
     },
     paymentProvider: {
       type: String,
-      default: "upi", // upi, phonepe, razorpay, stripe, cash, manual_pos
+      default: "razorpay", // upi, phonepe, razorpay, stripe, cash, manual_pos
       trim: true,
     },
     providerTransactionId: {
@@ -58,6 +79,25 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       trim: true,
       index: true,
+    },
+    razorpayPaymentLinkId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    razorpayOrderId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    razorpayPaymentId: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    paymentLinkUrl: {
+      type: String,
+      trim: true,
     },
     doctorId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -78,18 +118,58 @@ const paymentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["initiated", "pending", "success", "failed", "refunded", "partially_refunded"],
+      enum: [
+        "initiated",
+        "pending",
+        "processing",
+        "partially_paid",
+        "success",
+        "paid",
+        "failed",
+        "cancelled",
+        "expired",
+        "refunded",
+        "partially_refunded",
+      ],
       default: "pending",
+      index: true,
+    },
+    paymentStatus: {
+      type: String,
+      enum: [
+        "DRAFT",
+        "PENDING",
+        "PROCESSING",
+        "PARTIALLY_PAID",
+        "PAID",
+        "FAILED",
+        "CANCELLED",
+        "EXPIRED",
+        "REFUNDED",
+        "PARTIALLY_REFUNDED",
+      ],
+      default: "PENDING",
       index: true,
     },
     receiptId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Receipt",
     },
+    paymentInitiatedAt: {
+      type: Date,
+      default: Date.now,
+    },
     paidAt: {
       type: Date,
     },
+    expiresAt: {
+      type: Date,
+    },
     recordedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
@@ -112,6 +192,92 @@ const paymentSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Bidirectional synchronization between legacy and standard FinTech fields
+paymentSchema.pre("validate", function (next) {
+  if (!this.paymentNumber && this.paymentReference) {
+    this.paymentNumber = this.paymentReference;
+  }
+  if (!this.paymentReference && this.paymentNumber) {
+    this.paymentReference = this.paymentNumber;
+  }
+
+  // Cross-sync razorpay IDs
+  if (this.razorpayPaymentId && !this.providerPaymentId) {
+    this.providerPaymentId = this.razorpayPaymentId;
+  }
+  if (this.providerPaymentId && !this.razorpayPaymentId) {
+    this.razorpayPaymentId = this.providerPaymentId;
+  }
+  if (this.razorpayPaymentId && !this.providerTransactionId) {
+    this.providerTransactionId = this.razorpayPaymentId;
+  }
+  if (this.providerTransactionId && !this.razorpayPaymentId) {
+    this.razorpayPaymentId = this.providerTransactionId;
+  }
+  if (this.razorpayOrderId && !this.providerOrderId) {
+    this.providerOrderId = this.razorpayOrderId;
+  }
+  if (this.providerOrderId && !this.razorpayOrderId) {
+    this.razorpayOrderId = this.providerOrderId;
+  }
+
+  // User synchronization
+  if (this.createdBy && !this.recordedBy) {
+    this.recordedBy = this.createdBy;
+  }
+  if (this.recordedBy && !this.createdBy) {
+    this.createdBy = this.recordedBy;
+  }
+
+  // Status mapping
+  const statusMap = {
+    initiated: "PROCESSING",
+    pending: "PENDING",
+    processing: "PROCESSING",
+    partially_paid: "PARTIALLY_PAID",
+    success: "PAID",
+    paid: "PAID",
+    failed: "FAILED",
+    cancelled: "CANCELLED",
+    expired: "EXPIRED",
+    refunded: "REFUNDED",
+    partially_refunded: "PARTIALLY_REFUNDED",
+  };
+
+  const reverseStatusMap = {
+    DRAFT: "pending",
+    PENDING: "pending",
+    PROCESSING: "processing",
+    PARTIALLY_PAID: "partially_paid",
+    PAID: "success",
+    FAILED: "failed",
+    CANCELLED: "cancelled",
+    EXPIRED: "expired",
+    REFUNDED: "refunded",
+    PARTIALLY_REFUNDED: "partially_refunded",
+  };
+
+  if (this.isModified("status") && !this.isModified("paymentStatus")) {
+    this.paymentStatus = statusMap[this.status] || "PENDING";
+  } else if (this.isModified("paymentStatus") && !this.isModified("status")) {
+    this.status = reverseStatusMap[this.paymentStatus] || "pending";
+  } else if (!this.paymentStatus) {
+    this.paymentStatus = statusMap[this.status] || "PENDING";
+  }
+
+  // Balance & Amount Due
+  if (this.amount != null) {
+    if (this.amountPaid == null) {
+      this.amountPaid = this.status === "success" || this.paymentStatus === "PAID" ? this.amount : 0;
+    }
+    if (this.amountDue == null) {
+      this.amountDue = Math.max(0, this.amount - this.amountPaid);
+    }
+  }
+
+  next();
+});
 
 paymentSchema.index({ createdAt: -1 });
 

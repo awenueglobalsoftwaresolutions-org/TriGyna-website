@@ -9,7 +9,14 @@ export const metadata = {
   description: "Official 256-bit encrypted checkout and payment verification for TriGyna Health & Wellness.",
 };
 
-export default function TokenCheckoutPage({ params }: { params: { token: string } }) {
+type TokenCheckoutProps = {
+  params: Promise<{ token: string }> | { token: string };
+};
+
+export default async function TokenCheckoutPage({ params }: TokenCheckoutProps) {
+  const resolvedParams = await Promise.resolve(params);
+  const token = resolvedParams.token;
+
   return (
     <Suspense
       fallback={
@@ -21,7 +28,7 @@ export default function TokenCheckoutPage({ params }: { params: { token: string 
         </div>
       }
     >
-      <CheckoutPageContent initialToken={params.token} />
+      <CheckoutPageContent initialToken={token} />
     </Suspense>
   );
 }

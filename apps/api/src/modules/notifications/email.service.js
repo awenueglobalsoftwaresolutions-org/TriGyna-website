@@ -1,8 +1,18 @@
 const crypto = require("crypto");
+let nodemailer = null;
+try {
+  nodemailer = require("nodemailer");
+} catch {
+  // Graceful fallback if nodemailer is not present
+}
 
 const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || "simulated";
-const EMAIL_FROM_ADDRESS = process.env.EMAIL_FROM_ADDRESS || "care@trigyna.health";
-const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || "TriGyna Women's Health & Wellness";
+const EMAIL_HOST = process.env.EMAIL_HOST || "";
+const EMAIL_PORT = parseInt(process.env.EMAIL_PORT, 10) || 587;
+const EMAIL_USER = process.env.EMAIL_USER || "";
+const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD || "";
+const EMAIL_FROM_ADDRESS = process.env.EMAIL_FROM || process.env.EMAIL_FROM_ADDRESS || "care@trigyna.in";
+const EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || "TriGyna Healthcare";
 const EMAIL_API_KEY = process.env.EMAIL_API_KEY || "";
 
 // In-memory delivery history ring buffer (last 100 emails) for administrative inspection & testing
@@ -20,7 +30,7 @@ const EMAIL_TEMPLATES = {
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E2E9E3; border-radius: 12px;">
         <div style="background-color: #154734; padding: 20px; border-radius: 8px; text-align: center;">
           <h1 style="color: #ffffff; margin: 0; font-size: 24px;">TriGyna Health & Wellness</h1>
-          <p style="color: #D1E7DD; margin: 5px 0 0 0; font-size: 14px;">Prayagraj Clinical Care Desk</p>
+          <p style="color: #D1E7DD; margin: 5px 0 0 0; font-size: 14px;">Clinical Care Desk</p>
         </div>
         <div style="padding: 20px 0;">
           <p style="font-size: 16px; color: #18231D;">Dear <strong>${data.name || "Patient"}</strong>,</p>
@@ -59,7 +69,74 @@ const EMAIL_TEMPLATES = {
           <p style="color: #4B5563; font-size: 14px;">Please be available 5 minutes prior to your designated slot.</p>
         </div>
         <div style="border-top: 1px solid #E5E7EB; padding-top: 15px; font-size: 12px; color: #9CA3AF; text-align: center;">
-          TriGyna Clinic, Prayagraj • Support: +91 917-277-2326
+          TriGyna Clinic • Support: +91 917-277-2326
+        </div>
+      </div>
+    `,
+  },
+  payment_success: {
+    id: "payment_success",
+    name: "Payment Successful Confirmation",
+    subject: (data) => `Payment Successful – TriGyna Invoice ${data.invoiceNumber || ""}`,
+    renderHtml: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E2E9E3; border-radius: 12px;">
+        <div style="background-color: #087F56; padding: 24px; border-radius: 8px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">TriGyna Health &amp; Wellness</h1>
+          <p style="color: #D1E7DD; margin: 6px 0 0 0; font-size: 14px;">Payment Received &amp; Verified</p>
+        </div>
+        <div style="padding: 24px 0;">
+          <p style="font-size: 16px; color: #18231D;">Dear <strong>${data.patientName || "Patient"}</strong>,</p>
+          <p style="color: #4B5563; line-height: 1.6;">Your payment has been successfully received by TriGyna.</p>
+          
+          <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; margin: 20px 0;">
+            <p style="margin: 0 0 12px 0; font-weight: bold; color: #111827; font-size: 15px; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px;">Payment Details:</p>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #374151;">
+              <tr>
+                <td style="padding: 6px 0; color: #6B7280; width: 45%;">Patient Name:</td>
+                <td style="padding: 6px 0; font-weight: 600; color: #111827;">${data.patientName || "Valued Patient"}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6B7280;">Invoice Number:</td>
+                <td style="padding: 6px 0; font-weight: 600; color: #111827;">${data.invoiceNumber || "N/A"}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6B7280;">Service Name:</td>
+                <td style="padding: 6px 0; font-weight: 600; color: #111827;">${data.serviceName || "Clinical Consultation"}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6B7280;">Transaction ID:</td>
+                <td style="padding: 6px 0; font-family: monospace; font-size: 13px; color: #087F56; font-weight: bold;">${data.transactionId || data.receiptNumber || "N/A"}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6B7280;">Payment Date:</td>
+                <td style="padding: 6px 0; font-weight: 600; color: #111827;">${data.paymentDate || new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6B7280;">Amount Paid:</td>
+                <td style="padding: 6px 0; font-weight: bold; color: #087F56; font-size: 16px;">₹${Number(data.amountPaid || data.amount || 0).toLocaleString("en-IN")}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6B7280;">Remaining Balance:</td>
+                <td style="padding: 6px 0; font-weight: 600; color: #111827;">₹${Number(data.remainingBalance || 0).toLocaleString("en-IN")}</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #6B7280;">Payment Status:</td>
+                <td style="padding: 6px 0; font-weight: bold; color: #087F56; text-transform: uppercase;">${data.paymentStatus || "SUCCESSFUL"}</td>
+              </tr>
+            </table>
+          </div>
+
+          <p style="color: #4B5563; line-height: 1.6;">Thank you for choosing TriGyna.</p>
+          <p style="color: #4B5563; line-height: 1.6;">Your payment confirmation is attached to your account.</p>
+          
+          <div style="background-color: #ECFDF3; border-left: 4px solid #087F56; padding: 12px 16px; margin: 24px 0; border-radius: 4px;">
+            <p style="margin: 0; font-size: 13px; color: #075D42;"><strong>TriGyna Patient Support Hotline:</strong> +91 917-277-2326 • care@trigyna.in</p>
+          </div>
+
+          <p style="color: #111827; font-weight: 600; margin-top: 24px;">TriGyna Team</p>
+        </div>
+        <div style="border-top: 1px solid #E5E7EB; padding-top: 15px; font-size: 12px; color: #9CA3AF; text-align: center;">
+          © ${new Date().getFullYear()} TriGyna Health &amp; Wellness • 256-Bit SSL Encrypted Healthcare Portal
         </div>
       </div>
     `,
@@ -86,28 +163,7 @@ const EMAIL_TEMPLATES = {
           <p style="color: #4B5563; font-size: 14px;">You can view and download your full GST-compliant invoice directly from your TriGyna Patient Portal.</p>
         </div>
         <div style="border-top: 1px solid #E5E7EB; padding-top: 15px; font-size: 12px; color: #9CA3AF; text-align: center;">
-          TriGyna Accounts Desk • accounts@trigyna.health
-        </div>
-      </div>
-    `,
-  },
-  prescription_ready: {
-    id: "prescription_ready",
-    name: "Prescription & Clinical Summary Available",
-    subject: "Your TriGyna Prescription is Ready",
-    renderHtml: (data) => `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E2E9E3; border-radius: 12px;">
-        <div style="background-color: #154734; padding: 20px; border-radius: 8px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 22px;">Prescription Ready</h1>
-          <p style="color: #D1E7DD; margin: 5px 0 0 0; font-size: 14px;">TriGyna Digital Records</p>
-        </div>
-        <div style="padding: 20px 0;">
-          <p style="font-size: 16px; color: #18231D;">Dear <strong>${data.patientName || "Patient"}</strong>,</p>
-          <p style="color: #4B5563; line-height: 1.6;">Your consultation with <strong>${data.doctorName || "your physician"}</strong> has concluded, and your digital prescription <strong>#${data.prescriptionCode || ""}</strong> has been signed.</p>
-          <p style="color: #4B5563; line-height: 1.6;">To preserve confidentiality, full medical formulations and lifestyle advice can be accessed safely inside your TriGyna Patient Dashboard.</p>
-        </div>
-        <div style="border-top: 1px solid #E5E7EB; padding-top: 15px; font-size: 12px; color: #9CA3AF; text-align: center;">
-          TriGyna Clinical Team • Prayagraj
+          TriGyna Accounts Desk • accounts@trigyna.in
         </div>
       </div>
     `,
@@ -119,11 +175,11 @@ const EMAIL_TEMPLATES = {
     renderHtml: (data) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E2E9E3; border-radius: 12px;">
         <div style="background-color: #087F56; padding: 24px; border-radius: 8px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">TriGyna Health & Wellness</h1>
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">TriGyna Health &amp; Wellness</h1>
           <p style="color: #D1E7DD; margin: 6px 0 0 0; font-size: 14px;">Secure Patient Checkout &amp; Care Protocol</p>
         </div>
         <div style="padding: 24px 0;">
-          <p style="font-size: 16px; color: #18231D;">Dear <strong>${data.customerName || "Patient"}</strong>,</p>
+          <p style="font-size: 16px; color: #18231D;">Dear <strong>${data.customerName || data.patientName || "Patient"}</strong>,</p>
           <p style="color: #4B5563; line-height: 1.6;">Your clinical team has prepared your customized booking and payment link for <strong>${data.serviceName || "Clinical Care Protocol"}</strong>.</p>
           <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; margin: 20px 0;">
             <p style="margin: 4px 0; color: #64748B; font-size: 12px; text-transform: uppercase; font-weight: bold;">Payable Amount</p>
@@ -146,118 +202,157 @@ const EMAIL_TEMPLATES = {
       </div>
     `,
   },
-  staff_onboarding_invitation: {
-    id: "staff_onboarding_invitation",
-    name: "Staff Onboarding & Secure Account Activation",
-    subject: "Welcome to TriGyna Health & Wellness — Your Account Has Been Created",
+  payment_reminder: {
+    id: "payment_reminder",
+    name: "Payment Reminder",
+    subject: (data) => `Payment Reminder – TriGyna Invoice ${data.invoiceNumber || ""}`,
     renderHtml: (data) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E2E9E3; border-radius: 12px;">
-        <div style="background-color: #154734; padding: 24px; border-radius: 8px; text-align: center;">
+        <div style="background-color: #087F56; padding: 24px; border-radius: 8px; text-align: center;">
           <h1 style="color: #ffffff; margin: 0; font-size: 24px;">TriGyna Health &amp; Wellness</h1>
-          <p style="color: #D1E7DD; margin: 6px 0 0 0; font-size: 14px;">Staff Onboarding &amp; Clinical Operations</p>
+          <p style="color: #D1E7DD; margin: 6px 0 0 0; font-size: 14px;">Invoice Settlement Reminder</p>
         </div>
         <div style="padding: 24px 0;">
-          <p style="font-size: 16px; color: #18231D;">Dear <strong>${data.name || "Colleague"}</strong>,</p>
-          <p style="color: #4B5563; line-height: 1.6;">Welcome to TriGyna Health &amp; Wellness! Your staff user profile has been created by the Administration Team.</p>
+          <p style="font-size: 16px; color: #18231D;">Dear <strong>${data.patientName || "Patient"}</strong>,</p>
+          <p style="color: #4B5563; line-height: 1.6;">This is a friendly reminder regarding your outstanding invoice <strong>${data.invoiceNumber || ""}</strong> for <strong>${data.serviceName || "TriGyna Healthcare Services"}</strong>.</p>
           <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 18px; margin: 20px 0;">
-            <p style="margin: 4px 0; color: #18231D;"><strong>Role:</strong> ${String(data.role || "").toUpperCase()}</p>
-            <p style="margin: 4px 0; color: #18231D;"><strong>Employee ID:</strong> ${data.employeeCode || "Pending"}</p>
-            <p style="margin: 4px 0; color: #18231D;"><strong>Department:</strong> ${data.department || "Healthcare Operations"}</p>
-            <p style="margin: 4px 0; color: #18231D;"><strong>Consultation Mode:</strong> 100% Online Video (Google Meet / Zoom)</p>
-            <p style="margin: 4px 0; color: #64748B; font-size: 12px;"><strong>Activation Link Expiry:</strong> 48 Hours</p>
+            <p style="margin: 4px 0; color: #64748B; font-size: 12px; text-transform: uppercase; font-weight: bold;">Outstanding Balance</p>
+            <p style="margin: 4px 0; color: #087F56; font-size: 26px; font-weight: bold;">₹${Number(data.remainingBalance || data.amount || 0).toLocaleString("en-IN")}</p>
           </div>
-          ${
-            data.role === "doctor"
-              ? `<div style="background-color: #F0FDF4; border-left: 4px solid #16A34A; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-                  <p style="margin: 0; font-size: 13px; color: #166534;"><strong>Doctor Notice:</strong> All consultations on TriGyna are conducted via secure Google Meet or Zoom video links. Clinical appointment scheduling will activate once your professional medical registration council credentials have been verified by administration.</p>
-                </div>`
-              : `<div style="background-color: #EFF6FF; border-left: 4px solid #2563EB; padding: 12px 16px; margin: 16px 0; border-radius: 4px;">
-                  <p style="margin: 0; font-size: 13px; color: #1E40AF;"><strong>Sales Team Notice:</strong> You will have access to the Sales CRM for lead management, follow-ups, care package sales, and generating official Razorpay payment links.</p>
-                </div>`
-          }
+          ${data.checkoutUrl ? `
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${data.activationUrl}" style="background-color: #154734; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              Activate Your Account &amp; Create Password →
+            <a href="${data.checkoutUrl}" style="background-color: #087F56; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">
+              Pay Invoice Securely →
             </a>
-          </div>
-          <p style="color: #64748B; font-size: 13px; line-height: 1.5; text-align: center;">For security reasons, your temporary activation token will expire in 48 hours. Never share this activation link with anyone.</p>
-          <div style="background-color: #F8FAFC; border-left: 4px solid #154734; padding: 12px 16px; margin: 24px 0; border-radius: 4px;">
-            <p style="margin: 0; font-size: 13px; color: #154734;"><strong>Staff Support Desk:</strong> support@trigyna.health • +91 917-277-2326</p>
-          </div>
-        </div>
-        <div style="border-top: 1px solid #E5E7EB; padding-top: 15px; font-size: 12px; color: #9CA3AF; text-align: center;">
-          © ${new Date().getFullYear()} TriGyna Health &amp; Wellness • Authorized Staff System
+          </div>` : ""}
+          <p style="color: #64748B; font-size: 13px;">If you have already settled this invoice, please disregard this reminder.</p>
         </div>
       </div>
     `,
   },
-  staff_account_activated: {
-    id: "staff_account_activated",
-    name: "Staff Account Activated Confirmation",
-    subject: "Your TriGyna Staff Account is Now Active",
+  payment_failed: {
+    id: "payment_failed",
+    name: "Payment Failed Notification",
+    subject: (data) => `Payment Attempt Notice – TriGyna Invoice ${data.invoiceNumber || ""}`,
     renderHtml: (data) => `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E2E9E3; border-radius: 12px;">
-        <div style="background-color: #154734; padding: 24px; border-radius: 8px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Account Activated</h1>
-          <p style="color: #D1E7DD; margin: 6px 0 0 0; font-size: 14px;">TriGyna Health &amp; Wellness</p>
+        <div style="background-color: #DC2626; padding: 24px; border-radius: 8px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Payment Attempt Unsuccessful</h1>
+          <p style="color: #FEE2E2; margin: 6px 0 0 0; font-size: 14px;">TriGyna Billing Support</p>
         </div>
         <div style="padding: 24px 0;">
-          <p style="font-size: 16px; color: #18231D;">Dear <strong>${data.name || "Colleague"}</strong>,</p>
-          <p style="color: #4B5563; line-height: 1.6;">Your credentials have been successfully created. Your TriGyna staff account is now <strong>ACTIVE</strong>.</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${data.loginUrl}" style="background-color: #154734; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block;">
-              Sign In to Your Dashboard →
+          <p style="font-size: 16px; color: #18231D;">Dear <strong>${data.patientName || "Patient"}</strong>,</p>
+          <p style="color: #4B5563; line-height: 1.6;">Your recent payment attempt of <strong>₹${data.amount}</strong> for Invoice <strong>${data.invoiceNumber || ""}</strong> could not be processed by the bank.</p>
+          <p style="color: #64748B; font-size: 14px;">Reason: ${data.failureReason || "Transaction declined by issuing bank"}</p>
+          ${data.checkoutUrl ? `
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${data.checkoutUrl}" style="background-color: #087F56; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+              Retry Payment Now →
             </a>
-          </div>
+          </div>` : ""}
+          <p style="color: #4B5563; font-size: 13px;">Our billing helpdesk is available at +91 917-277-2326 to assist you with alternative payment methods.</p>
+        </div>
+      </div>
+    `,
+  },
+  refund_processed: {
+    id: "refund_processed",
+    name: "Refund Processed Confirmation",
+    subject: (data) => `Refund Processed – TriGyna Invoice ${data.invoiceNumber || ""}`,
+    renderHtml: (data) => `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #E2E9E3; border-radius: 12px;">
+        <div style="background-color: #087F56; padding: 24px; border-radius: 8px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Refund Processed</h1>
+          <p style="color: #D1E7DD; margin: 6px 0 0 0; font-size: 14px;">Official Account Credit</p>
+        </div>
+        <div style="padding: 24px 0;">
+          <p style="font-size: 16px; color: #18231D;">Dear <strong>${data.patientName || "Patient"}</strong>,</p>
+          <p style="color: #4B5563; line-height: 1.6;">A refund of <strong>₹${Number(data.refundAmount || data.amount || 0).toLocaleString("en-IN")}</strong> for Invoice <strong>${data.invoiceNumber || ""}</strong> has been processed successfully.</p>
+          <p style="color: #4B5563; font-size: 14px;">The amount will be credited back to your original payment method within 5-7 business days per banking guidelines.</p>
         </div>
       </div>
     `,
   },
 };
 
-/**
- * TriGyna Email Service
- */
 class EmailService {
   constructor() {
     this.provider = EMAIL_PROVIDER;
     this.fromAddress = EMAIL_FROM_ADDRESS;
     this.fromName = EMAIL_FROM_NAME;
     this.apiKey = EMAIL_API_KEY;
+    this.smtpHost = EMAIL_HOST;
+    this.smtpPort = EMAIL_PORT;
+    this.smtpUser = EMAIL_USER;
+    this.smtpPassword = EMAIL_PASSWORD;
+
+    this.transporter = null;
+    this.initTransporter();
   }
 
-  getTemplates() {
-    return Object.values(EMAIL_TEMPLATES).map((t) => ({
-      id: t.id,
-      name: t.name,
-      subject: t.subject,
-      status: "active",
-    }));
-  }
-
-  getDeliveryLogs() {
-    return emailDeliveryLogs.slice(0, 50);
+  initTransporter() {
+    if (this.smtpHost && this.smtpUser && nodemailer) {
+      try {
+        this.transporter = nodemailer.createTransport({
+          host: this.smtpHost,
+          port: this.smtpPort,
+          secure: this.smtpPort === 465,
+          auth: {
+            user: this.smtpUser,
+            pass: this.smtpPassword,
+          },
+        });
+        console.log(`[Email Service] SMTP Transporter initialized (${this.smtpHost}:${this.smtpPort})`);
+      } catch (err) {
+        console.warn("[Email Service] SMTP init notice:", err.message);
+      }
+    }
   }
 
   getHealthStatus() {
     return {
       provider: "email",
       displayName: "Transactional Email Service",
-      status: this.provider === "simulated" ? "test_mode" : "connected",
+      status: this.transporter ? "connected" : this.provider === "simulated" ? "test_mode" : "configured",
       configuredProvider: this.provider,
       fromAddress: this.fromAddress,
       fromName: this.fromName,
       hasApiKey: Boolean(this.apiKey),
+      hasSmtp: Boolean(this.transporter),
       totalDispatched: emailDeliveryLogs.length,
       lastDispatched: emailDeliveryLogs[0]?.timestamp || null,
     };
   }
 
   /**
+   * Alias: sendTemplateEmail
+   */
+  async sendTemplateEmail({ to, templateId, data = {}, patientId, invoiceId, paymentId }) {
+    return this.sendEmail({
+      to,
+      templateId,
+      templateData: data,
+      patientId,
+      invoiceId,
+      paymentId,
+    });
+  }
+
+  /**
    * Dispatch an email notification
    * Non-blocking, safe in tests and offline environments
    */
-  async sendEmail({ to, subject, html, text, templateId, templateData = {} }) {
+  async sendEmail({
+    to,
+    subject,
+    html,
+    text,
+    templateId,
+    templateData = {},
+    patientId,
+    invoiceId,
+    paymentId,
+  }) {
     if (!to) {
       throw new Error("Recipient email address 'to' is required");
     }
@@ -267,33 +362,79 @@ class EmailService {
 
     if (templateId && EMAIL_TEMPLATES[templateId]) {
       const t = EMAIL_TEMPLATES[templateId];
-      finalSubject = finalSubject || t.subject;
+      finalSubject = typeof t.subject === "function" ? t.subject(templateData) : (finalSubject || t.subject);
       finalHtml = finalHtml || t.renderHtml(templateData);
     }
 
     const messageId = `msg_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
+    let deliveryStatus = "sent";
+    let errorMessage = null;
+
+    // If live SMTP transporter exists, attempt real delivery
+    if (this.transporter) {
+      try {
+        const info = await this.transporter.sendMail({
+          from: `"${this.fromName}" <${this.fromAddress}>`,
+          to,
+          subject: finalSubject,
+          text: text || finalSubject,
+          html: finalHtml,
+        });
+        deliveryStatus = "delivered";
+        console.log(`[Email Service] Live SMTP delivered to ${to} (${info.messageId})`);
+      } catch (smtpErr) {
+        console.warn("[Email Service] SMTP dispatch warning:", smtpErr.message);
+        deliveryStatus = "failed";
+        errorMessage = smtpErr.message;
+      }
+    } else {
+      console.log(`[Email Service] [${this.provider}] Delivered email '${finalSubject}' to ${to} (ID: ${messageId})`);
+    }
+
     const logEntry = {
       messageId,
       to,
       subject: finalSubject,
       templateId: templateId || "custom",
-      status: "delivered",
+      status: deliveryStatus,
       timestamp: new Date().toISOString(),
-      provider: this.provider,
+      provider: this.transporter ? "smtp" : this.provider,
     };
 
     emailDeliveryLogs.unshift(logEntry);
     if (emailDeliveryLogs.length > 100) emailDeliveryLogs.pop();
 
-    console.log(`[Email Service] Delivered email '${finalSubject}' to ${to} (ID: ${messageId})`);
+    // Persist in NotificationLog collection
+    try {
+      const NotificationLog = require("./notification-log.model");
+      let notifType = "payment_link";
+      if (templateId === "payment_success" || templateId === "payment_receipt") notifType = "payment_success";
+      else if (templateId === "payment_reminder") notifType = "payment_reminder";
+      else if (templateId === "payment_failed") notifType = "payment_failed";
+      else if (templateId === "refund_processed") notifType = "refund_processed";
+
+      await NotificationLog.create({
+        patientId,
+        invoiceId,
+        paymentId,
+        channel: "email",
+        recipient: to,
+        notificationType: notifType,
+        providerMessageId: messageId,
+        status: deliveryStatus,
+        errorMessage,
+        sentAt: new Date(),
+      });
+    } catch {
+      // Non-blocking for notification log storage
+    }
 
     return {
-      success: true,
+      success: deliveryStatus !== "failed",
       messageId,
-      status: "delivered",
+      status: deliveryStatus,
     };
   }
 }
 
 module.exports = new EmailService();
-

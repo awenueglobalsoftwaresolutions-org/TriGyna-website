@@ -180,13 +180,21 @@ export interface OrderItem {
 export interface PaymentItem {
   _id: string;
   paymentNumber: string;
+  paymentReference?: string;
+  paymentStatus?: string;
   amount: number;
+  amountPaid?: number;
+  amountDue?: number;
   currency?: string;
   status: "initiated" | "pending" | "success" | "failed" | "refunded" | "partially_refunded" | string;
   paymentMethod: "cash" | "card" | "upi" | "netbanking" | "bank_transfer" | "wallet" | string;
   paymentProvider: "razorpay" | "manual_pos" | "direct_bank" | string;
   providerTransactionId?: string;
   providerOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentLinkId?: string;
+  paymentLinkUrl?: string;
   paidAt?: string;
   createdAt: string;
   notes?: string;
@@ -195,6 +203,7 @@ export interface PaymentItem {
     fullName?: string;
     patientCode?: string;
     phone?: string;
+    email?: string;
   };
   invoiceId?: {
     _id?: string;
@@ -203,6 +212,16 @@ export interface PaymentItem {
     paidAmount?: number;
     balanceAmount?: number;
     status?: string;
+  };
+  doctorId?: {
+    _id?: string;
+    name?: string;
+  };
+  createdBy?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+    role?: string;
   };
 }
 
@@ -317,6 +336,15 @@ export interface PackageItem {
 
 export interface OverviewMetrics {
   kpis: {
+    totalRevenue?: number;
+    todayRevenue?: number;
+    monthlyRevenue?: number;
+    totalPayments?: number;
+    successfulPayments?: number;
+    pendingPayments?: number;
+    failedPayments?: number;
+    outstandingAmount?: number;
+    refundAmount?: number;
     totalInvoiced: number;
     invoicedCount: number;
     invoicedGrowth: number;
@@ -507,6 +535,60 @@ export function BillingTab({
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [isLoadingPayments, setIsLoadingPayments] = useState(false);
   const [paymentSearch, setPaymentSearch] = useState("");
+  const [isReconciling, setIsReconciling] = useState(false);
+  const [paymentActionNotice, setPaymentActionNotice] = useState<string | null>(null);
+
+  const handleReconcileAllPayments = async () => {
+    try {
+      setIsReconciling(true);
+      const res = await api.post<any>("/billing/payments/reconcile");
+      if (res.success) {
+        setPaymentActionNotice(`Gateway Reconciliation Complete: Scanned ${res.data?.scanned || 0}, Reconciled ${res.data?.reconciled || 0}`);
+        loadPayments();
+        fetchOverviewMetrics();
+      }
+    } catch (err: any) {
+      alert("Reconciliation error: " + (err.message || "Unknown error"));
+    } finally {
+      setIsReconciling(false);
+      setTimeout(() => setPaymentActionNotice(null), 5000);
+    }
+  };
+
+  const handleReconcileSinglePayment = async (paymentId: string) => {
+    try {
+      const res = await api.post<any>(`/billing/payments/${paymentId}/reconcile`);
+      if (res.success) {
+        alert(res.message || "Payment status verified and synchronized with Razorpay gateway.");
+        loadPayments();
+        fetchOverviewMetrics();
+      }
+    } catch (err: any) {
+      alert("Reconciliation failed: " + (err.message || "Unknown error"));
+    }
+  };
+
+  const handleResendPaymentLink = async (paymentId: string) => {
+    try {
+      const res = await api.post<any>(`/billing/payments/${paymentId}/resend-link`);
+      if (res.success) {
+        alert("Payment link resent to patient via Email and WhatsApp!");
+      }
+    } catch (err: any) {
+      alert("Failed to resend payment link: " + (err.message || "Unknown error"));
+    }
+  };
+
+  const handleSendPaymentReminder = async (paymentId: string) => {
+    try {
+      const res = await api.post<any>(`/billing/payments/${paymentId}/reminder`);
+      if (res.success) {
+        alert("Payment reminder sent to patient via Email and WhatsApp!");
+      }
+    } catch (err: any) {
+      alert("Failed to send reminder: " + (err.message || "Unknown error"));
+    }
+  };
 
   const [refunds, setRefunds] = useState<RefundItem[]>([]);
   const [isLoadingRefunds, setIsLoadingRefunds] = useState(false);
@@ -2277,89 +2359,250 @@ export function BillingTab({
 
           {/* TAB 3: PAYMENTS & RECONCILIATION */}
           {activeSubTab === "payments" && (
-            <div className="bg-white rounded-2xl border border-[#E5EAF0] p-5 shadow-xs space-y-4">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="relative flex-1 w-full max-w-sm">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search payments by reference..."
-                    value={paymentSearch}
-                    onChange={(e) => setPaymentSearch(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
-                  />
+            <div className="space-y-4">
+              {/* Payments Top KPI Summary Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <div className="bg-white rounded-2xl border border-[#E5EAF0] p-4 shadow-2xs">
+                  <div className="flex items-center justify-between text-slate-500 mb-1">
+                    <span className="text-[11px] font-semibold uppercase">Total Revenue</span>
+                    <DollarSign className="w-4 h-4 text-[#087F56]" />
+                  </div>
+                  <div className="text-xl font-bold text-slate-900 font-mono">
+                    ₹{(overviewMetrics?.kpis.totalRevenue ?? overviewMetrics?.kpis.collectedRevenue ?? 0).toLocaleString("en-IN")}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Authoritative verified collections</div>
                 </div>
-                <button
-                  onClick={loadPayments}
-                  className="px-3.5 py-2 border border-[#E5EAF0] text-[#087F56] rounded-xl text-xs font-semibold hover:bg-slate-50 flex items-center gap-1.5"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingPayments ? "animate-spin" : ""}`} />
-                  <span>Refresh Payments</span>
-                </button>
+
+                <div className="bg-white rounded-2xl border border-[#E5EAF0] p-4 shadow-2xs">
+                  <div className="flex items-center justify-between text-slate-500 mb-1">
+                    <span className="text-[11px] font-semibold uppercase">Today&apos;s Collections</span>
+                    <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div className="text-xl font-bold text-emerald-700 font-mono">
+                    ₹{(overviewMetrics?.kpis.todayRevenue ?? 0).toLocaleString("en-IN")}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Real-time gateway settlements</div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-[#E5EAF0] p-4 shadow-2xs">
+                  <div className="flex items-center justify-between text-slate-500 mb-1">
+                    <span className="text-[11px] font-semibold uppercase">Settled Payments</span>
+                    <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div className="text-xl font-bold text-slate-900 font-mono">
+                    {overviewMetrics?.kpis.successfulPayments ?? overviewMetrics?.kpis.settledInvoicesCount ?? 0}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">
+                    {overviewMetrics?.kpis.pendingPayments ?? 0} pending payment links
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-[#E5EAF0] p-4 shadow-2xs">
+                  <div className="flex items-center justify-between text-slate-500 mb-1">
+                    <span className="text-[11px] font-semibold uppercase">Outstanding Due</span>
+                    <Clock className="w-4 h-4 text-amber-600" />
+                  </div>
+                  <div className="text-xl font-bold text-amber-800 font-mono">
+                    ₹{(overviewMetrics?.kpis.outstandingAmount ?? overviewMetrics?.kpis.outstandingBalance ?? 0).toLocaleString("en-IN")}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Unsettled clinic invoices</div>
+                </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-[#F8FAF9] border-b border-[#E5EAF0] text-slate-500 font-semibold uppercase text-[11px]">
-                      <th className="py-2.5 px-3">Payment #</th>
-                      <th className="py-2.5 px-3">Patient</th>
-                      <th className="py-2.5 px-3">Invoice #</th>
-                      <th className="py-2.5 px-3">Provider / Method</th>
-                      <th className="py-2.5 px-3">Amount</th>
-                      <th className="py-2.5 px-3">Status</th>
-                      <th className="py-2.5 px-3 text-right">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E5EAF0]">
-                    {isLoadingPayments ? (
-                      <tr>
-                        <td colSpan={7} className="py-8 text-center text-slate-400">
-                          <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#087F56]" />
-                        </td>
+              {/* Action notice banner */}
+              {paymentActionNotice && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-900 flex items-center gap-2 animate-fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{paymentActionNotice}</span>
+                </div>
+              )}
+
+              {/* Payments Table Container */}
+              <div className="bg-white rounded-2xl border border-[#E5EAF0] p-5 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="relative flex-1 w-full max-w-sm">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search payments by reference, patient or transaction ID..."
+                      value={paymentSearch}
+                      onChange={(e) => setPaymentSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 self-stretch sm:self-auto">
+                    <button
+                      onClick={handleReconcileAllPayments}
+                      disabled={isReconciling}
+                      className="px-3.5 py-2 bg-[#087F56] text-white rounded-xl text-xs font-semibold hover:bg-[#066846] flex items-center gap-1.5 transition cursor-pointer shadow-xs disabled:opacity-50"
+                      title="Run automated Razorpay payment verification"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isReconciling ? "animate-spin" : ""}`} />
+                      <span>{isReconciling ? "Reconciling..." : "Reconcile with Gateway"}</span>
+                    </button>
+                    <button
+                      onClick={loadPayments}
+                      className="px-3.5 py-2 border border-[#E5EAF0] text-[#087F56] rounded-xl text-xs font-semibold hover:bg-slate-50 flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isLoadingPayments ? "animate-spin" : ""}`} />
+                      <span>Refresh</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-[#F8FAF9] border-b border-[#E5EAF0] text-slate-500 font-semibold uppercase text-[11px]">
+                        <th className="py-2.5 px-3">Payment #</th>
+                        <th className="py-2.5 px-3">Patient</th>
+                        <th className="py-2.5 px-3">Invoice #</th>
+                        <th className="py-2.5 px-3">Gateway Ref</th>
+                        <th className="py-2.5 px-3">Amount</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Date</th>
+                        <th className="py-2.5 px-3 text-right">Actions</th>
                       </tr>
-                    ) : payments.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-8 text-center text-slate-400">
-                          No payments recorded yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      payments
-                        .filter(
-                          (p) =>
-                            !paymentSearch ||
-                            p.paymentNumber.toLowerCase().includes(paymentSearch.toLowerCase()) ||
-                            p.providerTransactionId?.toLowerCase().includes(paymentSearch.toLowerCase())
-                        )
-                        .map((pay) => (
-                          <tr key={pay._id} className="hover:bg-slate-50/70">
-                            <td className="py-2.5 px-3 font-semibold text-[#087F56]">{pay.paymentNumber}</td>
-                            <td className="py-2.5 px-3 font-medium text-slate-800">{pay.patientId?.fullName || "Patient"}</td>
-                            <td className="py-2.5 px-3 text-slate-600">{pay.invoiceId?.invoiceNumber || "-"}</td>
-                            <td className="py-2.5 px-3">
-                              <span className="capitalize">{pay.paymentProvider}</span> ({pay.paymentMethod.toUpperCase()})
-                            </td>
-                            <td className="py-2.5 px-3 font-bold text-slate-900">₹{pay.amount.toLocaleString("en-IN")}</td>
-                            <td className="py-2.5 px-3">
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                  pay.status === "success"
-                                    ? "bg-emerald-100 text-emerald-800"
-                                    : "bg-amber-100 text-amber-800"
-                                }`}
-                              >
-                                {pay.status}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3 text-right text-slate-500">
-                              {new Date(pay.paidAt || pay.createdAt).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-[#E5EAF0]">
+                      {isLoadingPayments ? (
+                        <tr>
+                          <td colSpan={8} className="py-8 text-center text-slate-400">
+                            <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#087F56]" />
+                          </td>
+                        </tr>
+                      ) : payments.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="py-8 text-center text-slate-400">
+                            No payments recorded yet.
+                          </td>
+                        </tr>
+                      ) : (
+                        payments
+                          .filter(
+                            (p) =>
+                              !paymentSearch ||
+                              p.paymentNumber?.toLowerCase().includes(paymentSearch.toLowerCase()) ||
+                              p.paymentReference?.toLowerCase().includes(paymentSearch.toLowerCase()) ||
+                              p.providerTransactionId?.toLowerCase().includes(paymentSearch.toLowerCase()) ||
+                              p.razorpayPaymentId?.toLowerCase().includes(paymentSearch.toLowerCase()) ||
+                              p.patientId?.fullName?.toLowerCase().includes(paymentSearch.toLowerCase()) ||
+                              p.patientId?.phone?.includes(paymentSearch)
+                          )
+                          .map((pay) => {
+                            const isPaid = pay.status === "success" || pay.paymentStatus === "PAID";
+                            const isPending = pay.status === "pending" || pay.status === "initiated" || pay.paymentStatus === "PENDING";
+                            const isFailed = pay.status === "failed" || pay.paymentStatus === "FAILED";
+                            const gatewayRef = pay.razorpayPaymentId || pay.providerTransactionId || pay.razorpayOrderId || pay.razorpayPaymentLinkId || "-";
+
+                            return (
+                              <tr key={pay._id} className="hover:bg-slate-50/70">
+                                <td className="py-2.5 px-3">
+                                  <div className="font-semibold text-[#087F56]">{pay.paymentReference || pay.paymentNumber}</div>
+                                  <div className="text-[10px] text-slate-400 capitalize">{pay.paymentProvider} · {pay.paymentMethod}</div>
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <div className="font-medium text-slate-800">{pay.patientId?.fullName || "Patient"}</div>
+                                  <div className="text-[10px] text-slate-500 font-mono">{pay.patientId?.phone || "-"}</div>
+                                </td>
+                                <td className="py-2.5 px-3 text-slate-600 font-mono">
+                                  {pay.invoiceId?.invoiceNumber || "-"}
+                                </td>
+                                <td className="py-2.5 px-3 font-mono text-[11px] text-slate-700">
+                                  <span className="truncate block max-w-[120px]" title={gatewayRef}>
+                                    {gatewayRef}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 font-bold text-slate-900">
+                                  ₹{pay.amount.toLocaleString("en-IN")}
+                                </td>
+                                <td className="py-2.5 px-3">
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                      isPaid
+                                        ? "bg-emerald-100 text-emerald-800"
+                                        : isFailed
+                                        ? "bg-rose-100 text-rose-800"
+                                        : "bg-amber-100 text-amber-800"
+                                    }`}
+                                  >
+                                    {pay.paymentStatus || pay.status}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 text-slate-500 text-[11px]">
+                                  {new Date(pay.paidAt || pay.createdAt).toLocaleDateString("en-IN", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                  })}
+                                </td>
+                                <td className="py-2.5 px-3 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(pay.paymentReference || pay.paymentNumber);
+                                        alert("Payment Reference copied to clipboard!");
+                                      }}
+                                      className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
+                                      title="Copy Payment Reference"
+                                    >
+                                      <Copy className="w-3 h-3" />
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleReconcileSinglePayment(pay._id)}
+                                      className="p-1.5 rounded-lg border border-[#087F56]/30 text-[#087F56] hover:bg-emerald-50 transition"
+                                      title="Reconcile with Razorpay"
+                                    >
+                                      <RefreshCw className="w-3 h-3" />
+                                    </button>
+
+                                    {isPending && (
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleResendPaymentLink(pay._id)}
+                                          className="p-1.5 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition"
+                                          title="Resend Payment Link (Email & WhatsApp)"
+                                        >
+                                          <Share2 className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleSendPaymentReminder(pay._id)}
+                                          className="p-1.5 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 transition"
+                                          title="Send Payment Reminder"
+                                        >
+                                          <Send className="w-3 h-3" />
+                                        </button>
+                                      </>
+                                    )}
+
+                                    {pay.invoiceId && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const token = getToken() || "";
+                                          const baseUrl = getBaseUrl();
+                                          window.open(`${baseUrl}/invoices/${pay.invoiceId?._id}/pdf?token=${encodeURIComponent(token)}`, "_blank");
+                                        }}
+                                        className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition"
+                                        title="Download Invoice PDF"
+                                      >
+                                        <Download className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}

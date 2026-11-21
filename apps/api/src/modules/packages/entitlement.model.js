@@ -40,6 +40,12 @@ const entitlementSchema = new mongoose.Schema(
       min: 0,
       default: 0,
     },
+    sessionsRemaining: {
+      type: Number,
+      default: function () {
+        return this.availableSessions;
+      },
+    },
     status: {
       type: String,
       enum: ["active", "depleted", "expired"],
@@ -51,6 +57,9 @@ const entitlementSchema = new mongoose.Schema(
       required: true,
     },
     orderId: {
+      type: mongoose.Schema.Types.Mixed,
+    },
+    orderNumber: {
       type: String,
       trim: true,
     },

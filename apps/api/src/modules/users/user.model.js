@@ -39,6 +39,34 @@ const userSchema = new mongoose.Schema(
       default: "active",
       index: true,
     },
+    authVersion: {
+      type: Number,
+      default: 1,
+      index: true,
+    },
+    customPermissions: {
+      type: [String],
+      default: [],
+    },
+    deniedPermissions: {
+      type: [String],
+      default: [],
+    },
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockUntil: {
+      type: Date,
+    },
+    securityHistory: [
+      {
+        action: { type: String, required: true },
+        performedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        timestamp: { type: Date, default: Date.now },
+        details: { type: mongoose.Schema.Types.Mixed, default: {} },
+      },
+    ],
     activatedAt: {
       type: Date,
     },

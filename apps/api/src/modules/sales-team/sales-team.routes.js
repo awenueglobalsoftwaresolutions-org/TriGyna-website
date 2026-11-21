@@ -25,8 +25,8 @@ router.get("/dashboard/tasks", salesDashboardController.getTasks);
 router.get("/dashboard/upcoming-followups", salesDashboardController.getUpcomingFollowups);
 
 // Legacy/Compatibility aliases
-router.get("/overview", salesDashboardController.getDashboardOverview);
-router.get("/stats", salesDashboardController.getDashboardOverview);
+router.get("/overview", controller.getOverview);
+router.get("/stats", controller.getOverview);
 router.get("/performance-trend", controller.getPerformanceTrend);
 router.get("/quota-progress", controller.getQuotaProgress);
 

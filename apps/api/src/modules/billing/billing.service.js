@@ -266,15 +266,27 @@ async function createReceiptForPayment(params) {
   await payment.save();
 
   // 9. Update embedded payment entry in invoice if exists
-  const invoicePayment = invoice.payments?.find(
-    (p) =>
-      (p.transactionRef && p.transactionRef === payment.providerTransactionId) ||
-      (p.amount === payment.amount && !p.receiptId)
-  );
-  if (invoicePayment) {
-    invoicePayment.receiptId = receipt._id;
-    invoicePayment.receiptNumber = receiptNumber;
-    await invoice.save();
+  try {
+    const invoicePayment = invoice.payments?.find(
+      (p) =>
+        (p.transactionRef && p.transactionRef === payment.providerTransactionId) ||
+        (p.amount === payment.amount && !p.receiptId)
+    );
+    if (invoicePayment) {
+      invoicePayment.receiptId = receipt._id;
+      invoicePayment.receiptNumber = receiptNumber;
+      await Invoice.updateOne(
+        { _id: invoice._id, "payments._id": invoicePayment._id },
+        {
+          $set: {
+            "payments.$.receiptId": receipt._id,
+            "payments.$.receiptNumber": receiptNumber,
+          },
+        }
+      );
+    }
+  } catch (invSaveErr) {
+    console.warn("[Billing] Non-fatal invoice payment receipt update notice:", invSaveErr.message);
   }
 
   return receipt;

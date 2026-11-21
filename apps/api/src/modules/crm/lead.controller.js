@@ -8,7 +8,7 @@ const Payment = require("../billing/payment.model");
 const Receipt = require("../billing/receipt.model");
 const User = require("../users/user.model");
 const { sendSuccess } = require("../../shared/response");
-const { ValidationError, NotFoundError, ConflictError } = require("../../shared/errors");
+const { ValidationError, NotFoundError, ConflictError, ForbiddenError } = require("../../shared/errors");
 const { recordAudit } = require("../audit/audit.service");
 const {
   generateAtomicPatientCode,
@@ -99,6 +99,20 @@ async function listLeads(req, res, next) {
     if (status) query.status = status;
     if (assignedTo) query.assignedTo = assignedTo;
     if (source) query.source = source;
+
+    // Strict role-based scoping for Sales & CRM representatives
+    if (req.user && (req.user.role === "sales" || req.user.role === "crm")) {
+      const { hasPermission, PERMISSIONS } = require("../../config/permissions");
+      const canViewAll = hasPermission(req.user, PERMISSIONS.LEADS_VIEW_ALL);
+      if (!canViewAll) {
+        if (!assignedTo) {
+          query.$or = [{ assignedTo: req.user._id }, { assignedTo: null }];
+        } else if (assignedTo.toString() !== req.user._id.toString()) {
+          return sendSuccess(res, { leads: [], total: 0, page: parseInt(page, 10) }, "Leads retrieved");
+        }
+      }
+    }
+
     if (search && search.trim()) {
       const regex = safeRegex(search);
       if (regex) {
@@ -137,6 +151,11 @@ async function getLeadById(req, res, next) {
       return next(new NotFoundError("Lead not found"));
     }
 
+    const { canAccessLead } = require("../auth/authorization.service");
+    if (!canAccessLead(req.user, lead)) {
+      return next(new ForbiddenError("Access denied: You are not authorized to view this lead"));
+    }
+
     return sendSuccess(res, { lead }, "Lead retrieved");
   } catch (err) {
     return next(err);
@@ -151,6 +170,20 @@ async function updateLead(req, res, next) {
 
     if (!lead) {
       return next(new NotFoundError("Lead not found"));
+    }
+
+    const { canAccessLead } = require("../auth/authorization.service");
+    if (!canAccessLead(req.user, lead)) {
+      return next(new ForbiddenError("Access denied: You are not authorized to modify this lead"));
+    }
+
+    if (assignedTo !== undefined && assignedTo?.toString() !== lead.assignedTo?.toString()) {
+      const { hasPermission, PERMISSIONS } = require("../../config/permissions");
+      if (!hasPermission(req.user, PERMISSIONS.LEADS_REASSIGN) && !["owner", "super_admin", "admin"].includes(req.user.role)) {
+        if (lead.assignedTo || assignedTo?.toString() !== req.user._id.toString()) {
+          return next(new ForbiddenError("Access denied: You do not have permission to reassign leads"));
+        }
+      }
     }
 
     if (status && status !== lead.status) {

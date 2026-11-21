@@ -224,9 +224,71 @@ async function canAccessBillingDocument(user, doc) {
   return false;
 }
 
+/**
+ * Check if authenticated user can access a specific lead
+ * @param {Object} user - req.user
+ * @param {Object} lead - Lead document or object
+ * @returns {boolean}
+ */
+function canAccessLead(user, lead) {
+  if (!user || !lead) return false;
+  if (["owner", "super_admin", "admin"].includes(user.role)) return true;
+  if (user.role === "sales" || user.role === "crm") {
+    const { hasPermission, PERMISSIONS } = require("../../config/permissions");
+    if (hasPermission(user, PERMISSIONS.LEADS_VIEW_ALL)) {
+      return true;
+    }
+    const assignedId = lead.assignedTo?._id || lead.assignedTo;
+    if (assignedId && assignedId.toString() === user._id.toString()) {
+      return true;
+    }
+    // Allow unassigned leads viewing for sales intake/claiming
+    if (!assignedId) {
+      return true;
+    }
+    return false;
+  }
+  return false;
+}
+
+/**
+ * Check if authenticated user can access a specific prescription
+ * @param {Object} user - req.user
+ * @param {Object} prescription - Prescription document
+ * @returns {Promise<boolean>}
+ */
+async function canAccessPrescription(user, prescription) {
+  if (!user || !prescription) return false;
+  if (["owner", "super_admin", "admin"].includes(user.role)) return true;
+
+  if (user.role === "patient") {
+    const patient = await Patient.findOne({ userId: user._id });
+    if (!patient) return false;
+    const patId = prescription.patientId?._id || prescription.patientId;
+    return (
+      patId &&
+      patId.toString() === patient._id.toString() &&
+      (prescription.isReleasedToPatient === true || prescription.status === "finalized")
+    );
+  }
+
+  if (user.role === "doctor") {
+    const doctor = await Doctor.findOne({ userId: user._id });
+    if (!doctor) return false;
+    const docId = prescription.doctorId?._id || prescription.doctorId;
+    if (docId && docId.toString() === doctor._id.toString()) return true;
+    const patId = prescription.patientId?._id || prescription.patientId;
+    return !!(await Appointment.exists({ doctorId: doctor._id, patientId: patId }));
+  }
+
+  return false;
+}
+
 module.exports = {
   canAccessPatient,
   serializePatientForRole,
   canAccessConsultation,
   canAccessBillingDocument,
+  canAccessLead,
+  canAccessPrescription,
 };

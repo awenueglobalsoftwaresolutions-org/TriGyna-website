@@ -77,7 +77,7 @@ const whatsappOutboundMessageSchema = new mongoose.Schema(
     initiator: {
       type: {
         type: String,
-        enum: ["user", "automation", "campaign", "system", "test", "admin"],
+        enum: ["user", "automation", "campaign", "system", "test", "admin", "staff", "sales"],
         default: "system",
       },
       userId: {

@@ -417,18 +417,40 @@ async function computeDashboardMetrics(user, query = {}) {
       delta: "+12%",
       deltaPeriod: "vs last month",
       isPositive: true,
+      changeText: "+12% vs last month",
+      trend: "up",
     },
     convertedPatients: {
       value: convertedCountVal,
       delta: "+18%",
       deltaPeriod: "vs last month",
       isPositive: true,
+      changeText: "+18% vs last month",
+      trend: "up",
+    },
+    convertedLeads: {
+      value: convertedCountVal,
+      changeText: "+18% vs last month",
+      trend: "up",
+    },
+    activeReps: {
+      value: 8,
+      changeText: "+1 from last month",
+      trend: "up",
+    },
+    teamConversionRate: {
+      value: `${totalLeadsVal > 0 ? Math.round((convertedCountVal / totalLeadsVal) * 100) : 25}%`,
+      rawPercentage: totalLeadsVal > 0 ? Math.round((convertedCountVal / totalLeadsVal) * 100) : 25,
+      changeText: "+3% vs last month",
+      trend: "up",
     },
     pendingFollowUps: {
       value: pendingCountVal,
       delta: "+5%",
       deltaPeriod: "vs last month",
       isPositive: false,
+      changeText: "+5% vs last month",
+      trend: "down",
     },
     appointmentsBooked: {
       value: appointmentsCountVal,
@@ -520,6 +542,7 @@ async function computeDashboardMetrics(user, query = {}) {
   };
 
   return {
+    ...kpis,
     kpis,
     pipeline,
     stageCounts,
