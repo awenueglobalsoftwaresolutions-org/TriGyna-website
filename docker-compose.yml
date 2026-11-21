@@ -1,0 +1,68 @@
+services:
+  # TriGyna REST API Service
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: trigyna-api:production
+    container_name: trigyna-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - apps/api/.env
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - REDIS_URL=redis://redis:6379
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_USERNAME=default
+      - REDIS_PASSWORD=
+      - REDIS_TLS=false
+      - CACHE_ENABLED=true
+      - CACHE_DEFAULT_TTL=300
+      - CACHE_KEY_PREFIX=trigyna
+      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_API_MAX=200
+      - RATE_LIMIT_AUTH_MAX=15
+      - RATE_LIMIT_ENQUIRY_MAX=15
+      - RATE_LIMIT_DOC_VERIFICATION_MAX=60
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - trigyna-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:5000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Redis In-Memory Cache & Distributed State Store
+  redis:
+    image: redis:7-alpine
+    container_name: trigyna-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - trigyna-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+networks:
+  trigyna-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

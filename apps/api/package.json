@@ -1,0 +1,30 @@
+{
+  "name": "trigyna-api",
+  "version": "1.0.0",
+  "description": "TriGyna Healthcare Management Platform - Modular Express API",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.8.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "ioredis": "^6.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "morgan": "^1.10.0",
+    "nodemailer": "^10.6.1",
+    "pdfkit": "^0.20.2",
+    "rate-limit-redis": "^4.3.1",
+    "resend": "^6.39.0",
+    "svix": "^2.11.0",
+    "zod": "^4.6.7"
+  }
+}

@@ -1,0 +1,54 @@
+# Dependencies & node_modules
+node_modules
+*/node_modules
+apps/**/node_modules
+
+# Git & Version Control
+.git
+.gitignore
+.github
+
+# Environment files & Secrets (CRITICAL: Never embed secrets in images)
+.env
+.env.*
+!.env.example
+apps/**/.env
+apps/**/.env.*
+!apps/**/.env.example
+*.pem
+*.key
+*.crt
+*.pfx
+
+# Next.js Frontend files (Not required in API image)
+.next
+src/app
+src/components
+src/lib
+public
+
+# Test Suites & Artifacts
+trigyna-private-tests
+apps/api/src/tests
+**/tests
+**/*.test.js
+**/*.spec.js
+coverage
+.nyc_output
+playwright-report
+test-results
+.playwright-mcp
+
+# Documentation & Logs
+Docs
+*.md
+!README.md
+*.log
+logs
+backups
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode
+.idea
