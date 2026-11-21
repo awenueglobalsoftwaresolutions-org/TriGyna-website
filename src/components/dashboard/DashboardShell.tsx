@@ -39,6 +39,7 @@ import {
   MapPin,
   Sparkles,
   Award,
+  Mail,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/authContext";
 import { api } from "@/lib/api/client";
@@ -180,6 +181,7 @@ export function DashboardShell({
           { id: "users", label: "Staff & RBAC", icon: Users, section: "Governance & System" },
           { id: "organization", label: "Clinic Branches", icon: Building2, section: "Governance & System" },
           { id: "audit", label: "Audit Logs", icon: ShieldCheck, section: "Governance & System" },
+          { id: "email", label: "Email Notifications", icon: Mail, section: "Governance & System" },
           { id: "integrations", label: "Settings", icon: Sliders, section: "Governance & System" },
         ];
       case "doctor":

@@ -47,6 +47,7 @@ const orderRoutes = require("./modules/billing/order.routes");
 const checkoutRoutes = require("./modules/billing/checkout.routes");
 const serviceRoutes = require("./modules/services/service.routes");
 const marketingRoutes = require("./modules/marketing/marketing.routes");
+const emailRoutes = require("./modules/email/email.routes");
 const { listFollowUps, addFollowUp, completeFollowUp } = require("./modules/crm/lead.controller");
 const { requireAuth } = require("./middleware/auth");
 const { requireRole } = require("./middleware/rbac");
@@ -178,6 +179,7 @@ app.use(["/api/v1/receipts", "/api/receipts", "/api/v1/billing/receipts"], recei
 app.use(["/api/v1/payments", "/api/payments", "/api/v1/billing/payments", "/api/billing/payments"], paymentRoutes);
 app.use(["/api/v1/public/document-verification", "/api/v1/public/verify-document", "/api/v1/verify-document"], documentVerificationRoutes);
 app.use(["/api/v1/notifications", "/api/notifications"], notificationRoutes);
+app.use(["/api/v1/email", "/api/email"], emailRoutes);
 app.use("/api/v1/organization", organizationRoutes);
 app.use("/api/v1/approvals", approvalsRoutes);
 app.use("/api/v1/audit", auditRoutes);

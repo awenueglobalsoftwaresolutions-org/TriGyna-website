@@ -118,6 +118,7 @@ async function login(req, res, next) {
           permissions: getEffectivePermissions(user),
           lastLogin: user.lastLogin,
           mustChangePassword: user.mustChangePassword || false,
+          isEmailVerified: Boolean(user.isEmailVerified),
         },
       },
       "Authentication successful"
@@ -162,6 +163,7 @@ async function getMe(req, res, next) {
           permissions: getEffectivePermissions(req.user),
           lastLogin: req.user.lastLogin,
           mustChangePassword: req.user.mustChangePassword || false,
+          isEmailVerified: Boolean(req.user.isEmailVerified),
           preferences: req.user.preferences || {},
         },
       },

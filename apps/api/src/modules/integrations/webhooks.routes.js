@@ -5,8 +5,12 @@ const {
   handleWhatsAppWebhook,
 } = require("./integrations.controller");
 const { handlePaymentWebhook } = require("../billing/invoice.controller");
+const { handleResendWebhook } = require("../email/email.webhook.controller");
 
 const router = express.Router();
+
+// Resend Transactional Email Delivery Webhook (Svix Signature Verified)
+router.post("/resend", handleResendWebhook);
 
 // Razorpay Payment Gateway Webhook
 router.post("/razorpay", handlePaymentWebhook);

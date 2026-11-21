@@ -14,6 +14,7 @@ export interface AuthUser {
   phone: string;
   role: UserRole;
   status: "active" | "inactive" | "suspended";
+  isEmailVerified?: boolean;
 }
 
 interface AuthContextType {

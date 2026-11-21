@@ -39,6 +39,7 @@ import { CrmExactTab } from "@/components/dashboard/admin/CrmExactTab";
 import { BillingTab } from "@/components/dashboard/admin/BillingTab";
 import { SalesTeamTab } from "@/components/dashboard/sales/tabs/SalesTeamTab";
 import { ClinicBranchesTab } from "@/components/dashboard/admin/ClinicBranchesTab";
+import { EmailTab } from "@/components/dashboard/admin/EmailTab";
 
 // Types
 interface StaffUser {
@@ -1026,6 +1027,9 @@ export default function AdminDashboardPage() {
 
           {/* TAB 20: INTEGRATIONS HUB */}
           {activeTab === "integrations" && <IntegrationsTab showNotification={showNotification} />}
+
+          {/* TAB 20B: RESEND EMAIL NOTIFICATION PLATFORM */}
+          {activeTab === "email" && <EmailTab showNotification={showNotification} />}
 
           {/* TAB 21: SALES TEAM DIRECTORY & PERFORMANCE */}
           {activeTab === "sales" && <SalesTeamTab showNotification={showNotification} />}

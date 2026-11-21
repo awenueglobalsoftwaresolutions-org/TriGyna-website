@@ -22,6 +22,12 @@ async function startServer() {
     // Graceful shutdown handling
     const handleShutdown = async (signal) => {
       console.log(`\n[Server] Received ${signal}. Commencing graceful shutdown...`);
+      try {
+        const emailQueueService = require("./modules/email/email.queue.service");
+        emailQueueService.stop();
+      } catch {
+        // Safe fallback
+      }
       if (server) {
         server.close(async () => {
           console.log("[Server] HTTP server closed.");

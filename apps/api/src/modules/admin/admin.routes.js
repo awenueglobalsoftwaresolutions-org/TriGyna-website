@@ -36,6 +36,12 @@ const notificationRoutes = require("../notifications/notification.routes");
 const packageRoutes = require("../packages/package.routes");
 const serviceRoutes = require("../services/service.routes");
 const staffRoutes = require("./staff.routes");
+const {
+  getAdminAnalytics,
+  getAdminLogs,
+  getAdminHealth,
+  retryEmail,
+} = require("../email/email.controller");
 
 const router = express.Router();
 
@@ -83,5 +89,11 @@ router.use("/notifications", notificationRoutes);
 router.use(["/packages", "/billing/packages"], packageRoutes);
 router.use("/services", serviceRoutes);
 router.use("/staff", staffRoutes);
+
+// Resend Email Notification System Admin APIs
+router.get("/email/analytics", getAdminAnalytics);
+router.get("/email/logs", getAdminLogs);
+router.get("/email/health", getAdminHealth);
+router.post("/email/:emailId/retry", retryEmail);
 
 module.exports = router;
