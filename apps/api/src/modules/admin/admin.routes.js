@@ -41,6 +41,12 @@ const {
   getAdminLogs,
   getAdminHealth,
   retryEmail,
+  getAdminAutomations,
+  updateAdminAutomation,
+  getAdminTemplates,
+  sendAdminTestEmail,
+  resendInvoiceEmail,
+  getAdminWebhookEvents,
 } = require("../email/email.controller");
 
 const router = express.Router();
@@ -95,5 +101,11 @@ router.get("/email/analytics", getAdminAnalytics);
 router.get("/email/logs", getAdminLogs);
 router.get("/email/health", getAdminHealth);
 router.post("/email/:emailId/retry", retryEmail);
+router.get("/email/automations", getAdminAutomations);
+router.put("/email/automations/:eventType", updateAdminAutomation);
+router.get("/email/templates", getAdminTemplates);
+router.post("/email/test", sendAdminTestEmail);
+router.post("/email/resend-invoice/:invoiceId", resendInvoiceEmail);
+router.get("/email/webhook-events", getAdminWebhookEvents);
 
 module.exports = router;

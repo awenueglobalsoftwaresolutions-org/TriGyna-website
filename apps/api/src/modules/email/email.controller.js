@@ -553,6 +553,230 @@ async function resetPassword(req, res, next) {
   }
 }
 
+/**
+ * GET /api/v1/email/admin/automations
+ * List all configurable automation triggers
+ */
+async function getAdminAutomations(req, res, next) {
+  try {
+    const EmailAutomationSettings = require("./email-automation-settings.model");
+    await EmailAutomationSettings.ensureDefaults();
+    const automations = await EmailAutomationSettings.find().sort({ category: 1, eventType: 1 });
+    return sendSuccess(res, { automations, count: automations.length }, "Email automations retrieved");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * PUT /api/v1/email/admin/automations/:eventType
+ * Update an automation rule (enable/disable, delay, rules)
+ */
+async function updateAdminAutomation(req, res, next) {
+  try {
+    const { eventType } = req.params;
+    const { enabled, delayMinutes, templateId, recipientRules } = req.body;
+    const EmailAutomationSettings = require("./email-automation-settings.model");
+
+    const query = eventType.match(/^[0-9a-fA-F]{24}$/) ? { _id: eventType } : { eventType };
+    const update = {
+      updatedBy: req.user?._id,
+      updatedAt: new Date(),
+    };
+
+    if (enabled !== undefined) update.enabled = Boolean(enabled);
+    if (delayMinutes !== undefined) update.delayMinutes = Number(delayMinutes);
+    if (templateId) update.templateId = templateId;
+    if (recipientRules !== undefined) update.recipientRules = recipientRules;
+
+    const setting = await EmailAutomationSettings.findOneAndUpdate(
+      query,
+      { $set: update },
+      { new: true, upsert: false }
+    );
+
+    if (!setting) {
+      return next(new NotFoundError(`Automation trigger '${eventType}' not found.`));
+    }
+
+    await recordAudit({
+      actorId: req.user?._id,
+      actorRole: req.user?.role,
+      action: "ADMIN_AUTOMATION_SETTING_UPDATED",
+      targetEntity: "EmailAutomationSettings",
+      targetId: setting._id.toString(),
+      details: { eventType: setting.eventType, enabled: setting.enabled },
+      ipAddress: req.ip,
+    });
+
+    return sendSuccess(res, { automation: setting }, "Automation configuration updated successfully");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * GET /api/v1/email/admin/templates
+ * Catalogue of all registered HTML templates with sample properties
+ */
+async function getAdminTemplates(req, res, next) {
+  try {
+    const templates = emailTemplateService.listTemplates();
+    return sendSuccess(res, { templates, count: templates.length }, "Email template catalogue retrieved");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * POST /api/v1/email/admin/test
+ * Send live test email to verify Resend delivery
+ */
+async function sendAdminTestEmail(req, res, next) {
+  try {
+    const { to, templateId = "patient_welcome_registration", templateData = {} } = req.body;
+    if (!to) {
+      return next(new ValidationError("Recipient email 'to' is required for test email"));
+    }
+
+    const testData = {
+      name: "TriGyna Quality Assurance",
+      patientName: "TriGyna Quality Assurance",
+      email: to,
+      doctorName: "Dr. Ananya Sharma",
+      date: new Date().toLocaleDateString("en-IN"),
+      time: "10:30 AM",
+      appointmentCode: "TG-TEST-" + Date.now().toString().slice(-4),
+      amount: 1499,
+      invoiceNumber: "INV-TEST-" + Date.now().toString().slice(-4),
+      ...templateData,
+    };
+
+    const result = await emailService.sendEmail({
+      to,
+      templateId,
+      templateData: testData,
+      forceImmediate: true,
+      metadata: {
+        isTest: true,
+        testedBy: req.user?._id,
+      },
+    });
+
+    await recordAudit({
+      actorId: req.user?._id,
+      actorRole: req.user?.role,
+      action: "ADMIN_TEST_EMAIL_DISPATCHED",
+      targetEntity: "EmailLog",
+      targetId: result.emailLogId?.toString(),
+      details: { to, templateId, providerEmailId: result.providerEmailId },
+      ipAddress: req.ip,
+    });
+
+    return sendSuccess(res, result, "Test email dispatched successfully via Resend");
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * POST /api/v1/email/admin/resend-invoice/:invoiceId
+ * Generate official PDF invoice and resend to patient
+ */
+async function resendInvoiceEmail(req, res, next) {
+  try {
+    const { invoiceId } = req.params;
+    const Invoice = require("../billing/invoice.model");
+    const Patient = require("../patients/patient.model");
+    const { generateInvoicePdfBuffer } = require("../billing/invoice-pdf.service");
+
+    const invoice = await Invoice.findOne({
+      $or: [
+        ...(invoiceId.match(/^[0-9a-fA-F]{24}$/) ? [{ _id: invoiceId }] : []),
+        { invoiceNumber: invoiceId },
+      ],
+    });
+
+    if (!invoice) {
+      return next(new NotFoundError("Invoice record not found"));
+    }
+
+    let patient = null;
+    if (invoice.patientId) {
+      patient = await Patient.findById(invoice.patientId);
+    }
+
+    const targetEmail = req.body.to || patient?.email || invoice.customerEmail;
+    if (!targetEmail) {
+      return next(new ValidationError("No valid email address found for this invoice. Please specify 'to' in body."));
+    }
+
+    let pdfBuffer = null;
+    try {
+      pdfBuffer = await generateInvoicePdfBuffer(invoice);
+    } catch (pdfErr) {
+      console.warn("[Resend Invoice] PDF generation warning:", pdfErr.message);
+    }
+
+    const result = await emailService.sendInvoiceEmail({
+      to: targetEmail,
+      invoice,
+      patient,
+      pdfBuffer,
+      forceImmediate: true,
+    });
+
+    await recordAudit({
+      actorId: req.user?._id,
+      actorRole: req.user?.role,
+      action: "ADMIN_INVOICE_RESENT",
+      targetEntity: "Invoice",
+      targetId: invoice._id.toString(),
+      details: { to: targetEmail, invoiceNumber: invoice.invoiceNumber },
+      ipAddress: req.ip,
+    });
+
+    return sendSuccess(res, result, `Invoice ${invoice.invoiceNumber} resent successfully to ${targetEmail}`);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+/**
+ * GET /api/v1/email/admin/webhook-events
+ * Inspect Svix webhook delivery events (Admin only)
+ */
+async function getAdminWebhookEvents(req, res, next) {
+  try {
+    const { page = 1, limit = 50, eventType } = req.query;
+    const EmailWebhookEvent = require("./email-webhook-event.model");
+
+    const filter = {};
+    if (eventType) filter.eventType = eventType;
+
+    const skip = (Math.max(1, parseInt(page, 10)) - 1) * Math.max(1, parseInt(limit, 10));
+    const events = await EmailWebhookEvent.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Math.max(1, parseInt(limit, 10)));
+
+    const total = await EmailWebhookEvent.countDocuments(filter);
+
+    return sendSuccess(
+      res,
+      {
+        events,
+        total,
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+      },
+      "Resend webhook events retrieved"
+    );
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   sendEmailEndpoint,
   sendEmailVerification,
@@ -565,6 +789,12 @@ module.exports = {
   getAdminAnalytics,
   getAdminLogs,
   getAdminHealth,
+  getAdminAutomations,
+  updateAdminAutomation,
+  getAdminTemplates,
+  sendAdminTestEmail,
+  resendInvoiceEmail,
+  getAdminWebhookEvents,
   forgotPassword,
   resetPassword,
   hashToken,

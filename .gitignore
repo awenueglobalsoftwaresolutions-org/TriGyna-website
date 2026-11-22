@@ -73,9 +73,10 @@ trigyna-private-tests/
 apps/api/private-tests/
 apps/api/src/tests/
 apps/**/src/tests/
+**/tests/
 !apps/api/src/tests/testSecurityHardeningMaster.js
 !apps/api/src/tests/testResendUnitSuite.js
-**/tests/
+!apps/api/src/tests/testEmailAutomationMasterSuite.js
 **/*.test.js
 **/*.test.ts
 **/*.test.tsx

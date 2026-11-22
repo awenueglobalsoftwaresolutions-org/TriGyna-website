@@ -98,6 +98,7 @@ class EmailService {
     notificationType = "general",
     forceImmediate = false,
     useSmtp = false,
+    attachments = [],
     metadata = {},
   }) {
     const recipient = this.validateRecipient(to);
@@ -177,6 +178,7 @@ class EmailService {
           html: finalHtml || `<p>${finalSubject}</p>`,
           text,
           useSmtp,
+          attachments,
           tags: [{ name: "notification_type", value: finalNotificationType }],
         });
 
@@ -236,15 +238,59 @@ class EmailService {
   /**
    * Helper alias for template-based email dispatch
    */
-  async sendTemplateEmail({ to, templateId, data = {}, patientId, invoiceId, paymentId, idempotencyKey, forceImmediate }) {
+  async sendTemplateEmail({ to, templateId, data = {}, patientId, invoiceId, paymentId, idempotencyKey, forceImmediate, attachments = [] }) {
     return this.sendEmail({
       to,
       templateId,
       templateData: data,
       recipientId: patientId,
       idempotencyKey,
+      attachments,
       forceImmediate: forceImmediate ?? (process.env.NODE_ENV === "test"),
       metadata: { patientId, invoiceId, paymentId },
+    });
+  }
+
+  /**
+   * Official Invoice Dispatch with PDF attachment & verification link
+   */
+  async sendInvoiceEmail({ to, invoice, patient, pdfBuffer, idempotencyKey, forceImmediate = true }) {
+    const filename = `TriGyna_Invoice_${invoice.invoiceNumber}.pdf`;
+    const attachments = pdfBuffer
+      ? [
+          {
+            filename,
+            content: pdfBuffer,
+          },
+        ]
+      : [];
+
+    const frontendBaseUrl = (this.config.frontendUrl || "https://trigyna.in").replace(/\/$/, "");
+    const downloadUrl = `${frontendBaseUrl}/verify-document?type=invoice&code=${invoice.verificationCode || invoice.invoiceNumber}`;
+
+    return this.sendEmail({
+      to,
+      templateId: "invoice_notification",
+      templateData: {
+        patientName: patient?.fullName || invoice.customerName || "Patient",
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: new Date(invoice.createdAt || Date.now()).toLocaleDateString("en-IN"),
+        amount: invoice.totalAmount,
+        currency: invoice.currency || "INR",
+        paidAmount: invoice.paidAmount || invoice.totalAmount,
+        balanceAmount: invoice.balanceAmount || 0,
+        status: invoice.status || "paid",
+        downloadUrl,
+      },
+      recipientId: patient?._id || invoice.patientId,
+      idempotencyKey: idempotencyKey || `inv_email_${invoice.invoiceNumber}_${Date.now()}`,
+      forceImmediate,
+      attachments,
+      metadata: {
+        invoiceId: invoice._id,
+        invoiceNumber: invoice.invoiceNumber,
+        patientId: patient?._id || invoice.patientId,
+      },
     });
   }
 

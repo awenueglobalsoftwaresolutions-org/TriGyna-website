@@ -5,6 +5,7 @@ const { ValidationError, NotFoundError, ForbiddenError } = require("../../shared
 const { recordAudit } = require("../audit/audit.service");
 const { safeRegex } = require("../../shared/regex.utils");
 const { PERMISSIONS, ROLE_PERMISSIONS, getEffectivePermissions } = require("../../config/permissions");
+const emailService = require("../email/email.service");
 
 async function listUsers(req, res, next) {
   try {
@@ -74,6 +75,47 @@ async function createUser(req, res, next) {
       details: { name: newUser.name, role: newUser.role, phone: newUser.phone },
       ipAddress: req.ip,
     });
+
+    // Automated Registration Email Dispatch
+    if (newUser.email) {
+      try {
+        let templateId = "staff_onboarding_invitation";
+        if (["owner", "admin", "super_admin"].includes(newUser.role)) {
+          templateId = "admin_registration";
+        } else if (newUser.role === "patient") {
+          templateId = "patient_welcome_registration";
+        }
+
+        await emailService.sendTemplateEmail({
+          to: newUser.email,
+          templateId,
+          data: {
+            name: newUser.name,
+            role: newUser.role,
+            email: newUser.email,
+            phone: newUser.phone,
+            permissions: getEffectivePermissions(newUser),
+          },
+          recipientId: newUser._id,
+        });
+
+        // Notify creating admin
+        if (req.user?.email && req.user.email.toLowerCase() !== newUser.email.toLowerCase()) {
+          emailService.sendTemplateEmail({
+            to: req.user.email,
+            templateId: "admin_new_user_registered",
+            data: {
+              name: newUser.name,
+              role: newUser.role,
+              email: newUser.email,
+              phone: newUser.phone,
+            },
+          }).catch(() => {});
+        }
+      } catch (emailErr) {
+        console.warn("[User Registration] Email dispatch notice:", emailErr.message);
+      }
+    }
 
     return sendSuccess(
       res,

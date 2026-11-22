@@ -61,6 +61,7 @@ class EmailProvider {
     replyTo,
     headers = {},
     tags = [],
+    attachments = [],
     useSmtp = false,
   }) {
     if (!this.config.emailEnabled) {
@@ -86,6 +87,7 @@ class EmailProvider {
         text,
         replyTo,
         headers,
+        attachments,
       });
     }
 
@@ -104,6 +106,7 @@ class EmailProvider {
         if (replyTo) payload.reply_to = replyTo;
         if (headers && Object.keys(headers).length > 0) payload.headers = headers;
         if (tags && tags.length > 0) payload.tags = tags;
+        if (attachments && attachments.length > 0) payload.attachments = attachments;
 
         const { data, error } = await this.resendClient.emails.send(payload);
 
@@ -122,6 +125,7 @@ class EmailProvider {
               text,
               replyTo,
               headers,
+              attachments,
             });
           }
 
@@ -139,6 +143,7 @@ class EmailProvider {
           success: true,
           provider: "resend",
           providerEmailId: data.id,
+          id: data.id,
           status: "sent",
         };
       } catch (err) {
@@ -155,6 +160,7 @@ class EmailProvider {
             text,
             replyTo,
             headers,
+            attachments,
           });
         }
 
@@ -178,6 +184,7 @@ class EmailProvider {
         text,
         replyTo,
         headers,
+        attachments,
       });
     }
 
@@ -205,7 +212,7 @@ class EmailProvider {
   /**
    * Dispatch via Resend SMTPS
    */
-  async sendViaSmtp({ from, to, subject, html, text, replyTo, headers }) {
+  async sendViaSmtp({ from, to, subject, html, text, replyTo, headers, attachments = [] }) {
     if (!this.smtpTransporter) {
       return {
         success: false,
@@ -226,6 +233,10 @@ class EmailProvider {
         replyTo,
         headers,
       };
+
+      if (attachments && attachments.length > 0) {
+        mailOptions.attachments = attachments;
+      }
 
       const info = await this.smtpTransporter.sendMail(mailOptions);
       const messageId = info.messageId ? info.messageId.replace(/[<>]/g, "") : `smtp_${Date.now()}`;

@@ -594,7 +594,38 @@ function generateInvoicePdf(invoiceData, stream, orgData) {
   });
 }
 
+/**
+ * Generate PDF and return as an in-memory Buffer for email attachments
+ * @param {Object} invoiceData
+ * @param {Object} orgData
+ * @returns {Promise<Buffer>}
+ */
+function generateInvoicePdfBuffer(invoiceData, orgData) {
+  return new Promise((resolve, reject) => {
+    try {
+      const { Writable } = require("stream");
+      const chunks = [];
+      const bufferStream = new Writable({
+        write(chunk, encoding, callback) {
+          chunks.push(chunk);
+          callback();
+        },
+      });
+
+      bufferStream.on("finish", () => {
+        resolve(Buffer.concat(chunks));
+      });
+
+      generateInvoicePdf(invoiceData, bufferStream, orgData)
+        .catch(reject);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 module.exports = {
   generateInvoicePdf,
+  generateInvoicePdfBuffer,
 };
 

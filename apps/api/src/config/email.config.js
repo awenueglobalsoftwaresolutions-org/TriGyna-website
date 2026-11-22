@@ -96,6 +96,8 @@ module.exports = {
   smtpPassword,
   emailEnabled,
   provider,
+  replyTo: fromEmail,
+  supportEmail: fromEmail,
   frontendUrl: env.FRONTEND_URL,
   backendUrl: env.BACKEND_URL,
   appBaseUrl: env.APP_URL || env.FRONTEND_URL,

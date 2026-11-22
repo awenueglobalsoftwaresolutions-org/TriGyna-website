@@ -900,6 +900,473 @@ const TEMPLATES = {
       });
     },
   },
+
+  // -------------------------------------------------------------
+  // USER & STAFF REGISTRATION TEMPLATES
+  // -------------------------------------------------------------
+  staff_onboarding_invitation: {
+    id: "staff_onboarding_invitation",
+    category: "auth",
+    name: "Staff Onboarding & Activation Invitation",
+    subject: (data) => `Welcome to TriGyna: Activate Your ${escapeHtml(data.role || "Staff")} Account`,
+    render: (data) => {
+      const activationUrl = data.activationUrl || `${emailConfig.frontendUrl}/activate-account?token=${data.token || ""}`;
+      const portalUrl = data.portalUrl || `${emailConfig.frontendUrl}/login`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">Welcome to the TriGyna Medical Team</h2>
+        <p>Hello <strong>${escapeHtml(data.name || "Colleague")}</strong>,</p>
+        <p>An official staff account has been provisioned for you on the TriGyna Healthcare Platform.</p>
+        <div class="info-card">
+          <p style="margin: 4px 0;"><strong>Staff Member:</strong> ${escapeHtml(data.name || "")}</p>
+          <p style="margin: 4px 0;"><strong>Role:</strong> <span style="text-transform: capitalize; color: #154734; font-weight: bold;">${escapeHtml(data.role || "Staff")}</span></p>
+          ${data.employeeCode ? `<p style="margin: 4px 0;"><strong>Employee Code:</strong> <code>${escapeHtml(data.employeeCode)}</code></p>` : ""}
+          ${data.department ? `<p style="margin: 4px 0;"><strong>Department:</strong> ${escapeHtml(data.department)}</p>` : ""}
+          <p style="margin: 4px 0;"><strong>Practice Model:</strong> 100% Online Digital Care Platform</p>
+        </div>
+        <p>To establish your secure credentials and activate your workspace, please use the button below. This activation link expires in 48 hours.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${activationUrl}" class="btn">Activate Account &amp; Set Password &rarr;</a>
+        </div>
+        <div class="security-notice">
+          <strong>Security Policy:</strong> TriGyna will never ask for your password via email or telephone. Always ensure you are on <strong>https://trigyna.in</strong> when logging in.
+        </div>
+        <p style="font-size: 13px; color: #64748B;">Once activated, you can access your workspace anytime at: <a href="${portalUrl}" style="color: #154734;">${portalUrl}</a></p>
+      `;
+      return renderBaseLayout({
+        title: "Staff Account Activation - TriGyna",
+        subtitle: "Enterprise Healthcare Platform",
+        content,
+        recipientEmail: data.email,
+        showPreferencesLink: false,
+      });
+    },
+  },
+
+  staff_account_activated: {
+    id: "staff_account_activated",
+    category: "auth",
+    name: "Staff Account Activated",
+    subject: "Your TriGyna Staff Account is Now Active",
+    render: (data) => {
+      const loginUrl = data.loginUrl || `${emailConfig.frontendUrl}/login`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">Account Activated Successfully</h2>
+        <p>Hello <strong>${escapeHtml(data.name || "Colleague")}</strong>,</p>
+        <p>Your TriGyna staff account has been successfully verified and activated. You can now log into your clinical / administrative workspace.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${loginUrl}" class="btn">Access TriGyna Workspace &rarr;</a>
+        </div>
+        <div class="info-card">
+          <p style="margin: 4px 0;"><strong>Login Identifier:</strong> Your registered work email or phone number</p>
+          <p style="margin: 4px 0;"><strong>Clinical Helpline:</strong> support@trigyna.in</p>
+        </div>
+      `;
+      return renderBaseLayout({
+        title: "Account Activated - TriGyna",
+        subtitle: "Staff Workspace Ready",
+        content,
+        recipientEmail: data.email,
+        showPreferencesLink: false,
+      });
+    },
+  },
+
+  admin_registration: {
+    id: "admin_registration",
+    category: "admin",
+    name: "Admin Registration Notification",
+    subject: (data) => `TriGyna Administrator Account: ${escapeHtml(data.name || "Admin")}`,
+    render: (data) => {
+      const loginUrl = `${emailConfig.frontendUrl}/login`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">Administrator Credentials Provisioned</h2>
+        <p>Hello <strong>${escapeHtml(data.name || "Administrator")}</strong>,</p>
+        <p>You have been assigned administrative privileges on the TriGyna Healthcare Platform.</p>
+        <div class="info-card">
+          <p style="margin: 4px 0;"><strong>Full Name:</strong> ${escapeHtml(data.name || "")}</p>
+          <p style="margin: 4px 0;"><strong>Assigned Role:</strong> <span style="color: #154734; font-weight: bold; text-transform: uppercase;">${escapeHtml(data.role || "Admin")}</span></p>
+          ${data.permissions ? `<p style="margin: 4px 0;"><strong>Permissions:</strong> ${escapeHtml(Array.isArray(data.permissions) ? data.permissions.join(", ") : data.permissions)}</p>` : ""}
+          <p style="margin: 4px 0;"><strong>Access URL:</strong> <a href="${loginUrl}" style="color: #154734;">${loginUrl}</a></p>
+        </div>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${loginUrl}" class="btn">Login to Admin Portal &rarr;</a>
+        </div>
+        <div class="security-notice">
+          <strong>Privileged Access:</strong> As an administrator, you have elevated access to platform records. Ensure strong multi-character credentials and never share authentication sessions.
+        </div>
+      `;
+      return renderBaseLayout({
+        title: "Administrator Onboarding - TriGyna",
+        subtitle: "System Administration",
+        content,
+        recipientEmail: data.email,
+        showPreferencesLink: false,
+      });
+    },
+  },
+
+  account_activation: {
+    id: "account_activation",
+    category: "auth",
+    name: "Account Activation",
+    subject: "Activate Your TriGyna Account",
+    render: (data) => {
+      const activationUrl = data.activationUrl || `${emailConfig.frontendUrl}/activate-account?token=${data.token || ""}`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">Activate Your TriGyna Account</h2>
+        <p>Hello <strong>${escapeHtml(data.name || "User")}</strong>,</p>
+        <p>Thank you for joining TriGyna. Please click the button below to activate your account and establish your password:</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${activationUrl}" class="btn">Activate Account &rarr;</a>
+        </div>
+        <p style="font-size: 13px; color: #64748B;">This link is single-use and will expire in 24 hours.</p>
+      `;
+      return renderBaseLayout({
+        title: "Account Activation - TriGyna",
+        subtitle: "Secure Access",
+        content,
+        recipientEmail: data.email,
+        showPreferencesLink: false,
+      });
+    },
+  },
+
+  password_setup: {
+    id: "password_setup",
+    category: "auth",
+    name: "Password Setup",
+    subject: "Set Up Your TriGyna Password",
+    render: (data) => {
+      const setupUrl = data.setupUrl || `${emailConfig.frontendUrl}/reset-password?token=${data.token || ""}`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">Set Up Your Password</h2>
+        <p>Hello <strong>${escapeHtml(data.name || "User")}</strong>,</p>
+        <p>Please establish a secure password for your TriGyna account by clicking below:</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${setupUrl}" class="btn">Set My Password &rarr;</a>
+        </div>
+        <p style="font-size: 13px; color: #64748B;">This link will expire in 24 hours for security.</p>
+      `;
+      return renderBaseLayout({
+        title: "Set Up Password - TriGyna",
+        subtitle: "Security & Credentials",
+        content,
+        recipientEmail: data.email,
+        showPreferencesLink: false,
+      });
+    },
+  },
+
+  patient_form_submission: {
+    id: "patient_form_submission",
+    category: "patients",
+    name: "Patient Form Submission Acknowledgment",
+    subject: (data) => `Form Received: ${escapeHtml(data.formType || "Patient Submission")} (Ref: #${escapeHtml(data.referenceNumber || "TG-FORM")})`,
+    render: (data) => {
+      const portalUrl = `${emailConfig.frontendUrl}/patient/dashboard`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">Submission Acknowledgment</h2>
+        <p>Hello <strong>${escapeHtml(data.patientName || data.name || "Patient")}</strong>,</p>
+        <p>We have successfully received your <strong>${escapeHtml(data.formType || "medical form / enquiry")}</strong>. Our clinical and care coordination team will review your information shortly.</p>
+        <div class="info-card">
+          <p style="margin: 4px 0;"><strong>Submission Reference:</strong> <code>#${escapeHtml(data.referenceNumber || data.leadId || "TG-" + Date.now().toString().slice(-6))}</code></p>
+          <p style="margin: 4px 0;"><strong>Category:</strong> ${escapeHtml(data.category || data.service || "Clinical Care")}</p>
+          <p style="margin: 4px 0;"><strong>Received Date:</strong> ${escapeHtml(data.timestamp || new Date().toLocaleString("en-IN"))}</p>
+          <p style="margin: 4px 0;"><strong>Status:</strong> Under Review by Clinical Coordination</p>
+        </div>
+        <p><strong>Next Steps:</strong> A TriGyna care specialist will reach out to schedule or confirm your next clinical milestone.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${portalUrl}" class="btn">View in Patient Portal &rarr;</a>
+        </div>
+        <p style="font-size: 12px; color: #64748B;">Note: To protect your medical privacy, sensitive health history is not included in email transmissions.</p>
+      `;
+      return renderBaseLayout({
+        title: "Form Submission Received - TriGyna",
+        subtitle: "Patient Coordination",
+        content,
+        recipientEmail: data.email,
+      });
+    },
+  },
+
+  // -------------------------------------------------------------
+  // APPOINTMENT EXTENDED TEMPLATES
+  // -------------------------------------------------------------
+  appointment_scheduled: {
+    id: "appointment_scheduled",
+    category: "appointments",
+    name: "Appointment Scheduled",
+    subject: (data) => `Appointment Scheduled with Dr. ${data.doctorName || "Specialist"} for ${data.date || "your date"}`,
+    render: (data) => {
+      const rescheduleUrl = `${emailConfig.frontendUrl}/patient/appointments`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">Appointment Scheduled</h2>
+        <p>Hello <strong>${escapeHtml(data.patientName || "Patient")}</strong>,</p>
+        <p>Your appointment has been successfully scheduled on the TriGyna platform.</p>
+        <div class="info-card">
+          <p style="margin: 4px 0;"><strong>Appointment Reference:</strong> <code>${escapeHtml(data.appointmentCode || "TG-APT")}</code></p>
+          <p style="margin: 4px 0;"><strong>Consulting Doctor:</strong> Dr. ${escapeHtml(data.doctorName || "TriGyna Specialist")}</p>
+          <p style="margin: 4px 0;"><strong>Scheduled Date:</strong> ${escapeHtml(data.date || "")}</p>
+          <p style="margin: 4px 0;"><strong>Time Slot:</strong> ${escapeHtml(data.time || "")}</p>
+          <p style="margin: 4px 0;"><strong>Consultation Mode:</strong> 100% Online HD Video Call</p>
+          ${data.meetingLink ? `<p style="margin: 4px 0;"><strong>Video Room:</strong> <a href="${data.meetingLink}" style="color: #154734; font-weight: bold;">Join Video Room</a></p>` : ""}
+        </div>
+        <p><strong>Need to reschedule?</strong> You can manage or reschedule your appointment at any time up to 2 hours prior to the slot through your portal.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${rescheduleUrl}" class="btn">Manage Appointment &rarr;</a>
+        </div>
+      `;
+      return renderBaseLayout({
+        title: "Appointment Scheduled - TriGyna",
+        subtitle: "Telehealth Care",
+        content,
+        recipientEmail: data.email,
+      });
+    },
+  },
+
+  appointment_confirmed: {
+    id: "appointment_confirmed",
+    category: "appointments",
+    name: "Appointment Confirmed",
+    subject: (data) => `Confirmed: Consultation with Dr. ${data.doctorName || "Specialist"} on ${data.date || ""}`,
+    render: (data) => {
+      const portalUrl = `${emailConfig.frontendUrl}/patient/appointments`;
+      const content = `
+        <h2 style="color: #087F56; margin-top: 0;">Appointment Confirmed</h2>
+        <p>Hello <strong>${escapeHtml(data.patientName || "Patient")}</strong>,</p>
+        <p>Your upcoming clinical consultation has been reviewed and confirmed by our medical team.</p>
+        <div class="info-card">
+          <p style="margin: 4px 0;"><strong>Doctor:</strong> Dr. ${escapeHtml(data.doctorName || "TriGyna Specialist")}</p>
+          <p style="margin: 4px 0;"><strong>Confirmed Date:</strong> ${escapeHtml(data.date || "")}</p>
+          <p style="margin: 4px 0;"><strong>Time:</strong> ${escapeHtml(data.time || "")}</p>
+          <p style="margin: 4px 0;"><strong>Status:</strong> <span style="color: #087F56; font-weight: bold;">CONFIRMED</span></p>
+        </div>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${portalUrl}" class="btn">Open Patient Portal &rarr;</a>
+        </div>
+      `;
+      return renderBaseLayout({
+        title: "Appointment Confirmed - TriGyna",
+        subtitle: "Clinical Care",
+        content,
+        recipientEmail: data.email,
+      });
+    },
+  },
+
+  appointment_completed: {
+    id: "appointment_completed",
+    category: "appointments",
+    name: "Appointment Completed & Follow-up Guidance",
+    subject: (data) => `Consultation Completed - Next Steps from Dr. ${data.doctorName || "Specialist"}`,
+    render: (data) => {
+      const portalUrl = `${emailConfig.frontendUrl}/patient/dashboard`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">Consultation Completed</h2>
+        <p>Hello <strong>${escapeHtml(data.patientName || "Patient")}</strong>,</p>
+        <p>Thank you for consulting with Dr. <strong>${escapeHtml(data.doctorName || "Specialist")}</strong> today.</p>
+        <div class="info-card">
+          <p style="margin: 4px 0;"><strong>Consultation Date:</strong> ${escapeHtml(data.date || new Date().toLocaleDateString("en-IN"))}</p>
+          <p style="margin: 4px 0;"><strong>Doctor:</strong> Dr. ${escapeHtml(data.doctorName || "TriGyna Specialist")}</p>
+          <p style="margin: 4px 0;"><strong>Clinical Notes &amp; Rx:</strong> Available in your secure portal</p>
+        </div>
+        <p><strong>Next Steps:</strong></p>
+        <ul>
+          <li>Review any signed digital prescriptions and dietary instructions in your portal.</li>
+          <li>Our care team will reach out for your routine follow-up check-in.</li>
+        </ul>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${portalUrl}" class="btn">View Clinical Summary &rarr;</a>
+        </div>
+      `;
+      return renderBaseLayout({
+        title: "Consultation Complete - TriGyna",
+        subtitle: "Post-Consultation Care",
+        content,
+        recipientEmail: data.email,
+      });
+    },
+  },
+
+  appointment_followup: {
+    id: "appointment_followup",
+    category: "appointments",
+    name: "Patient Care Follow-up",
+    subject: (data) => `Follow-up Check-in: How Are You Feeling, ${escapeHtml(data.patientName || "Patient")}?`,
+    render: (data) => {
+      const portalUrl = `${emailConfig.frontendUrl}/patient/dashboard`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">Care Check-in from TriGyna</h2>
+        <p>Hello <strong>${escapeHtml(data.patientName || "Patient")}</strong>,</p>
+        <p>We hope you are progressing well following your recent consultation with Dr. ${escapeHtml(data.doctorName || "Specialist")}.</p>
+        <div class="info-card">
+          <p style="margin: 4px 0;"><strong>Reference:</strong> ${escapeHtml(data.appointmentCode || "Clinical Follow-up")}</p>
+          <p style="margin: 4px 0;"><strong>Support Line:</strong> +91 917-277-2326</p>
+          <p style="margin: 4px 0;"><strong>Portal Access:</strong> You can message your doctor or book a review slot anytime.</p>
+        </div>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${portalUrl}" class="btn">Visit Patient Portal &rarr;</a>
+        </div>
+      `;
+      return renderBaseLayout({
+        title: "Care Follow-up - TriGyna",
+        subtitle: "Constitutional Health Follow-up",
+        content,
+        recipientEmail: data.email,
+      });
+    },
+  },
+
+  missed_appointment: {
+    id: "missed_appointment",
+    category: "appointments",
+    name: "Missed Appointment Notice",
+    subject: (data) => `We Missed You: Reschedule Your TriGyna Consultation with Dr. ${data.doctorName || "Specialist"}`,
+    render: (data) => {
+      const rebookUrl = `${emailConfig.frontendUrl}/book-appointment`;
+      const content = `
+        <h2 style="color: #92400E; margin-top: 0;">Missed Consultation Notice</h2>
+        <p>Hello <strong>${escapeHtml(data.patientName || "Patient")}</strong>,</p>
+        <p>We noticed you were unable to attend your scheduled consultation on <strong>${escapeHtml(data.date || "")} at ${escapeHtml(data.time || "")}</strong>.</p>
+        <p>We understand that unexpected delays happen. Your health remains our top priority, and we encourage you to reschedule your consultation at your convenience.</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${rebookUrl}" class="btn">Reschedule Your Appointment &rarr;</a>
+        </div>
+        <div class="info-card">
+          <p style="margin: 4px 0;">Need help booking or have questions? Call our patient helpline at <strong>+91 917-277-2326</strong>.</p>
+        </div>
+      `;
+      return renderBaseLayout({
+        title: "Missed Appointment - TriGyna",
+        subtitle: "Patient Care Support",
+        content,
+        recipientEmail: data.email,
+      });
+    },
+  },
+
+  appointment_rejected: {
+    id: "appointment_rejected",
+    category: "appointments",
+    name: "Appointment Request Declined",
+    subject: "Update Regarding Your Appointment Request",
+    render: (data) => {
+      const rebookUrl = `${emailConfig.frontendUrl}/book-appointment`;
+      const content = `
+        <h2 style="color: #DC2626; margin-top: 0;">Appointment Request Update</h2>
+        <p>Hello <strong>${escapeHtml(data.patientName || "Patient")}</strong>,</p>
+        <p>Your appointment request for <strong>${escapeHtml(data.date || "")} at ${escapeHtml(data.time || "")}</strong> could not be confirmed.</p>
+        <div class="info-card">
+          <p style="margin: 4px 0;"><strong>Reason:</strong> ${escapeHtml(data.reason || "Doctor unavailable during the requested slot / scheduling conflict")}</p>
+        </div>
+        <p>Please select an alternate slot with our available specialists:</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${rebookUrl}" class="btn">Select Alternate Slot &rarr;</a>
+        </div>
+      `;
+      return renderBaseLayout({
+        title: "Appointment Update - TriGyna",
+        subtitle: "Scheduling Notification",
+        content,
+        recipientEmail: data.email,
+      });
+    },
+  },
+
+  // -------------------------------------------------------------
+  // BILLING & INVOICE TEMPLATES
+  // -------------------------------------------------------------
+  invoice_bill: {
+    id: "invoice_bill",
+    category: "payments",
+    name: "Official Bill & Tax Invoice",
+    subject: (data) => `Tax Invoice #${data.invoiceNumber || ""} from TriGyna Health & Wellness`,
+    render: (data) => {
+      const downloadUrl = data.downloadUrl || `${emailConfig.frontendUrl}/verify-document?type=invoice&code=${data.invoiceNumber || ""}`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">Your Official Tax Invoice is Ready</h2>
+        <p>Dear <strong>${escapeHtml(data.patientName || "Patient")}</strong>,</p>
+        <p>Thank you for choosing TriGyna. Your official bill and tax invoice for consultation services is attached to this email as a PDF.</p>
+        <div class="info-card">
+          <table style="width: 100%; font-size: 14px;">
+            <tr><td style="color: #64748B; padding: 6px 0;">Invoice Number:</td><td style="font-family: monospace; font-weight: bold; color: #154734;">${escapeHtml(data.invoiceNumber || "N/A")}</td></tr>
+            <tr><td style="color: #64748B; padding: 6px 0;">Invoice Date:</td><td style="font-weight: 500;">${escapeHtml(data.invoiceDate || new Date().toLocaleDateString("en-IN"))}</td></tr>
+            <tr><td style="color: #64748B; padding: 6px 0;">Amount:</td><td style="font-size: 16px; font-weight: bold; color: #087F56;">₹${Number(data.amount || 0).toLocaleString("en-IN")}</td></tr>
+            <tr><td style="color: #64748B; padding: 6px 0;">Payment Status:</td><td style="font-weight: bold; color: #087F56; text-transform: uppercase;">${escapeHtml(data.status || "PAID")}</td></tr>
+          </table>
+        </div>
+        <p>A copy of the digitally signed PDF invoice is attached. You can also securely view and verify your document online:</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${downloadUrl}" class="btn">View &amp; Verify Invoice Online &rarr;</a>
+        </div>
+      `;
+      return renderBaseLayout({
+        title: "Tax Invoice - TriGyna",
+        subtitle: "Official Billing Document",
+        content,
+        recipientEmail: data.email,
+      });
+    },
+  },
+
+  admin_system_alert: {
+    id: "admin_system_alert",
+    category: "admin",
+    name: "General Admin System Alert",
+    subject: (data) => `[TriGyna System Alert] ${data.title || "Administrative Event"}`,
+    render: (data) => {
+      const adminUrl = `${emailConfig.frontendUrl}/admin/dashboard`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">${escapeHtml(data.title || "Administrative Notification")}</h2>
+        <p>${escapeHtml(data.message || "An important system event has occurred on the TriGyna platform.")}</p>
+        <div class="info-card">
+          <p style="margin: 4px 0;"><strong>Category:</strong> ${escapeHtml(data.category || "System Alert")}</p>
+          <p style="margin: 4px 0;"><strong>Timestamp:</strong> ${escapeHtml(new Date().toLocaleString("en-IN"))}</p>
+          ${data.details ? `<pre style="font-size: 11px; background: #EAEFEA; padding: 8px; border-radius: 4px; overflow-x: auto;">${escapeHtml(typeof data.details === "object" ? JSON.stringify(data.details, null, 2) : data.details)}</pre>` : ""}
+        </div>
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="${adminUrl}" class="btn">Go to Admin Dashboard &rarr;</a>
+        </div>
+      `;
+      return renderBaseLayout({
+        title: "System Alert - TriGyna",
+        subtitle: "Operations & Auditing",
+        content,
+        recipientEmail: data.email,
+        showPreferencesLink: false,
+      });
+    },
+  },
+
+  welcome_email: {
+    id: "welcome_email",
+    category: "patients",
+    name: "Patient Welcome Email",
+    subject: "Welcome to TriGyna — Your Personal Health & Wellness Journey",
+    render: (data) => {
+      const portalUrl = `${emailConfig.frontendUrl}/patient/dashboard`;
+      const content = `
+        <h2 style="color: #154734; margin-top: 0;">Welcome to TriGyna</h2>
+        <p>Dear <strong>${escapeHtml(data.name || "Patient")}</strong>,</p>
+        <p>Thank you for choosing TriGyna for your healthcare and constitutional wellness. Your account has been registered.</p>
+        <div class="info-card">
+          <p style="margin: 4px 0;"><strong>Patient Identifier:</strong> <code>${escapeHtml(data.patientCode || data.patientId || "Active")}</code></p>
+          <p style="margin: 4px 0;"><strong>Registered Email:</strong> ${escapeHtml(data.email || "")}</p>
+          <p style="margin: 4px 0;"><strong>Care Portal:</strong> Teleconsultations, Prescriptions &amp; Digital Invoices</p>
+        </div>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${portalUrl}" class="btn">Access Patient Portal &rarr;</a>
+        </div>
+      `;
+      return renderBaseLayout({
+        title: "Welcome to TriGyna",
+        subtitle: "Women's Health & Constitutional Wellness",
+        content,
+        recipientEmail: data.email,
+      });
+    },
+  },
 };
 
 /**
@@ -927,10 +1394,23 @@ class EmailTemplateService {
 
     const subject = typeof template.subject === "function" ? template.subject(data) : template.subject;
     const html = template.render(data);
+    const text = html
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&amp;/g, "&")
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/\s+/g, " ")
+      .trim();
 
     return {
       subject,
       html,
+      text,
     };
   }
 }

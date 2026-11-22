@@ -17,6 +17,7 @@ const { recordAudit } = require("../audit/audit.service");
 const { generateAtomicPatientCode, generateAtomicAppointmentCode } = require("../../shared/counter.service");
 const { safeRegex } = require("../../shared/regex.utils");
 const { canAccessPatient, serializePatientForRole } = require("../auth/authorization.service");
+const emailService = require("../email/email.service");
 
 /**
  * 1. Dynamic Patient Statistics & KPI Metrics
@@ -1291,6 +1292,32 @@ async function createPatient(req, res, next) {
       details: { patientCode: patient.patientCode, name: patient.fullName },
       ipAddress: req.ip,
     });
+
+    // Automated Registration Welcome Email & Admin Notification
+    if (patient.email) {
+      emailService.sendTemplateEmail({
+        to: patient.email,
+        templateId: "patient_welcome_registration",
+        data: {
+          name: patient.fullName,
+          patientCode: patient.patientCode,
+          email: patient.email,
+        },
+        patientId: patient._id,
+      }).catch((err) => console.warn("[Patient Registration] Welcome email warning:", err.message));
+
+      const adminEmail = process.env.ADMIN_EMAIL || "Codewithsushil7236@gmail.com";
+      emailService.sendTemplateEmail({
+        to: adminEmail,
+        templateId: "admin_new_user_registered",
+        data: {
+          name: patient.fullName,
+          email: patient.email,
+          phone: patient.phone,
+          role: "patient",
+        },
+      }).catch((err) => console.warn("[Patient Registration] Admin notification warning:", err.message));
+    }
 
     return sendSuccess(res, { patient }, "Patient registered successfully", 201);
   } catch (err) {

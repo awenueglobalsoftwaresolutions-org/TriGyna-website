@@ -243,18 +243,54 @@ async function dispatchNotificationEvent(event, data) {
           link: `/admin/dashboard`,
         });
 
-        const targetEmail = patientUser?.email;
+        const targetEmail = patientUser?.email || data.patient?.email || invoice?.customerEmail || invoice?.email;
         if (targetEmail) {
-          emailService.sendEmail({
-            to: targetEmail,
-            templateId: "payment_receipt",
-            templateData: {
-              patientName: patientUser?.name || "Patient",
-              amount: payment.amount,
-              receiptNumber: receipt?.receiptNumber || "REC-" + Date.now(),
-              invoiceNumber: invoice.invoiceNumber,
-            },
-          }).catch((e) => console.warn("[Email Service] Payment receipt email error:", e.message));
+          (async () => {
+            try {
+              let pdfBuffer = null;
+              if (invoice) {
+                try {
+                  const { generateInvoicePdfBuffer } = require("../billing/invoice-pdf.service");
+                  pdfBuffer = await generateInvoicePdfBuffer(invoice);
+                } catch (pdfErr) {
+                  console.warn("[Billing Email] Could not generate invoice PDF attachment:", pdfErr.message);
+                }
+              }
+
+              const attachments = pdfBuffer && invoice
+                ? [
+                    {
+                      filename: `TriGyna_Invoice_${invoice.invoiceNumber || "Bill"}.pdf`,
+                      content: pdfBuffer,
+                    },
+                  ]
+                : [];
+
+              const centralizedEmail = require("../email/email.service");
+              await centralizedEmail.sendEmail({
+                to: targetEmail,
+                templateId: invoice ? "invoice_notification" : "payment_receipt",
+                templateData: {
+                  patientName: patientUser?.name || invoice?.customerName || "Patient",
+                  amount: payment.amount,
+                  receiptNumber: receipt?.receiptNumber || "REC-" + Date.now(),
+                  invoiceNumber: invoice?.invoiceNumber || "N/A",
+                  invoiceDate: new Date(invoice?.createdAt || Date.now()).toLocaleDateString("en-IN"),
+                  currency: invoice?.currency || "INR",
+                  paidAmount: invoice?.paidAmount || payment.amount,
+                  balanceAmount: invoice?.balanceAmount || 0,
+                  status: invoice?.status || "paid",
+                  downloadUrl: invoice
+                    ? `https://trigyna.in/verify-document?type=invoice&code=${invoice.verificationCode || invoice.invoiceNumber}`
+                    : "https://trigyna.in/patient/dashboard",
+                },
+                attachments,
+                forceImmediate: true,
+              });
+            } catch (e) {
+              console.warn("[Email Service] Payment receipt / invoice email error:", e.message);
+            }
+          })();
         }
 
         // Approved WhatsApp Payment Receipt Template Dispatch
@@ -328,6 +364,34 @@ async function dispatchNotificationEvent(event, data) {
             link: `/patient/dashboard`,
           });
         }
+
+        const failEmail = patientUser?.email || invoice?.customerEmail || invoice?.email;
+        if (failEmail) {
+          emailService.sendEmail({
+            to: failEmail,
+            templateId: "payment_failed",
+            templateData: {
+              patientName: patientUser?.name || invoice?.customerName || "Patient",
+              amount: payment?.amount || invoice?.totalAmount,
+              invoiceNumber: invoice?.invoiceNumber || "N/A",
+              reason: data.reason || "Payment declined by issuing bank / gateway",
+              retryUrl: `https://trigyna.in/checkout?invoiceId=${invoice?._id}`,
+            },
+          }).catch((e) => console.warn("[Email Service] Payment failed email warning:", e.message));
+        }
+
+        // Notify Admin of payment failure
+        const adminEmail = process.env.ADMIN_EMAIL || "Codewithsushil7236@gmail.com";
+        emailService.sendEmail({
+          to: adminEmail,
+          templateId: "admin_payment_failure_alert",
+          templateData: {
+            invoiceNumber: invoice?.invoiceNumber || "N/A",
+            amount: payment?.amount || invoice?.totalAmount,
+            errorMessage: data.reason || "Payment gateway processing failure",
+          },
+        }).catch(() => {});
+
         break;
       }
 
@@ -342,6 +406,20 @@ async function dispatchNotificationEvent(event, data) {
             type: "billing",
             link: `/patient/dashboard`,
           });
+        }
+
+        const refundEmail = patientUser?.email || invoice?.customerEmail || invoice?.email;
+        if (refundEmail) {
+          emailService.sendEmail({
+            to: refundEmail,
+            templateId: "refund_processed",
+            templateData: {
+              patientName: patientUser?.name || invoice?.customerName || "Patient",
+              amount: refundAmount,
+              invoiceNumber: invoice?.invoiceNumber || "N/A",
+              refundDate: new Date().toLocaleDateString("en-IN"),
+            },
+          }).catch((e) => console.warn("[Email Service] Refund email warning:", e.message));
         }
         break;
       }

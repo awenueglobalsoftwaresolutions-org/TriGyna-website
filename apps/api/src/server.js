@@ -19,6 +19,16 @@ async function startServer() {
     await connectDB();
     await connectRedis();
 
+    // Ensure default email automation settings and initialize scheduler
+    try {
+      const EmailAutomationSettings = require("./modules/email/email-automation-settings.model");
+      await EmailAutomationSettings.ensureDefaults();
+      const emailScheduler = require("./modules/email/email.scheduler");
+      emailScheduler.start();
+    } catch (emailInitErr) {
+      console.warn("[Server] Email automations init notice:", emailInitErr.message);
+    }
+
     const HOST = "0.0.0.0";
     server = app.listen(env.PORT, HOST, () => {
       console.log(`[Server] Express REST API is running on http://${HOST}:${env.PORT}/api/v1`);
@@ -31,6 +41,8 @@ async function startServer() {
       try {
         const emailQueueService = require("./modules/email/email.queue.service");
         emailQueueService.stop();
+        const emailScheduler = require("./modules/email/email.scheduler");
+        emailScheduler.stop();
       } catch {
         // Safe fallback
       }

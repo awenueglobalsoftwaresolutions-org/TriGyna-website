@@ -7,6 +7,8 @@ const { sendSuccess } = require("../../shared/response");
 const { ValidationError, NotFoundError, ConflictError, ForbiddenError } = require("../../shared/errors");
 const { recordAudit } = require("../audit/audit.service");
 const { dispatchNotificationEvent } = require("../notifications/notification.service");
+const emailService = require("../email/email.service");
+const emailScheduler = require("../email/email.scheduler");
 
 const { generateAtomicAppointmentCode } = require("../../shared/counter.service");
 const {
@@ -154,6 +156,23 @@ async function createAppointment(req, res, next) {
       req.user
     );
 
+    // Automated Notification Event & Email Dispatch
+    try {
+      await dispatchNotificationEvent("appointment.booked", {
+        appointment,
+        doctorUser: doctor.userId ? { _id: doctor.userId, name: doctor.fullName } : null,
+        patientUser: patient,
+        patientName: patient.fullName,
+      });
+
+      // Schedule automated 48h, 24h, 2h reminders
+      if (patient.email) {
+        await emailScheduler.scheduleAppointmentReminders(appointment, patient.email);
+      }
+    } catch (notifErr) {
+      console.warn("[Appointment] Email notification / reminder scheduling warning:", notifErr.message);
+    }
+
     await deleteCacheByPattern(redisKeys.patterns.appointmentAvail(doctorId));
     await deleteCacheByPattern(redisKeys.patterns.reports());
 
@@ -179,6 +198,26 @@ async function updateAppointmentStatus(req, res, next) {
 
     if (status === "cancelled") {
       const appointment = await cancelAppointmentAtomic(req.params.id, cancellationReason, req.user);
+      try {
+        const patient = await Patient.findById(appointment.patientId);
+        const doctor = await Doctor.findById(appointment.doctorId).populate("userId", "name");
+        if (patient?.email) {
+          emailService.sendTemplateEmail({
+            to: patient.email,
+            templateId: "appointment_cancelled",
+            data: {
+              patientName: patient.fullName || "Patient",
+              doctorName: doctor?.userId?.name || doctor?.fullName || "TriGyna Specialist",
+              date: appointment.appointmentDate,
+              reason: cancellationReason || "Cancelled by clinical administration",
+            },
+            patientId: patient._id,
+          }).catch((err) => console.warn("[Appointment] Cancel email warning:", err.message));
+        }
+        await emailScheduler.cancelAppointmentReminders(appointment._id, cancellationReason);
+      } catch (cancelErr) {
+        console.warn("[Appointment] Cancellation notification notice:", cancelErr.message);
+      }
       await deleteCacheByPattern(redisKeys.patterns.appointmentAvail(appointment.doctorId));
       await deleteCacheByPattern(redisKeys.patterns.reports());
       return sendSuccess(res, { appointment }, `Appointment status updated to 'cancelled'`);
@@ -197,6 +236,69 @@ async function updateAppointmentStatus(req, res, next) {
         });
       } catch (creditErr) {
         console.warn("[Appointment] Credit consumption note:", creditErr.message);
+      }
+
+      // Automated completion follow-up scheduling
+      try {
+        const patient = await Patient.findById(appointment.patientId);
+        const doctor = await Doctor.findById(appointment.doctorId).populate("userId", "name");
+        if (patient?.email) {
+          emailService.sendTemplateEmail({
+            to: patient.email,
+            templateId: "appointment_completed",
+            data: {
+              patientName: patient.fullName || "Patient",
+              doctorName: doctor?.userId?.name || doctor?.fullName || "TriGyna Specialist",
+              date: appointment.appointmentDate,
+            },
+            patientId: patient._id,
+          }).catch((err) => console.warn("[Appointment] Complete email warning:", err.message));
+
+          await emailScheduler.scheduleAppointmentFollowUps(appointment, patient.email);
+        }
+      } catch (completeErr) {
+        console.warn("[Appointment] Completion notification notice:", completeErr.message);
+      }
+    } else if (status === "no_show") {
+      try {
+        const patient = await Patient.findById(appointment.patientId);
+        const doctor = await Doctor.findById(appointment.doctorId).populate("userId", "name");
+        if (patient?.email) {
+          emailService.sendTemplateEmail({
+            to: patient.email,
+            templateId: "missed_appointment",
+            data: {
+              patientName: patient.fullName || "Patient",
+              doctorName: doctor?.userId?.name || doctor?.fullName || "TriGyna Specialist",
+              date: appointment.appointmentDate,
+              time: appointment.startTime,
+            },
+            patientId: patient._id,
+          }).catch((err) => console.warn("[Appointment] Missed email warning:", err.message));
+        }
+      } catch (noShowErr) {
+        console.warn("[Appointment] No-show notification notice:", noShowErr.message);
+      }
+    } else if (status === "scheduled") {
+      // Confirmed by staff
+      try {
+        const patient = await Patient.findById(appointment.patientId);
+        const doctor = await Doctor.findById(appointment.doctorId).populate("userId", "name");
+        if (patient?.email) {
+          emailService.sendTemplateEmail({
+            to: patient.email,
+            templateId: "appointment_confirmed",
+            data: {
+              patientName: patient.fullName || "Patient",
+              doctorName: doctor?.userId?.name || doctor?.fullName || "TriGyna Specialist",
+              date: appointment.appointmentDate,
+              time: appointment.startTime,
+            },
+            patientId: patient._id,
+          }).catch((err) => console.warn("[Appointment] Confirm email warning:", err.message));
+        }
+      } catch (confErr) {
+        console.warn("[Appointment] Confirmation notification notice:", confErr.message);
       }
     }
 
@@ -256,6 +358,30 @@ async function rescheduleAppointment(req, res, next) {
       req.user
     );
 
+    // Automated Reschedule Notification & Reminder Recalculation
+    try {
+      const patient = await Patient.findById(updatedAppointment.patientId);
+      const doctor = await Doctor.findById(updatedAppointment.doctorId).populate("userId", "name");
+      if (patient?.email) {
+        emailService.sendTemplateEmail({
+          to: patient.email,
+          templateId: "appointment_rescheduled",
+          data: {
+            patientName: patient.fullName || "Patient",
+            doctorName: doctor?.userId?.name || doctor?.fullName || "TriGyna Specialist",
+            date: appointmentDate,
+            time: startTime,
+            appointmentCode: updatedAppointment.appointmentCode,
+          },
+          patientId: patient._id,
+        }).catch((err) => console.warn("[Appointment] Reschedule email warning:", err.message));
+
+        await emailScheduler.rescheduleAppointmentReminders(updatedAppointment, patient.email);
+      }
+    } catch (e) {
+      console.warn("[Appointment] Reschedule notification error:", e.message);
+    }
+
     return sendSuccess(res, { appointment: updatedAppointment }, "Appointment rescheduled successfully");
   } catch (err) {
     return next(err);
@@ -288,6 +414,28 @@ async function cancelAppointment(req, res, next) {
     }
 
     const cancelledAppointment = await cancelAppointmentAtomic(req.params.id, reason, req.user);
+
+    // Automated Cancellation Notification & Reminder Cancellation
+    try {
+      const patient = await Patient.findById(cancelledAppointment.patientId);
+      const doctor = await Doctor.findById(cancelledAppointment.doctorId).populate("userId", "name");
+      if (patient?.email) {
+        emailService.sendTemplateEmail({
+          to: patient.email,
+          templateId: "appointment_cancelled",
+          data: {
+            patientName: patient.fullName || "Patient",
+            doctorName: doctor?.userId?.name || doctor?.fullName || "TriGyna Specialist",
+            date: cancelledAppointment.appointmentDate,
+            reason,
+          },
+          patientId: patient._id,
+        }).catch((err) => console.warn("[Appointment] Cancel email warning:", err.message));
+      }
+      await emailScheduler.cancelAppointmentReminders(cancelledAppointment._id, reason);
+    } catch (e) {
+      console.warn("[Appointment] Cancel notification error:", e.message);
+    }
 
     return sendSuccess(res, { appointment: cancelledAppointment }, "Appointment cancelled successfully");
   } catch (err) {
@@ -856,6 +1004,28 @@ async function completeAppointment(req, res, next) {
       console.warn("[Appointment] Credit consumption note:", creditErr.message);
     }
 
+    // Automated completion follow-up scheduling & email
+    try {
+      const patient = await Patient.findById(appointment.patientId);
+      const doctor = await Doctor.findById(appointment.doctorId).populate("userId", "name");
+      if (patient?.email) {
+        emailService.sendTemplateEmail({
+          to: patient.email,
+          templateId: "appointment_completed",
+          data: {
+            patientName: patient.fullName || "Patient",
+            doctorName: doctor?.userId?.name || doctor?.fullName || "TriGyna Specialist",
+            date: appointment.appointmentDate,
+          },
+          patientId: patient._id,
+        }).catch((err) => console.warn("[Appointment] Complete email warning:", err.message));
+
+        await emailScheduler.scheduleAppointmentFollowUps(appointment, patient.email);
+      }
+    } catch (completeErr) {
+      console.warn("[Appointment] Completion notification notice:", completeErr.message);
+    }
+
     await recordAudit({
       actorId: req.user._id,
       actorRole: req.user.role,
@@ -882,6 +1052,27 @@ async function markNoShow(req, res, next) {
 
     appointment.status = "no_show";
     await appointment.save();
+
+    // Automated Missed Appointment Email
+    try {
+      const patient = await Patient.findById(appointment.patientId);
+      const doctor = await Doctor.findById(appointment.doctorId).populate("userId", "name");
+      if (patient?.email) {
+        emailService.sendTemplateEmail({
+          to: patient.email,
+          templateId: "missed_appointment",
+          data: {
+            patientName: patient.fullName || "Patient",
+            doctorName: doctor?.userId?.name || doctor?.fullName || "TriGyna Specialist",
+            date: appointment.appointmentDate,
+            time: appointment.startTime,
+          },
+          patientId: patient._id,
+        }).catch((err) => console.warn("[Appointment] Missed email warning:", err.message));
+      }
+    } catch (noShowErr) {
+      console.warn("[Appointment] No-show email warning:", noShowErr.message);
+    }
 
     await recordAudit({
       actorId: req.user._id,
