@@ -833,20 +833,6 @@ async function getPatientPayments(req, res, next) {
     return next(err);
   }
 }
-  try {
-    if (req.user.role === "doctor") {
-      return next(new ForbiddenError("Doctors are not authorized to view payment ledgers"));
-    }
-
-    const patient = await Patient.findById(req.params.id);
-    if (!patient) return next(new NotFoundError("Patient not found"));
-
-    const payments = await Payment.find({ patientId: patient._id }).sort({ createdAt: -1 });
-    return sendSuccess(res, { payments }, "Patient payments retrieved");
-  } catch (err) {
-    return next(err);
-  }
-}
 
 /**
  * 16. Pre-Registration Duplicate Check
