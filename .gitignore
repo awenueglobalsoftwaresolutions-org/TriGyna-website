@@ -73,6 +73,8 @@ trigyna-private-tests/
 apps/api/private-tests/
 apps/api/src/tests/
 apps/**/src/tests/
+!apps/api/src/tests/testSecurityHardeningMaster.js
+!apps/api/src/tests/testResendUnitSuite.js
 **/tests/
 **/*.test.js
 **/*.test.ts
@@ -102,6 +104,7 @@ doctor_followups_verified*.png
 apps/api/src/scripts/
 apps/**/src/scripts/
 scripts/
+!apps/api/src/scripts/comprehensive-security-scanner.js
 
 # ---------------------------------------------
 # Logs & Debugging
