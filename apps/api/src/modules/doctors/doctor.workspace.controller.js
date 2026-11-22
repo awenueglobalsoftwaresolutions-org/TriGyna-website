@@ -52,17 +52,11 @@ async function resolveDoctorContext(req) {
     return doctor;
   }
 
-  // Owner or Admin accessing doctor workspace for administration/testing
+  // Owner or Admin accessing doctor workspace for administration
   if (req.user.role === "owner" || req.user.role === "admin") {
     // Check if query specifies a doctorId
     if (req.query.doctorId) {
       const doc = await Doctor.findById(req.query.doctorId).populate("userId", "name email phone role");
-      if (doc) return doc;
-    }
-    // Prefer Dr. Ananya Sharma
-    const ananyaUser = await User.findOne({ email: "ananya.sharma@trigyna.test" });
-    if (ananyaUser) {
-      const doc = await Doctor.findOne({ userId: ananyaUser._id }).populate("userId", "name email phone role");
       if (doc) return doc;
     }
     // Fallback to first active doctor
@@ -3431,9 +3425,9 @@ async function markAllDoctorNotificationsRead(req, res, next) {
 async function getDoctorProfile(req, res, next) {
   try {
     const doctor = await resolveDoctorContext(req);
-    const fullName = doctor.userId?.name || doctor.userId?.fullName || "Dr. Ananya Sharma";
-    const email = doctor.userId?.email || req.user?.email || "ananya.sharma@trigyna.test";
-    const phone = doctor.userId?.phone || "+91 98765 43210";
+    const fullName = doctor.userId?.name || doctor.userId?.fullName || doctor.name || "Doctor";
+    const email = doctor.userId?.email || req.user?.email || "";
+    const phone = doctor.userId?.phone || req.user?.phone || "";
     const role = doctor.userId?.role || req.user?.role || "doctor";
 
     return sendSuccess(

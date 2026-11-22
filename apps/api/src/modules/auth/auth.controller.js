@@ -28,22 +28,38 @@ async function login(req, res, next) {
       return next(new ValidationError("Both identifier (email or phone) and password are required"));
     }
 
-    const cleanIdentifier = identifier.trim().toLowerCase();
+    const rawIdentifier = identifier.trim();
+    const cleanEmail = rawIdentifier.toLowerCase();
+    const cleanDigits = rawIdentifier.replace(/\D/g, "");
+
+    const queryOr = [
+      { email: cleanEmail },
+      { phone: rawIdentifier },
+    ];
+
+    if (cleanDigits.length >= 10) {
+      const last10 = cleanDigits.slice(-10);
+      queryOr.push({ phone: cleanDigits });
+      queryOr.push({ phone: `+91${last10}` });
+      queryOr.push({ phone: `+91 ${last10}` });
+      queryOr.push({ phone: last10 });
+      queryOr.push({ phone: new RegExp(`${last10}$`) });
+    }
 
     // Query user by email or phone, including passwordHash
     const user = await User.findOne({
-      $or: [{ email: cleanIdentifier }, { phone: identifier.trim() }],
+      $or: queryOr,
     }).select("+passwordHash");
 
     if (!user) {
       await recordAudit({
         action: "AUTH_LOGIN_FAILED",
         targetEntity: "User",
-        details: { identifier: cleanIdentifier, reason: "User not found" },
+        details: { identifier: rawIdentifier, reason: "User not found" },
         status: "FAILURE",
         ipAddress: req.ip,
       });
-      return next(new UnauthorizedError("Invalid credentials"));
+      return next(new UnauthorizedError("Invalid email/phone or password."));
     }
 
     if (user.status !== "active") {
@@ -83,7 +99,7 @@ async function login(req, res, next) {
         status: "FAILURE",
         ipAddress: req.ip,
       });
-      return next(new UnauthorizedError("Invalid credentials"));
+      return next(new UnauthorizedError("Invalid email/phone or password."));
     }
 
     // Reset failed attempts & update lastLogin
@@ -93,6 +109,15 @@ async function login(req, res, next) {
     await user.save();
 
     const token = generateToken(user);
+
+    // Set secure HttpOnly cookie matching session duration
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: env.NODE_ENV === "production" ? "strict" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/",
+    });
 
     await recordAudit({
       actorId: user._id,
@@ -130,7 +155,19 @@ async function login(req, res, next) {
 
 async function logout(req, res, next) {
   try {
+    // Clear HttpOnly authentication cookie
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: env.NODE_ENV === "production" ? "strict" : "lax",
+      path: "/",
+    });
+
     if (req.user) {
+      // Invalidate existing sessions server-side by advancing authVersion
+      req.user.authVersion = (req.user.authVersion || 1) + 1;
+      await req.user.save();
+
       await recordAudit({
         actorId: req.user._id,
         actorRole: req.user.role,

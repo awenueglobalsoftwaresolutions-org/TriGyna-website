@@ -544,10 +544,10 @@ export function PatientShell({ children }: { children: React.ReactNode }) {
               {profileDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-[#E4EEE7] py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                   <div className="px-4 py-2.5 border-b border-[#F0F5F2]">
-                    <p className="text-xs font-bold text-[#14251F]">{patientData.fullName || "Ananya Mishra"}</p>
-                    <p className="text-[11px] text-[#68766F] truncate">{user?.email || "patient@trigyna.test"}</p>
+                    <p className="text-xs font-bold text-[#14251F]">{patientData.fullName || user?.name || "Patient"}</p>
+                    <p className="text-[11px] text-[#68766F] truncate">{user?.email || user?.phone || ""}</p>
                     <p className="text-[10px] text-[#075B35] font-semibold mt-0.5">
-                      Case ID: {patientData.patientCode || "TR-1001"}
+                      Case ID: {patientData.patientCode || ""}
                     </p>
                   </div>
 

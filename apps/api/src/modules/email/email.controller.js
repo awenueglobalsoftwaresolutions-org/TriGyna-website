@@ -428,14 +428,31 @@ async function forgotPassword(req, res, next) {
       return next(new ValidationError("Registered email or phone number is required"));
     }
 
-    const clean = identifier.trim().toLowerCase();
+    const rawIdentifier = identifier.trim();
+    const cleanEmail = rawIdentifier.toLowerCase();
+    const cleanDigits = rawIdentifier.replace(/\D/g, "");
+
+    const queryOr = [
+      { email: cleanEmail },
+      { phone: rawIdentifier },
+    ];
+
+    if (cleanDigits.length >= 10) {
+      const last10 = cleanDigits.slice(-10);
+      queryOr.push({ phone: cleanDigits });
+      queryOr.push({ phone: `+91${last10}` });
+      queryOr.push({ phone: `+91 ${last10}` });
+      queryOr.push({ phone: last10 });
+      queryOr.push({ phone: new RegExp(`${last10}$`) });
+    }
+
     const user = await User.findOne({
-      $or: [{ email: clean }, { phone: identifier.trim() }],
+      $or: queryOr,
     }).select("+passwordResetTokenHash +passwordResetExpires");
 
     // Prevent user enumeration: always return 200 OK with success message even if not found
     if (!user || !user.email) {
-      return sendSuccess(res, { sent: true }, "If an account matches that email, a password reset link has been dispatched.");
+      return sendSuccess(res, { sent: true }, "If an account matches that email or phone, a password reset link has been dispatched.");
     }
 
     const rawToken = crypto.randomBytes(32).toString("hex");

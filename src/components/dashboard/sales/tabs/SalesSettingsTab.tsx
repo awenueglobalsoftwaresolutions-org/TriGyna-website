@@ -17,9 +17,9 @@ import { api } from "@/lib/api/client";
 
 export const SalesSettingsTab: React.FC = () => {
   const [profile, setProfile] = useState({
-    name: "Sushil Kumar",
-    email: "sales@trigyna.test",
-    phone: "+91 9000000008",
+    name: "",
+    email: "",
+    phone: "",
     role: "sales",
   });
 
@@ -51,9 +51,9 @@ export const SalesSettingsTab: React.FC = () => {
         if (res.data?.user) {
           const u = res.data.user;
           setProfile({
-            name: u.name || "Sushil Kumar",
-            email: u.email || "sales@trigyna.test",
-            phone: u.phone || "+91 9000000008",
+            name: u.name || "",
+            email: u.email || "",
+            phone: u.phone || "",
             role: u.role || "sales",
           });
           if (u.preferences) {

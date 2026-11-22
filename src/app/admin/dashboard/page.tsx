@@ -1161,7 +1161,7 @@ export default function AdminDashboardPage() {
                       required
                       value={tempPassword}
                       onChange={(e) => setTempPassword(e.target.value)}
-                      placeholder="e.g. TriGyna@2026"
+                      placeholder="Enter temporary password (min 8 characters)"
                       className="w-full px-3.5 py-2 border border-[#E5EAF0] rounded-xl font-mono focus:ring-2 focus:ring-[#087A50] focus:outline-none"
                     />
                   </div>

@@ -1,15 +1,30 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Lock, Phone, Mail, Eye, EyeOff, AlertCircle, Loader2, ArrowRight, ShieldCheck, Send, CheckCircle2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Lock,
+  Phone,
+  Mail,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  Loader2,
+  ArrowRight,
+  ShieldCheck,
+  Send,
+  CheckCircle2,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth/authContext";
 import { api } from "@/lib/api/client";
+import { getCanonicalDashboardForRole } from "@/components/dashboard/RoleGuard";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get("redirect");
   const { login } = useAuth();
 
   const [identifier, setIdentifier] = useState("");
@@ -38,7 +53,7 @@ export default function LoginPage() {
         setForgotSuccess(true);
       }
     } catch (err: unknown) {
-      setForgotError(err instanceof Error ? err.message : "Failed to request password reset link");
+      setForgotError(err instanceof Error ? err.message : "Failed to request password reset link.");
     } finally {
       setForgotLoading(false);
     }
@@ -46,7 +61,10 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identifier.trim() || !password) {
+    if (isLoading) return;
+
+    const cleanIdentifier = identifier.trim();
+    if (!cleanIdentifier || !password) {
       setError("Please enter your registered phone or email, and password.");
       return;
     }
@@ -55,60 +73,30 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await login(identifier.trim(), password);
+      const res = await login(cleanIdentifier, password);
       const role = res.user.role;
 
-      // Canonical redirection to role dashboards
-      if (role === "owner" || role === "super_admin" || role === "admin" || role === "hrms" || role === "hr") {
-        router.push("/admin/dashboard");
-      } else if (role === "doctor") {
-        router.push("/doctor/dashboard");
-      } else if (role === "sales" || role === "crm" || role === "reception") {
-        router.push("/sales/dashboard");
-      } else if (role === "patient") {
-        router.push("/patient/dashboard");
+      // Safe redirect validation: must be a local relative path starting with "/" and not "//"
+      if (
+        redirectParam &&
+        redirectParam.startsWith("/") &&
+        !redirectParam.startsWith("//") &&
+        !redirectParam.startsWith("/login")
+      ) {
+        router.push(redirectParam);
       } else {
-        router.push("/admin/dashboard");
+        const canonicalDashboard = getCanonicalDashboardForRole(role);
+        router.push(canonicalDashboard);
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Authentication failed. Please check your credentials.";
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Invalid email/phone or password. Please verify your credentials.";
       setError(message);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleQuickLogin = async (id: string, pass: string) => {
-    setIdentifier(id);
-    setPassword(pass);
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      const res = await login(id, pass);
-      const role = res.user.role;
-
-      if (role === "patient") {
-        router.push("/patient/dashboard");
-      } else if (role === "doctor") {
-        router.push("/doctor/dashboard");
-      } else if (role === "sales" || role === "crm" || role === "reception") {
-        router.push("/sales/dashboard");
-      } else {
-        router.push("/admin/dashboard");
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Authentication failed. Please check your credentials.";
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fillQuickCredentials = (id: string, pass: string) => {
-    setIdentifier(id);
-    setPassword(pass);
-    setError(null);
   };
 
   return (
@@ -135,35 +123,6 @@ export default function LoginPage() {
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md w-full">
         <div className="bg-white py-8 px-6 sm:px-10 shadow-xl shadow-[#154734]/5 border border-[#E8E2D6] rounded-3xl">
-          {/* 1-Click Patient Quick Access Banner */}
-          <div className="mb-6 p-3.5 bg-gradient-to-r from-[#EDF8F1] via-[#F4FAF6] to-[#FFF8EC] border-2 border-[#075B35]/30 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#075B35] animate-pulse"></span>
-                <p className="text-[11px] font-bold text-[#075B35] uppercase tracking-wider">Patient Portal Demo</p>
-              </div>
-              <p className="text-xs text-[#14251F] font-bold truncate mt-0.5">Ananya Mishra (Case: TR-1001)</p>
-              <p className="text-[10px] text-[#68766F] font-mono">patient@trigyna.test</p>
-            </div>
-            <button
-              type="button"
-              id="quick-patient-login-btn"
-              data-testid="quick-login-patient"
-              onClick={() => handleQuickLogin("patient@trigyna.test", "TriGyna@123")}
-              disabled={isLoading}
-              className="px-3.5 py-2 bg-[#075B35] hover:bg-[#064A2D] text-white text-xs font-bold rounded-xl shadow-xs hover:shadow-md transition-all shrink-0 flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
-            >
-              {isLoading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <>
-                  <span>1-Click Login</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </>
-              )}
-            </button>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-2.5 text-xs text-red-700 animate-fade-in">
@@ -173,7 +132,10 @@ export default function LoginPage() {
             )}
 
             <div>
-              <label htmlFor="identifier" className="block text-xs font-semibold text-[#17221D] mb-1.5 uppercase tracking-wider">
+              <label
+                htmlFor="identifier"
+                className="block text-xs font-semibold text-[#17221D] mb-1.5 uppercase tracking-wider"
+              >
                 Phone Number or Email
               </label>
               <div className="relative rounded-xl">
@@ -187,22 +149,26 @@ export default function LoginPage() {
                 <input
                   id="identifier"
                   name="identifier"
-                  autoComplete="username email"
+                  autoComplete="username"
                   data-testid="login-identifier"
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="e.g. patient@trigyna.test or +91 9172772326"
+                  placeholder="e.g. name@example.com or +91 9876543210"
                   required
                   autoFocus
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E8E2D6] bg-white text-sm text-[#17221D] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#154734]"
+                  disabled={isLoading}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#E8E2D6] bg-white text-sm text-[#17221D] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#154734] disabled:opacity-60"
                 />
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="password" className="block text-xs font-semibold text-[#17221D] uppercase tracking-wider">
+                <label
+                  htmlFor="password"
+                  className="block text-xs font-semibold text-[#17221D] uppercase tracking-wider"
+                >
                   Password
                 </label>
                 <button
@@ -211,6 +177,7 @@ export default function LoginPage() {
                     setShowForgotModal(true);
                     setForgotSuccess(false);
                     setForgotError(null);
+                    setForgotIdentifier(identifier.trim());
                   }}
                   className="text-[11px] font-semibold text-[#154734] hover:underline cursor-pointer"
                 >
@@ -231,7 +198,8 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
                   required
-                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[#E8E2D6] bg-white text-sm text-[#17221D] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#154734]"
+                  disabled={isLoading}
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[#E8E2D6] bg-white text-sm text-[#17221D] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#154734] disabled:opacity-60"
                 />
                 <button
                   type="button"
@@ -264,80 +232,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick Development Test Accounts (Strictly disabled in production) */}
-          {process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_ENABLE_TEST_LOGIN === "true" && (
-            <div className="mt-6 pt-5 border-t border-[#E8E2D6]/80">
-              <div className="flex items-center justify-between mb-2.5">
-                <p className="text-[11px] font-semibold text-[#626B63] uppercase tracking-wider">
-                  All Roles Quick Sign-In
-                </p>
-                <span className="text-[10px] text-[#8C928D] font-mono">1-Click</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {[
-                  { role: "1. Admin (Owner)", name: "Sushil Kumar", id: "admin@trigyna.test", pass: "TriGyna@123", color: "hover:border-emerald-600 hover:bg-emerald-50/50 border-emerald-300 bg-emerald-50/20" },
-                  { role: "2. Doctor", name: "Dr. Ananya Sharma", id: "ananya.sharma@trigyna.test", pass: "TriGyna@123", color: "hover:border-blue-600 hover:bg-blue-50/50 border-blue-200 bg-blue-50/20" },
-                  { role: "3. Sales Team (CRM)", name: "Priya Verma", id: "sales@trigyna.test", pass: "TriGyna@123", color: "hover:border-amber-600 hover:bg-amber-50/50 border-amber-300 bg-amber-50/20" },
-                  { role: "4. Patient Portal", name: "Ananya Mishra", id: "patient@trigyna.test", pass: "TriGyna@123", color: "hover:border-rose-500 hover:bg-rose-50/50 border-rose-200 bg-rose-50/20" },
-                ].map((acc) => (
-                  <div
-                    key={acc.id}
-                    className={`p-2.5 bg-[#F9F7F1] border border-[#E8E2D6] rounded-xl text-left transition-all flex flex-col justify-between ${acc.color}`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-[#154734] text-[11px]">{acc.role}</span>
-                        <button
-                          type="button"
-                          onClick={() => fillQuickCredentials(acc.id, acc.pass)}
-                          className="text-[9px] text-[#556960] hover:text-[#154734] bg-white px-1.5 py-0.5 rounded border border-[#E8E2D6] cursor-pointer"
-                          title="Fill inputs only"
-                        >
-                          Fill
-                        </button>
-                      </div>
-                      <p className="text-[11px] text-[#17221D] font-medium truncate mt-0.5">{acc.name}</p>
-                      <p className="text-[9px] text-[#626B63] truncate font-mono">{acc.id}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleQuickLogin(acc.id, acc.pass)}
-                      disabled={isLoading}
-                      className="mt-2 w-full py-1 px-2 bg-white hover:bg-[#154734] text-[#154734] hover:text-white border border-[#154734]/30 rounded-lg text-[10px] font-bold transition-all text-center cursor-pointer shadow-2xs"
-                    >
-                      Login as {acc.role}
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-2.5 p-2.5 bg-emerald-50/50 border border-emerald-200/60 rounded-xl flex items-center justify-between text-xs">
-                <div>
-                  <p className="font-semibold text-emerald-900 text-[11px]">Owner / SuperAdmin</p>
-                  <p className="text-[10px] text-emerald-700 font-mono">+91 9172772326</p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => fillQuickCredentials("+919172772326", "TriGyna@2326")}
-                    className="px-2 py-1 bg-white border border-emerald-300 text-emerald-800 rounded-lg text-[10px] font-semibold hover:bg-emerald-100/50 cursor-pointer transition-colors"
-                  >
-                    Fill
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleQuickLogin("+919172772326", "TriGyna@2326")}
-                    disabled={isLoading}
-                    className="px-2.5 py-1 bg-emerald-800 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-900 cursor-pointer transition-colors shadow-2xs"
-                  >
-                    Instant Login
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="mt-6 pt-4 border-t border-[#E8E2D6]/60 flex items-center justify-between text-xs">
             <Link
@@ -378,7 +272,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowForgotModal(false)}
-                  className="mt-2 text-xs font-bold text-[#154734] underline"
+                  className="mt-2 text-xs font-bold text-[#154734] underline cursor-pointer"
                 >
                   Close
                 </button>
@@ -402,6 +296,7 @@ export default function LoginPage() {
                     onChange={(e) => setForgotIdentifier(e.target.value)}
                     placeholder="name@example.com or phone"
                     required
+                    disabled={forgotLoading}
                     className="w-full px-3 py-2 bg-[#F8FAF9] border border-[#E2E9E3] rounded-xl text-xs text-[#14251F] focus:outline-none focus:ring-2 focus:ring-[#154734]/20 focus:border-[#154734]"
                   />
                 </div>
@@ -410,16 +305,20 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowForgotModal(false)}
-                    className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800"
+                    className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-800 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={forgotLoading}
-                    className="px-4 py-1.5 bg-[#154734] hover:bg-[#0d3224] text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-4 py-1.5 bg-[#154734] hover:bg-[#0d3224] text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                   >
-                    {forgotLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                    {forgotLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
                     <span>Send Reset Link</span>
                   </button>
                 </div>
@@ -429,5 +328,19 @@ export default function LoginPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#F9F7F1] flex items-center justify-center p-4">
+          <Loader2 className="w-8 h-8 text-[#154734] animate-spin" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

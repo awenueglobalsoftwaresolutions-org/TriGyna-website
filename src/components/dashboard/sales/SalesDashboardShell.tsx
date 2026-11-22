@@ -251,7 +251,7 @@ export function SalesDashboardShell({
                 <div className="absolute bottom-12 left-0 right-0 bg-white text-[#172033] rounded-2xl shadow-xl border border-[#E5EBE8] p-2 z-50 text-xs animate-fade-in space-y-1">
                   <div className="p-2 border-b border-gray-100">
                     <p className="font-bold text-[#172033]">{displayName}</p>
-                    <p className="text-[10px] text-[#718096] truncate">{user?.email || "sales@trigyna.test"}</p>
+                    <p className="text-[10px] text-[#718096] truncate">{user?.email || user?.phone || ""}</p>
                   </div>
                   <button
                     type="button"

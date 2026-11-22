@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const userSchema = new mongoose.Schema(
   {
@@ -133,14 +134,41 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Method to verify password
+// Method to verify password with legacy upgrade support and constant-time safety
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.passwordHash);
+  if (!this.passwordHash || typeof candidatePassword !== "string") {
+    return false;
+  }
+
+  // 1. Standard bcrypt hash check
+  if (
+    this.passwordHash.startsWith("$2a$") ||
+    this.passwordHash.startsWith("$2b$") ||
+    this.passwordHash.startsWith("$2y$")
+  ) {
+    return bcrypt.compare(candidatePassword, this.passwordHash);
+  }
+
+  // 2. Legacy plaintext upgrade check (using constant-time comparison to prevent timing attacks)
+  const candidateBuf = Buffer.from(candidatePassword, "utf8");
+  const hashBuf = Buffer.from(this.passwordHash, "utf8");
+  if (
+    candidateBuf.length === hashBuf.length &&
+    crypto.timingSafeEqual(candidateBuf, hashBuf)
+  ) {
+    // Automatically upgrade legacy plaintext password to secure bcrypt hash
+    const salt = await bcrypt.genSalt(12);
+    this.passwordHash = await bcrypt.hash(candidatePassword, salt);
+    await this.save();
+    return true;
+  }
+
+  return false;
 };
 
 // Static method to hash password
 userSchema.statics.hashPassword = async function (plainPassword) {
-  const salt = await bcrypt.genSalt(10);
+  const salt = await bcrypt.genSalt(12);
   return bcrypt.hash(plainPassword, salt);
 };
 

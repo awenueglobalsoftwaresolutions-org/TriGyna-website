@@ -4,7 +4,17 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useRouter } from "next/navigation";
 import { api, setToken, removeToken, getToken } from "@/lib/api/client";
 
-export type UserRole = "owner" | "super_admin" | "admin" | "doctor" | "reception" | "patient" | "crm" | "sales" | "hrms" | "hr";
+export type UserRole =
+  | "owner"
+  | "super_admin"
+  | "admin"
+  | "doctor"
+  | "reception"
+  | "patient"
+  | "crm"
+  | "sales"
+  | "hrms"
+  | "hr";
 
 export interface AuthUser {
   _id: string;
@@ -13,8 +23,9 @@ export interface AuthUser {
   email?: string;
   phone: string;
   role: UserRole;
-  status: "active" | "inactive" | "suspended";
+  status: "active" | "inactive" | "suspended" | "invited";
   isEmailVerified?: boolean;
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextType {
@@ -23,7 +34,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (identifier: string, password: string) => Promise<{ success: boolean; user: AuthUser }>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   isOwner: boolean;
   isAdmin: boolean;
@@ -39,6 +50,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+
   const [user, setUser] = useState<AuthUser | null>(() => {
     if (typeof window === "undefined") return null;
     try {
@@ -54,12 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return localStorage.getItem("trigyna_token");
   });
 
+  // Always initiate loading state as true if a token exists, so session is verified server-side before unlocking UI
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
     try {
       const storedToken = localStorage.getItem("trigyna_token");
-      const storedUser = localStorage.getItem("trigyna_user");
-      return !(storedToken && storedUser);
+      return !!storedToken;
     } catch {
       return true;
     }
@@ -83,7 +95,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (err: unknown) {
-      if ((err as { status?: number })?.status === 401) {
+      if ((err as { status?: number })?.status === 401 || (err as { status?: number })?.status === 403) {
         removeToken();
         setUser(null);
         setTokenState(null);
@@ -98,7 +110,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const init = async () => {
       const storedToken = getToken();
       if (!storedToken) {
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setUser(null);
+          setTokenState(null);
+          setIsLoading(false);
+        }
         return;
       }
       try {
@@ -110,7 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (err: unknown) {
-        if (mounted && (err as { status?: number })?.status === 401) {
+        if (mounted) {
           removeToken();
           setUser(null);
           setTokenState(null);
@@ -129,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const res = await api.post<{ token: string; user: AuthUser }>("/auth/login", {
-        identifier,
+        identifier: identifier.trim(),
         password,
       });
 
@@ -140,19 +156,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setTokenState(receivedToken);
       setUser(receivedUser);
-      setIsLoading(false);
       return { success: true, user: receivedUser };
-    } catch (err) {
+    } finally {
       setIsLoading(false);
-      throw err;
     }
   };
 
-  const logout = () => {
-    removeToken();
-    setUser(null);
-    setTokenState(null);
-    router.push("/login");
+  const logout = async () => {
+    try {
+      await api.post("/auth/logout").catch(() => {});
+    } finally {
+      removeToken();
+      setUser(null);
+      setTokenState(null);
+      router.push("/login");
+    }
   };
 
   const isOwner = user?.role === "owner" || user?.role === "super_admin";

@@ -69,6 +69,7 @@ const authLimiter = rateLimit({
   max: redisConfig.RATE_LIMIT_AUTH_MAX,
   passOnStoreError: true,
   store: createStore("auth"),
+  skip: (req) => process.env.NODE_ENV === "test",
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {

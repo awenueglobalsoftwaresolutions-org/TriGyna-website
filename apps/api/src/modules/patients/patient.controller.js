@@ -586,6 +586,11 @@ async function getPatientAppointments(req, res, next) {
     const patient = await Patient.findById(req.params.id);
     if (!patient) return next(new NotFoundError("Patient not found"));
 
+    const allowed = await canAccessPatient(req.user, patient);
+    if (!allowed) {
+      return next(new ForbiddenError("You are not authorized to access this patient record"));
+    }
+
     const appointments = await Appointment.find({ patientId: patient._id })
       .populate("doctorId", "userId specialization")
       .sort({ appointmentDate: -1, startTime: -1 });
@@ -608,6 +613,11 @@ async function getPatientConsultations(req, res, next) {
 
     const patient = await Patient.findById(req.params.id);
     if (!patient) return next(new NotFoundError("Patient not found"));
+
+    const allowed = await canAccessPatient(req.user, patient);
+    if (!allowed) {
+      return next(new ForbiddenError("You are not authorized to access this patient record"));
+    }
 
     const consultations = await Consultation.find({ patientId: patient._id })
       .populate("doctorId", "userId specialization")
@@ -633,6 +643,11 @@ async function getPatientPrescriptions(req, res, next) {
     const patient = await Patient.findById(req.params.id);
     if (!patient) return next(new NotFoundError("Patient not found"));
 
+    const allowed = await canAccessPatient(req.user, patient);
+    if (!allowed) {
+      return next(new ForbiddenError("You are not authorized to access this patient record"));
+    }
+
     const prescriptions = await Prescription.find({ patientId: patient._id })
       .populate("doctorId", "userId specialization")
       .populate("consultationId", "consultationCode diagnosis")
@@ -657,6 +672,11 @@ async function getPatientTreatmentPlans(req, res, next) {
     const patient = await Patient.findById(req.params.id);
     if (!patient) return next(new NotFoundError("Patient not found"));
 
+    const allowed = await canAccessPatient(req.user, patient);
+    if (!allowed) {
+      return next(new ForbiddenError("You are not authorized to access this patient record"));
+    }
+
     const plans = await TreatmentPlan.find({ patientId: patient._id })
       .populate("doctorId", "userId specialization")
       .sort({ createdAt: -1 });
@@ -675,6 +695,11 @@ async function getPatientFollowUps(req, res, next) {
   try {
     const patient = await Patient.findById(req.params.id);
     if (!patient) return next(new NotFoundError("Patient not found"));
+
+    const allowed = await canAccessPatient(req.user, patient);
+    if (!allowed) {
+      return next(new ForbiddenError("You are not authorized to access this patient record"));
+    }
 
     const followups = await FollowUp.find({ patientId: patient._id })
       .populate("doctorId", "userId specialization")
@@ -695,6 +720,11 @@ async function getPatientDocuments(req, res, next) {
     const patient = await Patient.findById(req.params.id);
     if (!patient) return next(new NotFoundError("Patient not found"));
 
+    const allowed = await canAccessPatient(req.user, patient);
+    if (!allowed) {
+      return next(new ForbiddenError("You are not authorized to access this patient record"));
+    }
+
     const documents = await PatientDocument.find({ patientId: patient._id }).sort({ createdAt: -1 });
     return sendSuccess(res, { documents }, "Patient documents retrieved");
   } catch (err) {
@@ -710,6 +740,11 @@ async function uploadPatientDocument(req, res, next) {
   try {
     const patient = await Patient.findById(req.params.id);
     if (!patient) return next(new NotFoundError("Patient not found"));
+
+    const allowed = await canAccessPatient(req.user, patient);
+    if (!allowed) {
+      return next(new ForbiddenError("You are not authorized to access this patient record"));
+    }
 
     const { title, documentType, fileName, fileSize, mimeType, fileUrl, notes } = req.body;
     if (!title || !fileName || !fileUrl) {
@@ -761,6 +796,11 @@ async function getPatientInvoices(req, res, next) {
     const patient = await Patient.findById(req.params.id);
     if (!patient) return next(new NotFoundError("Patient not found"));
 
+    const allowed = await canAccessPatient(req.user, patient);
+    if (!allowed) {
+      return next(new ForbiddenError("You are not authorized to access this patient record"));
+    }
+
     const invoices = await Invoice.find({ patientId: patient._id }).sort({ createdAt: -1 });
     return sendSuccess(res, { invoices }, "Patient invoices retrieved");
   } catch (err) {
@@ -773,6 +813,25 @@ async function getPatientInvoices(req, res, next) {
  * GET /api/v1/patients/:id/payments
  */
 async function getPatientPayments(req, res, next) {
+  try {
+    if (req.user.role === "doctor") {
+      return next(new ForbiddenError("Doctors are not authorized to view payment ledgers"));
+    }
+
+    const patient = await Patient.findById(req.params.id);
+    if (!patient) return next(new NotFoundError("Patient not found"));
+
+    const allowed = await canAccessPatient(req.user, patient);
+    if (!allowed) {
+      return next(new ForbiddenError("You are not authorized to access this patient record"));
+    }
+
+    const payments = await Payment.find({ patientId: patient._id }).sort({ createdAt: -1 });
+    return sendSuccess(res, { payments }, "Patient payments retrieved");
+  } catch (err) {
+    return next(err);
+  }
+}
   try {
     if (req.user.role === "doctor") {
       return next(new ForbiddenError("Doctors are not authorized to view payment ledgers"));

@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const Employee = require("./employee.model");
 const Attendance = require("./attendance.model");
 const LeaveRequest = require("./leave.model");
@@ -81,7 +82,10 @@ async function createEmployee(req, res, next) {
         ],
       });
       if (!user) {
-        const passwordHash = await User.hashPassword(password || "TriGyna@123");
+        const securePassword = password && password.trim().length >= 8
+          ? password.trim()
+          : crypto.randomBytes(12).toString("base64");
+        const passwordHash = await User.hashPassword(securePassword);
         user = await User.create({
           name: name.trim(),
           phone: phone.trim(),
@@ -89,6 +93,7 @@ async function createEmployee(req, res, next) {
           passwordHash,
           role: role || (department === "Clinical" || department === "Medical" ? "doctor" : "admin"),
           status: "active",
+          mustChangePassword: true,
         });
       }
       targetUserId = user._id;

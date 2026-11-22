@@ -66,6 +66,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     const res = await fetch(url, {
       ...options,
       headers,
+      credentials: "include", // Transmit HttpOnly authentication cookies
     });
 
     const body: ApiResponse<T> = await res.json().catch(() => ({
@@ -75,6 +76,9 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     }));
 
     if (!res.ok) {
+      if (res.status === 401 && typeof window !== "undefined") {
+        removeToken();
+      }
       const errorMsg = body.error?.message || body.message || `Request failed with status ${res.status}`;
       throw new ApiError(errorMsg, res.status, body);
     }

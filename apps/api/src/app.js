@@ -55,9 +55,28 @@ const { requireRole } = require("./middleware/rbac");
 
 const app = express();
 
+// Configure trust proxy: trust first hop in production reverse proxy
+app.set("trust proxy", env.NODE_ENV === "production" ? 1 : false);
+
 // Security and utility middleware
 app.use(helmet());
 app.use(compression());
+
+// Standard cookie parsing middleware
+app.use((req, res, next) => {
+  req.cookies = req.cookies || {};
+  if (req.headers.cookie) {
+    req.headers.cookie.split(";").forEach((pair) => {
+      const parts = pair.split("=");
+      if (parts.length >= 2) {
+        const key = parts[0].trim();
+        const value = parts.slice(1).join("=").trim();
+        req.cookies[key] = decodeURIComponent(value);
+      }
+    });
+  }
+  next();
+});
 
 // Dynamic CORS configuration allowing frontend origin
 app.use(

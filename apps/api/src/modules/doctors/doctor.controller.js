@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const crypto = require("crypto");
 const Doctor = require("./doctor.model");
 const User = require("../users/user.model");
 const Employee = require("../hrms/employee.model");
@@ -661,7 +662,10 @@ async function createDoctorProfile(req, res, next) {
         ],
       });
       if (!user) {
-        const passwordHash = await User.hashPassword(password || "TriGyna@123");
+        const securePassword = password && password.trim().length >= 8
+          ? password.trim()
+          : crypto.randomBytes(12).toString("base64");
+        const passwordHash = await User.hashPassword(securePassword);
         user = await User.create({
           name: name.trim(),
           phone: phone.trim(),
@@ -669,6 +673,7 @@ async function createDoctorProfile(req, res, next) {
           passwordHash,
           role: "doctor",
           status: "active",
+          mustChangePassword: true,
         });
       } else {
         if (user.role !== "doctor" && user.role !== "owner") {

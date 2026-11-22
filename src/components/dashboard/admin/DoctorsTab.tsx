@@ -433,7 +433,7 @@ export function DoctorsTab({ showNotification }: { showNotification: (msg: strin
         name: addForm.name.trim(),
         phone: addForm.phone.trim(),
         email: addForm.email.trim() || undefined,
-        password: addForm.password || "TriGyna@123",
+        password: addForm.password ? addForm.password.trim() : undefined,
         specialization: [addForm.specialization.trim()],
         qualifications: addForm.qualifications.trim(),
         consultationFee: Number(addForm.consultationFee),
@@ -1880,7 +1880,7 @@ export function DoctorsTab({ showNotification }: { showNotification: (msg: strin
                     <label className="font-semibold text-slate-700 block mb-1">Initial Password (Optional)</label>
                     <input
                       type="password"
-                      placeholder="Default: TriGyna@123"
+                      placeholder="Leave blank to auto-generate or enter secure password (min 8 chars)"
                       value={addForm.password}
                       onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
                       className="w-full px-3.5 py-2 bg-[#F7F9FC] border border-[#E5EAF0] rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:border-[#087A50]"
