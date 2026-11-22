@@ -154,6 +154,8 @@ agents.md
 [Aa][Gg][Ee][Nn][Tt][Ss].md
 CLAUDE.md
 GEMINI.md
+.agents/
+.diagram-design
 .kombai/
 .gemini/
 .claude/
