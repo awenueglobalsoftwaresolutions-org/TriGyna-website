@@ -21,7 +21,7 @@
     "mongoose": "^8.9.5",
     "morgan": "^1.10.0",
     "nodemailer": "^10.6.1",
-    "pdfkit": "^0.20.2",
+    "pdfkit": "^0.21.0",
     "rate-limit-redis": "^4.3.1",
     "resend": "^6.39.0",
     "svix": "^2.11.0",
